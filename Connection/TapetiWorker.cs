@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 
 namespace Tapeti.Connection
@@ -14,6 +15,22 @@ namespace Tapeti.Connection
 
         private IConnection connection;
         private IModel channel;
+        private readonly Lazy<TaskQueue> taskQueue = new Lazy<TaskQueue>();
+
+
+        public Task Publish(object message)
+        {
+            return taskQueue.Value.Add(() =>
+            {
+                //GetChannel().BasicPublish();
+            });
+        }
+
+
+        public void ApplyTopology(IMessageHandlerRegistration registration)
+        {
+            registration.ApplyTopology(GetChannel());
+        }
 
 
         public Task Close()
@@ -24,6 +41,7 @@ namespace Tapeti.Connection
                 channel = null;
             }
 
+            // ReSharper disable once InvertIf
             if (connection != null)
             {
                 connection.Dispose();
@@ -34,7 +52,7 @@ namespace Tapeti.Connection
         }
 
 
-        public IModel GetChannel()
+        private IModel GetChannel()
         {
             if (channel != null)
                 return channel;
@@ -53,6 +71,12 @@ namespace Tapeti.Connection
             channel = connection.CreateModel();
 
             return channel;
+        }
+
+
+        private class ScheduledWorkItem
+        {
+            
         }
     }
 }

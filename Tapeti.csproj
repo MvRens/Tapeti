@@ -50,6 +50,7 @@
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
     <Compile Include="Connection\TapetiWorker.cs" />
+    <Compile Include="Connection\TaskQueue.cs" />
     <Compile Include="Default\DefaultControllerFactory.cs" />
     <Compile Include="Default\DefaultRoutingKeyStrategy.cs" />
     <Compile Include="IControllerFactory.cs" />
