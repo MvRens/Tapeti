@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Tapeti.Connection
 {
@@ -12,14 +13,13 @@ namespace Tapeti.Connection
             this.worker = worker;
 
             ApplyTopology(registrations);
-
         }
 
 
         private void ApplyTopology(IEnumerable<IMessageHandlerRegistration> registrations)
         {
             foreach (var registration in registrations)
-                registration.ApplyTopology(worker.GetChannel());
+                worker.ApplyTopology(registration);
         }
     }
 }
