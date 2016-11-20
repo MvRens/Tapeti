@@ -5,6 +5,10 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti", "Tapeti.csproj", "{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.SimpleInjector", "Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj", "{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{90559950-1B32-4119-A78E-517E2C71EE23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90559950-1B32-4119-A78E-517E2C71EE23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90559950-1B32-4119-A78E-517E2C71EE23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90559950-1B32-4119-A78E-517E2C71EE23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90559950-1B32-4119-A78E-517E2C71EE23}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

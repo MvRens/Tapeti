@@ -7,15 +7,15 @@ namespace Tapeti.Registration
     {
         private readonly string queueName;
 
-        public ControllerQueueRegistration(IControllerFactory controllerFactory, IRoutingKeyStrategy routingKeyStrategy, Type controllerType, string queueName) : base(controllerFactory, controllerType)
+        public ControllerQueueRegistration(Func<IControllerFactory> controllerFactoryFactory, Type controllerType, string defaultExchange, string queueName) : base(controllerFactoryFactory, controllerType, defaultExchange)
         {
             this.queueName = queueName;
         }
 
 
-        public override void ApplyTopology(IModel channel)
+        public override string BindQueue(IModel channel)
         {
-            channel.QueueDeclarePassive(queueName);
+            return channel.QueueDeclarePassive(queueName).QueueName;
         }
     }
 }

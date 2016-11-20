@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Tapeti.Connection
@@ -8,18 +9,15 @@ namespace Tapeti.Connection
         private readonly TapetiWorker worker;
 
 
-        public TapetiSubscriber(TapetiWorker worker, IEnumerable<IMessageHandlerRegistration> registrations)
+        public TapetiSubscriber(TapetiWorker worker)
         {
             this.worker = worker;
-
-            ApplyTopology(registrations);
         }
 
 
-        private void ApplyTopology(IEnumerable<IMessageHandlerRegistration> registrations)
+        public async Task BindQueues(IEnumerable<IQueueRegistration> registrations)
         {
-            foreach (var registration in registrations)
-                worker.ApplyTopology(registration);
+            await Task.WhenAll(registrations.Select(registration => worker.Subscribe(registration)).ToList());
         }
     }
 }
