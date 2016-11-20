@@ -17,31 +17,26 @@ namespace Tapeti
         public string VirtualHost { get; set; } = "/";
         public string Username { get; set; } = "guest";
         public string Password { get; set; } = "guest";
+        public string PublishExchange { get; set; } = "";
+        public string SubscribeExchange { get; set; } = "";
 
-        public IControllerFactory ControllerFactory
+
+        public IDependencyResolver DependencyResolver
         {
-            get { return controllerFactory ?? (controllerFactory = new DefaultControllerFactory()); }
-            set { controllerFactory = value; }
+            get { return dependencyResolver ?? (dependencyResolver = new DefaultDependencyResolver(GetPublisher)); }
+            set { dependencyResolver = value; }
         }
 
 
-        public IRoutingKeyStrategy RoutingKeyStrategy
-        {
-            get { return routingKeyStrategy ?? (routingKeyStrategy = new DefaultRoutingKeyStrategy()); }
-            set { routingKeyStrategy = value; }
-        }
-
-
-        private IControllerFactory controllerFactory;
-        private IRoutingKeyStrategy routingKeyStrategy;
-        private List<IMessageHandlerRegistration> registrations;
+        private IDependencyResolver dependencyResolver;
+        private List<IQueueRegistration> registrations;
         private TapetiWorker worker;
         
 
 
-        public TapetiConnection WithControllerFactory(IControllerFactory factory)
+        public TapetiConnection WithDependencyResolver(IDependencyResolver resolver)
         {
-            controllerFactory = factory;
+            dependencyResolver = resolver;
             return this;
         }
 
@@ -57,16 +52,22 @@ namespace Tapeti
                 if (!string.IsNullOrEmpty(queueAttribute.Name))
                     throw new ArgumentException("Dynamic queue attributes must not have a Name");
 
-                GetRegistrations().Add(new ControllerDynamicQueueRegistration(controllerFactory, routingKeyStrategy, type));
+                GetRegistrations().Add(new ControllerDynamicQueueRegistration(
+                    DependencyResolver.Resolve<IControllerFactory>, 
+                    DependencyResolver.Resolve<IRoutingKeyStrategy>,
+                    type, SubscribeExchange));
             }
             else
             {
                 if (string.IsNullOrEmpty(queueAttribute.Name))
                     throw new ArgumentException("Non-dynamic queue attribute must have a Name");
 
-                GetRegistrations().Add(new ControllerQueueRegistration(controllerFactory, routingKeyStrategy, type, queueAttribute.Name));
+                GetRegistrations().Add(new ControllerQueueRegistration(
+                    DependencyResolver.Resolve<IControllerFactory>, 
+                    type, SubscribeExchange, queueAttribute.Name));
             }
 
+            (DependencyResolver as IDependencyInjector)?.RegisterController(type);
             return this;
         }
 
@@ -86,12 +87,15 @@ namespace Tapeti
         }
 
 
-        public ISubscriber Subscribe()
+        public async Task<ISubscriber> Subscribe()
         {
             if (registrations == null || registrations.Count == 0)
                 throw new ArgumentException("No controllers registered");
 
-            return new TapetiSubscriber(GetWorker(), registrations);
+            var subscriber = new TapetiSubscriber(GetWorker());
+            await subscriber.BindQueues(registrations);
+
+            return subscriber;
         }
 
 
@@ -117,21 +121,24 @@ namespace Tapeti
         }
 
 
-        protected List<IMessageHandlerRegistration> GetRegistrations()
+        protected List<IQueueRegistration> GetRegistrations()
         {
-            return registrations ?? (registrations = new List<IMessageHandlerRegistration>());
+            return registrations ?? (registrations = new List<IQueueRegistration>());
         }
 
 
         protected TapetiWorker GetWorker()
         {
-            return worker ?? (worker = new TapetiWorker
+            return worker ?? (worker = new TapetiWorker(
+                DependencyResolver.Resolve<IMessageSerializer>(),
+                DependencyResolver.Resolve<IRoutingKeyStrategy>())
                    {
                        HostName = HostName,
                        Port = Port,
                        VirtualHost = VirtualHost,
                        Username = Username,
-                       Password = Password
+                       Password = Password,
+                       PublishExchange = PublishExchange
                    });
         }
     }

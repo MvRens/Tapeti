@@ -10,49 +10,74 @@ namespace Tapeti.Registration
 {
     using MessageHandlerAction = Func<object, Task>;
 
-    public abstract class AbstractControllerRegistration : IMessageHandlerRegistration
+    public struct MessageHandler
     {
-        private readonly IControllerFactory controllerFactory;
+        public MessageHandlerAction Action;
+        public string Exchange;
+        public string RoutingKey;
+    }
+
+
+    public abstract class AbstractControllerRegistration : IQueueRegistration
+    {
+        private readonly Func<IControllerFactory> controllerFactoryFactory;
         private readonly Type controllerType;
-        private readonly Dictionary<Type, List<MessageHandlerAction>> messageHandlers = new Dictionary<Type, List<MessageHandlerAction>>();
+        private readonly string defaultExchange;
+        private readonly Dictionary<Type, List<MessageHandler>> messageHandlers = new Dictionary<Type, List<MessageHandler>>();
 
 
-        protected AbstractControllerRegistration(IControllerFactory controllerFactory, Type controllerType)
+        protected AbstractControllerRegistration(Func<IControllerFactory> controllerFactoryFactory, Type controllerType, string defaultExchange)
         {
-            this.controllerFactory = controllerFactory;
+            this.controllerFactoryFactory = controllerFactoryFactory;
             this.controllerType = controllerType;
+            this.defaultExchange = defaultExchange;
 
             // ReSharper disable once VirtualMemberCallInConstructor - I know. What do you think this is, C++?
-            GetMessageHandlers((type, handler) =>
+            GetMessageHandlers(controllerType, (type, handler) =>
             {
                 if (!messageHandlers.ContainsKey(type))
-                    messageHandlers.Add(type, new List<MessageHandlerAction> { handler });
+                    messageHandlers.Add(type, new List<MessageHandler> { handler });
                 else
                     messageHandlers[type].Add(handler);
             });
         }
 
 
-        protected virtual void GetMessageHandlers(Action<Type, MessageHandlerAction> add)
+        protected virtual void GetMessageHandlers(Type type, Action<Type, MessageHandler> add)
         {
-            foreach (var method in GetType().GetMembers()
-                .Where(m => m.MemberType == MemberTypes.Method && m.IsDefined(typeof(MessageHandlerAttribute), true))
+            foreach (var method in type.GetMembers(BindingFlags.Public | BindingFlags.Instance)
+                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object))
                 .Select(m => (MethodInfo)m))
             {
-                var parameters = method.GetParameters();
+                Type messageType;
+                var messageHandler = GetMessageHandler(method, out messageType);
 
-                if (parameters.Length != 1 || !parameters[0].ParameterType.IsClass)
-                    throw new ArgumentException($"Method {0} does not have a single object parameter", method.Name);
-
-                var messageType = parameters[0].ParameterType;
-
-                if (method.ReturnType == typeof(void))
-                    add(messageType, CreateSyncMessageHandler(method));
-                else if (method.ReturnType == typeof(Task))
-                    add(messageType, CreateAsyncMessageHandler(method));
-                else
-                    throw new ArgumentException($"Method {0} needs to return void or a Task", method.Name);
+                add(messageType, messageHandler);
             }
+        }
+
+
+        protected virtual MessageHandler GetMessageHandler(MethodInfo method, out Type messageType)
+        {
+            var parameters = method.GetParameters();
+
+            if (parameters.Length != 1 || !parameters[0].ParameterType.IsClass)
+                throw new ArgumentException($"Method {method.Name} does not have a single object parameter");
+
+            messageType = parameters[0].ParameterType;
+            var messageHandler = new MessageHandler();
+
+            if (method.ReturnType == typeof(void))
+                messageHandler.Action = CreateSyncMessageHandler(method);
+            else if (method.ReturnType == typeof(Task))
+                messageHandler.Action = CreateAsyncMessageHandler(method);
+            else
+                throw new ArgumentException($"Method {method.Name} needs to return void or a Task");
+
+            var exchangeAttribute = method.GetCustomAttribute<ExchangeAttribute>() ?? method.DeclaringType.GetCustomAttribute<ExchangeAttribute>();
+            messageHandler.Exchange = exchangeAttribute?.Name;
+
+            return messageHandler;
         }
 
 
@@ -62,7 +87,19 @@ namespace Tapeti.Registration
         }
 
 
-        public abstract void ApplyTopology(IModel channel);
+        protected IEnumerable<string> GetMessageExchanges(Type type)
+        {
+            var exchanges = messageHandlers[type]
+                .Where(h => h.Exchange != null)
+                .Select(h => h.Exchange)
+                .Distinct(StringComparer.InvariantCulture)
+                .ToArray();
+
+            return exchanges.Length > 0 ? exchanges : new[] { defaultExchange };
+        }
+
+
+        public abstract string BindQueue(IModel channel);
 
 
         public bool Accept(object message)
@@ -75,7 +112,7 @@ namespace Tapeti.Registration
         {
             var registeredHandlers = messageHandlers[message.GetType()];
             if (registeredHandlers != null)
-                return Task.WhenAll(registeredHandlers.Select(messageHandler => messageHandler(message)));
+                return Task.WhenAll(registeredHandlers.Select(messageHandler => messageHandler.Action(message)));
 
             return Task.CompletedTask;
         }
@@ -85,7 +122,7 @@ namespace Tapeti.Registration
         {
             return message =>
             {
-                var controller = controllerFactory.CreateController(controllerType);
+                var controller = controllerFactoryFactory().CreateController(controllerType);
                 method.Invoke(controller, new[] { message });
 
                 return Task.CompletedTask;
@@ -97,7 +134,7 @@ namespace Tapeti.Registration
         {
             return message =>
             {
-                var controller = controllerFactory.CreateController(controllerType);
+                var controller = controllerFactoryFactory().CreateController(controllerType);
                 return (Task)method.Invoke(controller, new[] { message });
             };
         }

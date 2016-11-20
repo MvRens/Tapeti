@@ -3,9 +3,9 @@ using RabbitMQ.Client;
 
 namespace Tapeti
 {
-    public interface IMessageHandlerRegistration
+    public interface IQueueRegistration
     {
-        void ApplyTopology(IModel channel);
+        string BindQueue(IModel channel);
 
         bool Accept(object message);
         Task Visit(object message);

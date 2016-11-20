@@ -5,27 +5,29 @@ namespace Tapeti.Registration
 {
     public class ControllerDynamicQueueRegistration : AbstractControllerRegistration
     {
-        private readonly IRoutingKeyStrategy routingKeyStrategy;
+        private readonly Func<IRoutingKeyStrategy> routingKeyStrategyFactory;
 
 
-        public ControllerDynamicQueueRegistration(IControllerFactory controllerFactory, IRoutingKeyStrategy routingKeyStrategy, Type controllerType) 
-            : base(controllerFactory, controllerType)
+        public ControllerDynamicQueueRegistration(Func<IControllerFactory> controllerFactoryFactory, Func<IRoutingKeyStrategy> routingKeyStrategyFactory, Type controllerType, string defaultExchange) 
+            : base(controllerFactoryFactory, controllerType, defaultExchange)
         {
-            this.routingKeyStrategy = routingKeyStrategy;
+            this.routingKeyStrategyFactory = routingKeyStrategyFactory;
         }
 
 
-        public override void ApplyTopology(IModel channel)
+        public override string BindQueue(IModel channel)
         {
             var queue = channel.QueueDeclare();
 
             foreach (var messageType in GetMessageTypes())
             {
-                //TODO use routing key attribute(s) for method or use strategy
-                //TODO use exchange attribute or default setting
+                var routingKey = routingKeyStrategyFactory().GetRoutingKey(messageType);
 
-                //channel.QueueBind(queue.QueueName, );
+                foreach (var exchange in GetMessageExchanges(messageType))
+                    channel.QueueBind(queue.QueueName, exchange, routingKey);
             }
+
+            return queue.QueueName;
         }
     }
 }
