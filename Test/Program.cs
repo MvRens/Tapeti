@@ -31,7 +31,7 @@ namespace Test
                 while(true)
                     publisher.Publish(new MarcoMessage()).Wait();
 
-                Console.ReadLine();
+                //Console.ReadLine();
             }
         }
     }

@@ -9,11 +9,7 @@ namespace Tapeti.Connection
 {
     public class TapetiWorker
     {
-        public string HostName { get; set; }
-        public int Port { get; set; }
-        public string VirtualHost { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
+        public TapetiConnectionParams ConnectionParams { get; set; }
         public string PublishExchange { get; set; }
 
 
@@ -124,11 +120,11 @@ namespace Tapeti.Connection
 
             var connectionFactory = new ConnectionFactory
             {
-                HostName = HostName,
-                Port = Port,
-                VirtualHost = VirtualHost,
-                UserName = Username,
-                Password = Password,
+                HostName = ConnectionParams.HostName,
+                Port = ConnectionParams.Port,
+                VirtualHost = ConnectionParams.VirtualHost,
+                UserName = ConnectionParams.Username,
+                Password = ConnectionParams.Password,
                 AutomaticRecoveryEnabled = true,
                 RequestedHeartbeat = 30
             };
