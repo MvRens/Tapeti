@@ -14,12 +14,29 @@ namespace Tapeti.Default
         private readonly Lazy<DefaultControllerFactory> controllerFactory;
         private readonly Lazy<DefaultRoutingKeyStrategy> routingKeyStrategy = new Lazy<DefaultRoutingKeyStrategy>();
         private readonly Lazy<DefaultMessageSerializer> messageSerializer = new Lazy<DefaultMessageSerializer>();
+        private readonly Lazy<ILogger> logger;
 
 
 
         public DefaultDependencyResolver(Func<IPublisher> publisherFactory)
         {
             controllerFactory = new Lazy<DefaultControllerFactory>(() => new DefaultControllerFactory(publisherFactory));
+
+            logger = new Lazy<ILogger>(() =>
+            {
+                // http://stackoverflow.com/questions/6408588/how-to-tell-if-there-is-a-console
+                try
+                {
+                    // ReSharper disable once UnusedVariable
+                    var dummy = Console.WindowHeight;
+
+                    return new ConsoleLogger();
+                }
+                catch
+                {
+                    return new DevNullLogger();
+                }
+            });
         }
 
 
@@ -33,6 +50,9 @@ namespace Tapeti.Default
 
             if (typeof(T) == typeof(IMessageSerializer))
                 return (T)(messageSerializer.Value as IMessageSerializer);
+
+            if (typeof(T) == typeof(ILogger))
+                return (T)logger.Value;
 
             return default(T);
         }

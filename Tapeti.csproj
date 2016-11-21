@@ -55,6 +55,11 @@
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
     <Compile Include="Connection\TapetiWorker.cs" />
+    <Compile Include="Default\ConsoleLogger.cs" />
+    <Compile Include="Default\DevNullLogger.cs" />
+    <Compile Include="ILogger.cs" />
+    <Compile Include="TapetiConnectionExtensions.cs" />
+    <Compile Include="TapetiConnectionParams.cs" />
     <Compile Include="TapetiTypes.cs" />
     <Compile Include="Tasks\SingleThreadTaskQueue.cs" />
     <Compile Include="Default\DefaultControllerFactory.cs" />

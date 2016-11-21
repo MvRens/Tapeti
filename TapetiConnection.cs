@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
@@ -12,11 +11,8 @@ namespace Tapeti
 {
     public class TapetiConnection : IDisposable
     {
-        public string HostName { get; set; } = "localhost";
-        public int Port { get; set; } = 5672;
-        public string VirtualHost { get; set; } = "/";
-        public string Username { get; set; } = "guest";
-        public string Password { get; set; } = "guest";
+        public TapetiConnectionParams Params { get; set; }
+
         public string PublishExchange { get; set; } = "";
         public string SubscribeExchange { get; set; } = "";
 
@@ -29,9 +25,20 @@ namespace Tapeti
 
 
         private IDependencyResolver dependencyResolver;
-        private List<IQueueRegistration> registrations;
-        private TapetiWorker worker;
-        
+        private readonly Lazy<List<IQueueRegistration>> registrations = new Lazy<List<IQueueRegistration>>();
+        private readonly Lazy<TapetiWorker> worker;
+
+
+        public TapetiConnection()
+        {
+            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(
+                DependencyResolver.Resolve<IMessageSerializer>(),
+                DependencyResolver.Resolve<IRoutingKeyStrategy>())
+            {
+                ConnectionParams = Params ?? new TapetiConnectionParams(),
+                PublishExchange = PublishExchange
+            });
+        }
 
 
         public TapetiConnection WithDependencyResolver(IDependencyResolver resolver)
@@ -52,8 +59,8 @@ namespace Tapeti
                 if (!string.IsNullOrEmpty(queueAttribute.Name))
                     throw new ArgumentException("Dynamic queue attributes must not have a Name");
 
-                GetRegistrations().Add(new ControllerDynamicQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>, 
+                registrations.Value.Add(new ControllerDynamicQueueRegistration(
+                    DependencyResolver.Resolve<IControllerFactory>,
                     DependencyResolver.Resolve<IRoutingKeyStrategy>,
                     type, SubscribeExchange));
             }
@@ -62,8 +69,8 @@ namespace Tapeti
                 if (string.IsNullOrEmpty(queueAttribute.Name))
                     throw new ArgumentException("Non-dynamic queue attribute must have a Name");
 
-                GetRegistrations().Add(new ControllerQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>, 
+                registrations.Value.Add(new ControllerQueueRegistration(
+                    DependencyResolver.Resolve<IControllerFactory>,
                     type, SubscribeExchange, queueAttribute.Name));
             }
 
@@ -72,28 +79,13 @@ namespace Tapeti
         }
 
 
-        public TapetiConnection RegisterAllControllers(Assembly assembly)
-        {
-            foreach (var type in assembly.GetTypes().Where(t => t.IsDefined(typeof(QueueAttribute))))
-                RegisterController(type);
-
-            return this;
-        }
-
-
-        public TapetiConnection RegisterAllControllers()
-        {
-            return RegisterAllControllers(Assembly.GetCallingAssembly());
-        }
-
-
         public async Task<ISubscriber> Subscribe()
         {
-            if (registrations == null || registrations.Count == 0)
+            if (!registrations.IsValueCreated || registrations.Value.Count == 0)
                 throw new ArgumentException("No controllers registered");
 
-            var subscriber = new TapetiSubscriber(GetWorker());
-            await subscriber.BindQueues(registrations);
+            var subscriber = new TapetiSubscriber(worker.Value);
+            await subscriber.BindQueues(registrations.Value);
 
             return subscriber;
         }
@@ -101,45 +93,20 @@ namespace Tapeti
 
         public IPublisher GetPublisher()
         {
-            return new TapetiPublisher(GetWorker());
+            return new TapetiPublisher(worker.Value);
         }
 
 
         public async Task Close()
         {
-            if (worker != null)
-            {
-                await worker.Close();
-                worker = null;
-            }
+            if (worker.IsValueCreated)
+                await worker.Value.Close();
         }
 
 
         public void Dispose()
         {
             Close().Wait();
-        }
-
-
-        protected List<IQueueRegistration> GetRegistrations()
-        {
-            return registrations ?? (registrations = new List<IQueueRegistration>());
-        }
-
-
-        protected TapetiWorker GetWorker()
-        {
-            return worker ?? (worker = new TapetiWorker(
-                DependencyResolver.Resolve<IMessageSerializer>(),
-                DependencyResolver.Resolve<IRoutingKeyStrategy>())
-                   {
-                       HostName = HostName,
-                       Port = Port,
-                       VirtualHost = VirtualHost,
-                       Username = Username,
-                       Password = Password,
-                       PublishExchange = PublishExchange
-                   });
         }
     }
 }
