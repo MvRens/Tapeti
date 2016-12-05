@@ -60,37 +60,6 @@ namespace Tapeti
         }
 
 
-        public TapetiConnection RegisterController(Type type)
-        {
-            var queueAttribute = type.GetCustomAttribute<MessageController>();
-            if (queueAttribute == null)
-                throw new ArgumentException("Queue attribute required on class", nameof(type));
-
-            if (queueAttribute.Dynamic)
-            {
-                if (!string.IsNullOrEmpty(queueAttribute.Name))
-                    throw new ArgumentException("Dynamic queue attributes must not have a Name");
-
-                registrations.Value.Add(new ControllerDynamicQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>,
-                    DependencyResolver.Resolve<IRoutingKeyStrategy>,
-                    type, SubscribeExchange));
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(queueAttribute.Name))
-                    throw new ArgumentException("Non-dynamic queue attribute must have a Name");
-
-                registrations.Value.Add(new ControllerQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>,
-                    type, SubscribeExchange, queueAttribute.Name));
-            }
-
-            (DependencyResolver as IDependencyInjector)?.RegisterController(type);
-            return this;
-        }
-
-
         public async Task<ISubscriber> Subscribe()
         {
             if (!registrations.IsValueCreated || registrations.Value.Count == 0)

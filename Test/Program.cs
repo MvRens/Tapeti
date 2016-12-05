@@ -11,13 +11,14 @@ namespace Test
         {
             var container = new Container();
 
-            using (var connection = new TapetiConnection
-                {
-                    PublishExchange = "test",
-                    SubscribeExchange = "test"
-                }
-                .WithDependencyResolver(new SimpleInjectorDependencyResolver(container))
-                .RegisterAllControllers(typeof(Program).Assembly))
+            using (var connection = new TapetiConnectionBuilder()
+                .SetExchange("test")
+                .SetDependencyResolver(new SimpleInjectorDependencyResolver(container))
+                .SetTopology(
+                    new TapetiTopologyBuilder()
+                        .RegisterAllControllers()
+                        .Build())
+                .Build())
             {
                 container.Register<MarcoEmitter>();
     

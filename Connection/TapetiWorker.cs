@@ -16,7 +16,7 @@ namespace Tapeti.Connection
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
-        private IConnection connection;
+        private RabbitMQ.Client.IConnection connection;
         private IModel channel;
 
 
