@@ -50,7 +50,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Annotations\ExchangeAttribute.cs" />
-    <Compile Include="Annotations\QueueAttribute.cs" />
+    <Compile Include="Annotations\MessageControllerAttribute.cs" />
+    <Compile Include="Annotations\StaticQueueAttribute.cs" />
+    <Compile Include="Annotations\DynamicQueueAttribute.cs" />
     <Compile Include="Connection\TapetiConsumer.cs" />
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
@@ -58,6 +60,7 @@
     <Compile Include="Default\ConsoleLogger.cs" />
     <Compile Include="Default\DevNullLogger.cs" />
     <Compile Include="ILogger.cs" />
+    <Compile Include="MessageController.cs" />
     <Compile Include="TapetiConnectionExtensions.cs" />
     <Compile Include="TapetiConnectionParams.cs" />
     <Compile Include="TapetiTypes.cs" />
