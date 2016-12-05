@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -6,18 +7,18 @@ namespace Tapeti.Connection
 {
     public class TapetiSubscriber : ISubscriber
     {
-        private readonly TapetiWorker worker;
+        private readonly Func<TapetiWorker> workerFactory;
 
 
-        public TapetiSubscriber(TapetiWorker worker)
+        public TapetiSubscriber(Func<TapetiWorker> workerFactory)
         {
-            this.worker = worker;
+            this.workerFactory = workerFactory;
         }
 
 
         public async Task BindQueues(IEnumerable<IQueueRegistration> registrations)
         {
-            await Task.WhenAll(registrations.Select(registration => worker.Subscribe(registration)).ToList());
+            await Task.WhenAll(registrations.Select(registration => workerFactory().Subscribe(registration)).ToList());
         }
     }
 }

@@ -10,6 +10,7 @@ namespace Tapeti
 
     public interface IDependencyInjector : IDependencyResolver
     {
+        void RegisterPublisher(IPublisher publisher);
         void RegisterController(Type type);
     }
 }

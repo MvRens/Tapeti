@@ -8,7 +8,7 @@ namespace Tapeti
     {
         public static TapetiConnection RegisterAllControllers(this TapetiConnection connection, Assembly assembly)
         {
-            foreach (var type in assembly.GetTypes().Where(t => t.IsDefined(typeof(QueueAttribute))))
+            foreach (var type in assembly.GetTypes().Where(t => t.IsDefined(typeof(DynamicQueueAttribute))))
                 connection.RegisterController(type);
 
             return connection;

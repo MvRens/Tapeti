@@ -5,10 +5,8 @@ using Tapeti.Annotations;
 
 namespace Test
 {
-    //[Exchange("myexchange")]
-    //[Queue("staticqueue")]
-    [Queue]
-    public class TestQueueController
+    [DynamicQueue]
+    public class TestQueueController : MessageController
     {
         private readonly IPublisher publisher;
 
@@ -19,10 +17,10 @@ namespace Test
         }
 
        
-        public async Task Marco(MarcoMessage message)
+        public PoloMessage Marco(MarcoMessage message)
         {
             Console.WriteLine("Marco!");
-            await publisher.Publish(new PoloMessage());
+            return new PoloMessage();
         }
 
 

@@ -15,12 +15,12 @@ namespace Tapeti.Default
         private readonly Lazy<DefaultRoutingKeyStrategy> routingKeyStrategy = new Lazy<DefaultRoutingKeyStrategy>();
         private readonly Lazy<DefaultMessageSerializer> messageSerializer = new Lazy<DefaultMessageSerializer>();
         private readonly Lazy<ILogger> logger;
+        private IPublisher publisher;
 
 
-
-        public DefaultDependencyResolver(Func<IPublisher> publisherFactory)
+        public DefaultDependencyResolver()
         {
-            controllerFactory = new Lazy<DefaultControllerFactory>(() => new DefaultControllerFactory(publisherFactory));
+            controllerFactory = new Lazy<DefaultControllerFactory>(() => new DefaultControllerFactory(() => publisher));
 
             logger = new Lazy<ILogger>(() =>
             {
@@ -55,6 +55,12 @@ namespace Tapeti.Default
                 return (T)logger.Value;
 
             return default(T);
+        }
+
+
+        public void RegisterPublisher(IPublisher value)
+        {
+            publisher = value;
         }
 
 

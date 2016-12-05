@@ -19,19 +19,14 @@ namespace Test
                 .WithDependencyResolver(new SimpleInjectorDependencyResolver(container))
                 .RegisterAllControllers(typeof(Program).Assembly))
             {
-                container.Register(() => connection.GetPublisher());
-
+                container.Register<MarcoEmitter>();
+    
                 Console.WriteLine("Subscribing...");
                 connection.Subscribe().Wait();
                 Console.WriteLine("Done!");
 
-                var publisher = connection.GetPublisher();
-
-                //for (var x = 0; x < 5000; x++)
-                while(true)
-                    publisher.Publish(new MarcoMessage()).Wait();
-
-                //Console.ReadLine();
+                var emitter = container.GetInstance<MarcoEmitter>();
+                emitter.Run().Wait();
             }
         }
     }

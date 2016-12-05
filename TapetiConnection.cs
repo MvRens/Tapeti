@@ -19,8 +19,20 @@ namespace Tapeti
 
         public IDependencyResolver DependencyResolver
         {
-            get { return dependencyResolver ?? (dependencyResolver = new DefaultDependencyResolver(GetPublisher)); }
-            set { dependencyResolver = value; }
+            get
+            {
+                if (dependencyResolver == null)
+                    DependencyResolver = new DefaultDependencyResolver();
+
+                return dependencyResolver;
+            }
+            set
+            {
+                dependencyResolver = value;
+
+                var dependencyInjector = value as IDependencyInjector;
+                dependencyInjector?.RegisterPublisher(GetPublisher());
+            }
         }
 
 
@@ -43,14 +55,14 @@ namespace Tapeti
 
         public TapetiConnection WithDependencyResolver(IDependencyResolver resolver)
         {
-            dependencyResolver = resolver;
+            DependencyResolver = resolver;
             return this;
         }
 
 
         public TapetiConnection RegisterController(Type type)
         {
-            var queueAttribute = type.GetCustomAttribute<QueueAttribute>();
+            var queueAttribute = type.GetCustomAttribute<MessageController>();
             if (queueAttribute == null)
                 throw new ArgumentException("Queue attribute required on class", nameof(type));
 
@@ -84,7 +96,7 @@ namespace Tapeti
             if (!registrations.IsValueCreated || registrations.Value.Count == 0)
                 throw new ArgumentException("No controllers registered");
 
-            var subscriber = new TapetiSubscriber(worker.Value);
+            var subscriber = new TapetiSubscriber(() => worker.Value);
             await subscriber.BindQueues(registrations.Value);
 
             return subscriber;
@@ -93,7 +105,7 @@ namespace Tapeti
 
         public IPublisher GetPublisher()
         {
-            return new TapetiPublisher(worker.Value);
+            return new TapetiPublisher(() => worker.Value);
         }
 
 
