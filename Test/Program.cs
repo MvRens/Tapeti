@@ -10,18 +10,19 @@ namespace Test
         private static void Main()
         {
             var container = new Container();
+            container.Register<MarcoEmitter>();
+
+
+            var topology = new TapetiTopologyBuilder()
+                .RegisterAllControllers()
+                .Build();
 
             using (var connection = new TapetiConnectionBuilder()
                 .SetExchange("test")
                 .SetDependencyResolver(new SimpleInjectorDependencyResolver(container))
-                .SetTopology(
-                    new TapetiTopologyBuilder()
-                        .RegisterAllControllers()
-                        .Build())
+                .SetTopology(topology)
                 .Build())
-            {
-                container.Register<MarcoEmitter>();
-    
+            {   
                 Console.WriteLine("Subscribing...");
                 connection.Subscribe().Wait();
                 Console.WriteLine("Done!");

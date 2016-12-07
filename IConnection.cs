@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Tapeti
 {
     public interface IConnection : IDisposable
     {
-        ISubscriber Subscribe();
+        Task<ISubscriber> Subscribe();
     }
 }
