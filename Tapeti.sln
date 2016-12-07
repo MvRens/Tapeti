@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.SimpleInjector", "Ta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{90559950-1B32-4119-A78E-517E2C71EE23}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Saga", "Tapeti.Saga\Tapeti.Saga.csproj", "{F84AD920-D5A1-455D-AED5-2542B3A47B85}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{90559950-1B32-4119-A78E-517E2C71EE23}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90559950-1B32-4119-A78E-517E2C71EE23}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90559950-1B32-4119-A78E-517E2C71EE23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F84AD920-D5A1-455D-AED5-2542B3A47B85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F84AD920-D5A1-455D-AED5-2542B3A47B85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F84AD920-D5A1-455D-AED5-2542B3A47B85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F84AD920-D5A1-455D-AED5-2542B3A47B85}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
