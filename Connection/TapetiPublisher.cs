@@ -1,21 +1,22 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 namespace Tapeti.Connection
 {
     public class TapetiPublisher : IPublisher
     {
-        private readonly TapetiWorker worker;
+        private readonly Func<TapetiWorker> workerFactory;
 
 
-        public TapetiPublisher(TapetiWorker worker)
+        public TapetiPublisher(Func<TapetiWorker> workerFactory)
         {
-            this.worker = worker;
+            this.workerFactory = workerFactory;
         }
 
 
         public Task Publish(object message)
         {
-            return worker.Publish(message);
+            return workerFactory().Publish(message);
         }
     }
 }

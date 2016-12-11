@@ -1,91 +1,35 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
 using System.Threading.Tasks;
-using Tapeti.Annotations;
+using Tapeti.Config;
 using Tapeti.Connection;
-using Tapeti.Default;
-using Tapeti.Registration;
 
 namespace Tapeti
 {
     public class TapetiConnection : IDisposable
     {
+        private readonly IConfig config;
         public TapetiConnectionParams Params { get; set; }
 
-        public string PublishExchange { get; set; } = "";
-        public string SubscribeExchange { get; set; } = "";
-
-
-        public IDependencyResolver DependencyResolver
-        {
-            get { return dependencyResolver ?? (dependencyResolver = new DefaultDependencyResolver(GetPublisher)); }
-            set { dependencyResolver = value; }
-        }
-
-
-        private IDependencyResolver dependencyResolver;
-        private readonly Lazy<List<IQueueRegistration>> registrations = new Lazy<List<IQueueRegistration>>();
         private readonly Lazy<TapetiWorker> worker;
 
 
-        public TapetiConnection()
+        public TapetiConnection(IConfig config)
         {
-            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(
-                DependencyResolver.Resolve<IMessageSerializer>(),
-                DependencyResolver.Resolve<IRoutingKeyStrategy>())
+            this.config = config;
+            (config.DependencyResolver as IDependencyInjector)?.RegisterPublisher(GetPublisher);
+
+            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config.DependencyResolver, config.MessageMiddleware)
             {
                 ConnectionParams = Params ?? new TapetiConnectionParams(),
-                PublishExchange = PublishExchange
+                Exchange = config.Exchange
             });
-        }
-
-
-        public TapetiConnection WithDependencyResolver(IDependencyResolver resolver)
-        {
-            dependencyResolver = resolver;
-            return this;
-        }
-
-
-        public TapetiConnection RegisterController(Type type)
-        {
-            var queueAttribute = type.GetCustomAttribute<QueueAttribute>();
-            if (queueAttribute == null)
-                throw new ArgumentException("Queue attribute required on class", nameof(type));
-
-            if (queueAttribute.Dynamic)
-            {
-                if (!string.IsNullOrEmpty(queueAttribute.Name))
-                    throw new ArgumentException("Dynamic queue attributes must not have a Name");
-
-                registrations.Value.Add(new ControllerDynamicQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>,
-                    DependencyResolver.Resolve<IRoutingKeyStrategy>,
-                    type, SubscribeExchange));
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(queueAttribute.Name))
-                    throw new ArgumentException("Non-dynamic queue attribute must have a Name");
-
-                registrations.Value.Add(new ControllerQueueRegistration(
-                    DependencyResolver.Resolve<IControllerFactory>,
-                    type, SubscribeExchange, queueAttribute.Name));
-            }
-
-            (DependencyResolver as IDependencyInjector)?.RegisterController(type);
-            return this;
         }
 
 
         public async Task<ISubscriber> Subscribe()
         {
-            if (!registrations.IsValueCreated || registrations.Value.Count == 0)
-                throw new ArgumentException("No controllers registered");
-
-            var subscriber = new TapetiSubscriber(worker.Value);
-            await subscriber.BindQueues(registrations.Value);
+            var subscriber = new TapetiSubscriber(() => worker.Value);
+            await subscriber.BindQueues(config.Queues);
 
             return subscriber;
         }
@@ -93,7 +37,7 @@ namespace Tapeti
 
         public IPublisher GetPublisher()
         {
-            return new TapetiPublisher(worker.Value);
+            return new TapetiPublisher(() => worker.Value);
         }
 
 
