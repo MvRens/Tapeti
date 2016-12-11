@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Tapeti
+﻿namespace Tapeti
 {
     public interface ISubscriber
     {

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Tapeti.Config;
 
 namespace Tapeti.Connection
 {
@@ -16,9 +17,9 @@ namespace Tapeti.Connection
         }
 
 
-        public async Task BindQueues(IEnumerable<IQueueRegistration> registrations)
+        public async Task BindQueues(IEnumerable<IQueue> queues)
         {
-            await Task.WhenAll(registrations.Select(registration => workerFactory().Subscribe(registration)).ToList());
+            await Task.WhenAll(queues.Select(queue => workerFactory().Subscribe(queue)).ToList());
         }
     }
 }
