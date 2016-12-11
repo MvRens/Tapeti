@@ -50,38 +50,47 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Annotations\ExchangeAttribute.cs" />
-    <Compile Include="Annotations\QueueAttribute.cs" />
+    <Compile Include="Annotations\MessageControllerAttribute.cs" />
+    <Compile Include="Annotations\StaticQueueAttribute.cs" />
+    <Compile Include="Annotations\DynamicQueueAttribute.cs" />
     <Compile Include="Connection\TapetiConsumer.cs" />
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
     <Compile Include="Connection\TapetiWorker.cs" />
     <Compile Include="Default\ConsoleLogger.cs" />
     <Compile Include="Default\DevNullLogger.cs" />
+    <Compile Include="Helpers\ConsoleHelper.cs" />
+    <Compile Include="Helpers\MiddlewareHelper.cs" />
+    <Compile Include="IConnection.cs" />
     <Compile Include="ILogger.cs" />
-    <Compile Include="TapetiConnectionExtensions.cs" />
+    <Compile Include="Config\IMessageContext.cs" />
+    <Compile Include="Default\BindingBufferStop.cs" />
+    <Compile Include="Config\IMessageMiddleware.cs" />
+    <Compile Include="Config\IMiddlewareBundle.cs" />
+    <Compile Include="Config\IConfig.cs" />
+    <Compile Include="MessageController.cs" />
+    <Compile Include="Config\IBindingMiddleware.cs" />
     <Compile Include="TapetiConnectionParams.cs" />
+    <Compile Include="TapetiConfig.cs" />
     <Compile Include="TapetiTypes.cs" />
     <Compile Include="Tasks\SingleThreadTaskQueue.cs" />
-    <Compile Include="Default\DefaultControllerFactory.cs" />
-    <Compile Include="Default\DefaultDependencyResolver.cs" />
     <Compile Include="Default\DefaultMessageSerializer.cs" />
     <Compile Include="Default\DefaultRoutingKeyStrategy.cs" />
-    <Compile Include="IControllerFactory.cs" />
     <Compile Include="IDependencyResolver.cs" />
     <Compile Include="IMessageSerializer.cs" />
     <Compile Include="IPublisher.cs" />
     <Compile Include="IRoutingKeyStrategy.cs" />
-    <Compile Include="IQueueRegistration.cs" />
     <Compile Include="ISubscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Registration\AbstractControllerRegistration.cs" />
-    <Compile Include="Registration\ControllerDynamicQueueRegistration.cs" />
-    <Compile Include="Registration\ControllerQueueRegistration.cs" />
     <Compile Include="TapetiConnection.cs" />
+    <Compile Include="Config\IBindingContext.cs" />
+    <Compile Include="Default\DependencyResolverBinding.cs" />
+    <Compile Include="Default\MessageBinding.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

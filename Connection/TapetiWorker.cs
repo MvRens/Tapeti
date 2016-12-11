@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using RabbitMQ.Client.Framing;
+using Tapeti.Config;
 using Tapeti.Tasks;
 
 namespace Tapeti.Connection
@@ -10,20 +12,23 @@ namespace Tapeti.Connection
     public class TapetiWorker
     {
         public TapetiConnectionParams ConnectionParams { get; set; }
-        public string PublishExchange { get; set; }
+        public string Exchange { get; set; }
 
-
+        private readonly IDependencyResolver dependencyResolver;
+        private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
-        private IConnection connection;
-        private IModel channel;
+        private RabbitMQ.Client.IConnection connection;
+        private IModel channelInstance;
 
 
-        public TapetiWorker(IMessageSerializer messageSerializer, IRoutingKeyStrategy routingKeyStrategy)
+        public TapetiWorker(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware)
         {
-            this.messageSerializer = messageSerializer;
-            this.routingKeyStrategy = routingKeyStrategy;
+            this.dependencyResolver = dependencyResolver;
+            this.messageMiddleware = messageMiddleware;
+            messageSerializer = dependencyResolver.Resolve<IMessageSerializer>();
+            routingKeyStrategy = dependencyResolver.Resolve<IRoutingKeyStrategy>();
         }
 
 
@@ -35,29 +40,45 @@ namespace Tapeti.Connection
                 var body = messageSerializer.Serialize(message, properties);
 
                 (await GetChannel())
-                    .BasicPublish(PublishExchange, routingKeyStrategy.GetRoutingKey(message.GetType()), false,
+                    .BasicPublish(Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()), false,
                         properties, body);
             }).Unwrap();
         }
 
 
-        public Task Subscribe(string queueName, IQueueRegistration queueRegistration)
+        public Task Consume(string queueName, IEnumerable<IBinding> bindings)
         {
             return taskQueue.Value.Add(async () =>
             {
-                (await GetChannel())
-                    .BasicConsume(queueName, false, new TapetiConsumer(this, messageSerializer, queueRegistration));
+                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, dependencyResolver, bindings, messageMiddleware));
             }).Unwrap();
         }
 
 
-        public async Task Subscribe(IQueueRegistration registration)
+        public async Task Subscribe(IQueue queue)
         {
-            var queueName = await taskQueue.Value.Add(async () => 
-                registration.BindQueue(await GetChannel()))
-                .Unwrap();
+            var queueName = await taskQueue.Value.Add(async () =>
+            {
+                var channel = await GetChannel();
 
-            await Subscribe(queueName, registration);
+                if (queue.Dynamic)
+                {
+                    var dynamicQueue = channel.QueueDeclare();
+
+                    foreach (var binding in queue.Bindings)
+                    {
+                        var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
+                        channel.QueueBind(dynamicQueue.QueueName, Exchange, routingKey);
+                    }
+
+                    return dynamicQueue.QueueName;
+                }
+
+                channel.QueueDeclarePassive(queue.Name);
+                return queue.Name;
+            }).Unwrap();
+
+            await Consume(queueName, queue.Bindings);
         }
 
 
@@ -91,10 +112,10 @@ namespace Tapeti.Connection
 
             return taskQueue.Value.Add(() =>
             {
-                if (channel != null)
+                if (channelInstance != null)
                 {
-                    channel.Dispose();
-                    channel = null;
+                    channelInstance.Dispose();
+                    channelInstance = null;
                 }
 
                 // ReSharper disable once InvertIf
@@ -115,8 +136,8 @@ namespace Tapeti.Connection
         /// </remarks>
         private async Task<IModel> GetChannel()
         {
-            if (channel != null)
-                return channel;
+            if (channelInstance != null)
+                return channelInstance;
 
             var connectionFactory = new ConnectionFactory
             {
@@ -134,7 +155,7 @@ namespace Tapeti.Connection
                 try
                 {
                     connection = connectionFactory.CreateConnection();
-                    channel = connection.CreateModel();
+                    channelInstance = connection.CreateModel();
 
                     break;
                 }
@@ -144,7 +165,7 @@ namespace Tapeti.Connection
                 }
             }
 
-            return channel;
+            return channelInstance;
         }
     }
 }

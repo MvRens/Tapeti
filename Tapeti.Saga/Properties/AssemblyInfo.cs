@@ -1,14 +1,15 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Tapeti.SimpleInjector")]
+[assembly: AssemblyTitle("Tapeti.Saga")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Hewlett-Packard Company")]
-[assembly: AssemblyProduct("Tapeti.SimpleInjector")]
+[assembly: AssemblyProduct("Tapeti.Saga")]
 [assembly: AssemblyCopyright("Copyright © Hewlett-Packard Company 2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -19,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("d7ec6f86-eb3b-49c3-8fe7-6e8c1bb413a6")]
+[assembly: Guid("f84ad920-d5a1-455d-aed5-2542b3a47b85")]
 
 // Version information for an assembly consists of the following four values:
 //
