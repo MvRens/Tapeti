@@ -1,6 +1,7 @@
 ﻿using System;
 using SimpleInjector;
 using Tapeti;
+using Tapeti.Saga;
 using Tapeti.SimpleInjector;
 
 namespace Test
@@ -11,17 +12,15 @@ namespace Test
         {
             var container = new Container();
             container.Register<MarcoEmitter>();
+            container.Register<Visualizer>();
+            container.Register<ISagaStore, SagaMemoryStore>();
 
-
-            var topology = new TapetiTopologyBuilder()
+            var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
+                .Use(new SagaMiddleware())
                 .RegisterAllControllers()
                 .Build();
 
-            using (var connection = new TapetiConnectionBuilder()
-                .SetExchange("test")
-                .SetDependencyResolver(new SimpleInjectorDependencyResolver(container))
-                .SetTopology(topology)
-                .Build())
+            using (var connection = new TapetiConnection(config))
             {   
                 Console.WriteLine("Subscribing...");
                 connection.Subscribe().Wait();

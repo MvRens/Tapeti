@@ -18,8 +18,10 @@ namespace Test
 
 
         //[StaticQueue("test")]
-        public PoloMessage Marco(MarcoMessage message)
+        public PoloMessage Marco(MarcoMessage message, Visualizer visualizer)
         {
+            visualizer.VisualizeMarco();
+
             /*
             using (sagaProvider.Begin<MarcoState>(new MarcoState
             {
@@ -60,9 +62,9 @@ namespace Test
         }
         */
 
-        public void Polo(PoloMessage message)
+        public void Polo(PoloMessage message, Visualizer visualizer)
         {
-            Console.WriteLine("Polo!");
+            visualizer.VisualizePolo();
         }
     }
 

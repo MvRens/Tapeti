@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Tapeti.Saga</RootNamespace>
     <AssemblyName>Tapeti.Saga</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -44,6 +45,17 @@
     <Compile Include="ISagaProvider.cs" />
     <Compile Include="ISagaStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SagaBindingMiddleware.cs" />
+    <Compile Include="SagaMemoryStore.cs" />
+    <Compile Include="SagaMessageMiddleware.cs" />
+    <Compile Include="SagaMiddleware.cs" />
+    <Compile Include="SagaProvider.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tapeti.csproj">
+      <Project>{8ab4fd33-4aaa-465c-8579-9db3f3b23813}</Project>
+      <Name>Tapeti</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
