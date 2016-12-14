@@ -1,7 +1,7 @@
-﻿using System;
-using Microsoft.SqlServer.Server;
+﻿using System.Threading.Tasks;
 using Tapeti;
 using Tapeti.Annotations;
+using Tapeti.Saga;
 
 namespace Test
 {
@@ -9,33 +9,46 @@ namespace Test
     public class MarcoController : MessageController
     {
         private readonly IPublisher publisher;
+        private readonly ISagaProvider sagaProvider;
 
 
-        public MarcoController(IPublisher publisher/*, ISagaProvider sagaProvider*/)
+        public MarcoController(IPublisher publisher, ISagaProvider sagaProvider)
         {
             this.publisher = publisher;
+            this.sagaProvider = sagaProvider;
         }
 
 
-        //[StaticQueue("test")]
-        public PoloMessage Marco(MarcoMessage message, Visualizer visualizer)
+        /*
+         * For simple request response patterns, the return type can also be used:
+        
+        public async Task<PoloMessage> Marco(MarcoMessage message, Visualizer visualizer)
+        {
+            visualizer.VisualizeMarco();
+            return new PoloMessage(); ;
+        }
+        */
+
+        // Visualizer can also be constructor injected, just proving a point here...
+        public async Task Marco(MarcoMessage message, Visualizer visualizer)
         {
             visualizer.VisualizeMarco();
 
-            /*
-            using (sagaProvider.Begin<MarcoState>(new MarcoState
+            using (var saga = await sagaProvider.Begin(new MarcoPoloSaga()))
             {
-                ...
-            }))
-            {
-                //publisher.Publish(new PoloColorRequest(), saga, PoloColorResponse1);
-                //publisher.Publish(new PoloColorRequest(), saga, callID = "tweede");
-
-                // Saga refcount = 2
+                // TODO provide publish extension with Saga support
+                await publisher.Publish(new PoloMessage(), saga);
             }
-            */
+        }
 
-            return new PoloMessage(); ;
+
+        public void Polo(PoloMessage message, Visualizer visualizer, ISaga<MarcoPoloSaga> saga)
+        {
+            if (saga.State.ReceivedPolo)
+                return;
+
+            saga.State.ReceivedPolo = true;
+            visualizer.VisualizePolo();
         }
 
 
@@ -61,11 +74,6 @@ namespace Test
             }
         }
         */
-
-        public void Polo(PoloMessage message, Visualizer visualizer)
-        {
-            visualizer.VisualizePolo();
-        }
     }
 
 
@@ -79,15 +87,8 @@ namespace Test
     }
 
 
-
-
-    public class PoloColorRequest
+    public class MarcoPoloSaga
     {
-
-    }
-
-    public class PoloColorResponse
-    {
-
+        public bool ReceivedPolo;
     }
 }

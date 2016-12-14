@@ -32,16 +32,19 @@ namespace Tapeti.Connection
         }
 
 
-        public Task Publish(object message)
+        public Task Publish(object message, IBasicProperties properties)
         {
             return taskQueue.Value.Add(async () =>
             {
-                var properties = new BasicProperties();
-                var body = messageSerializer.Serialize(message, properties);
+                var messageProperties = properties ?? new BasicProperties();
+                if (messageProperties.Timestamp.UnixTime == 0)
+                    messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+
+                var body = messageSerializer.Serialize(message, messageProperties);
 
                 (await GetChannel())
                     .BasicPublish(Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()), false,
-                        properties, body);
+                        messageProperties, body);
             }).Unwrap();
         }
 

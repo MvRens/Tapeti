@@ -31,6 +31,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="RabbitMQ.Client, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -45,11 +46,10 @@
     <Compile Include="ISagaProvider.cs" />
     <Compile Include="ISagaStore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SagaBindingMiddleware.cs" />
     <Compile Include="SagaMemoryStore.cs" />
-    <Compile Include="SagaMessageMiddleware.cs" />
     <Compile Include="SagaMiddleware.cs" />
     <Compile Include="SagaProvider.cs" />
+    <Compile Include="SagaExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Tapeti.csproj">
