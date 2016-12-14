@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Tapeti.Config;
 using Tapeti.Helpers;
@@ -33,25 +34,31 @@ namespace Tapeti.Connection
                 if (message == null)
                     throw new ArgumentException("Empty message");
 
-                var handled = false;
+                var validMessageType = false;
                 foreach (var binding in bindings.Where(b => b.Accept(message)))
                 {
                     var context = new MessageContext
                     {
+                        DependencyResolver = dependencyResolver,
                         Controller = dependencyResolver.Resolve(binding.Controller),
-                        Message = message
+                        Message = message,
+                        Properties = properties
                     };
 
-                    MiddlewareHelper.Go(messageMiddleware, (handler, next) => handler.Handle(context, next));
+                    MiddlewareHelper.GoAsync(binding.MessageMiddleware != null ? messageMiddleware.Concat(binding.MessageMiddleware).ToList() : messageMiddleware, 
+                        async (handler, next) => await handler.Handle(context, next),
+                        async () =>
+                        {
+                            var result = binding.Invoke(context, message).Result;
+                            if (result != null)
+                                await worker.Publish(result, null);
+                        }
+                        ).Wait();
 
-                    var result = binding.Invoke(context, message).Result;
-                    if (result != null)
-                        worker.Publish(result);
-
-                    handled = true;
+                    validMessageType = true;
                 }
 
-                if (!handled)
+                if (!validMessageType)
                     throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
 
                 worker.Respond(deliveryTag, ConsumeResponse.Ack);
@@ -66,8 +73,12 @@ namespace Tapeti.Connection
 
         protected class MessageContext : IMessageContext
         {
+            public IDependencyResolver DependencyResolver { get; set; }
+
             public object Controller { get; set; }
             public object Message { get; set;  }
+            public IBasicProperties Properties { get; set;  }
+
             public IDictionary<string, object> Items { get; } = new Dictionary<string, object>();
         }
     }

@@ -29,6 +29,8 @@ namespace Tapeti.Config
         MethodInfo Method { get; }
         Type MessageClass { get; }
 
+        IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+
         bool Accept(object message);
         Task<object> Invoke(IMessageContext context, object message);
     }

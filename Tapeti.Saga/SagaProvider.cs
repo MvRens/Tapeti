@@ -29,15 +29,6 @@ namespace Tapeti.Saga
             return await Saga<T>.Create(async () => await store.Read(sagaId) as T, sagaId);
         }
 
-        public async Task<object> Continue(string sagaId)
-        {
-            return new Saga<object>
-            {
-                Id = sagaId,
-                State = await store.Read(sagaId)
-            };
-        }
-
 
         protected class Saga<T> : ISaga<T> where T : class
         {

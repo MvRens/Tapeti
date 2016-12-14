@@ -36,7 +36,6 @@ namespace Tapeti
             this.exchange = exchange;
             this.dependencyResolver = dependencyResolver;
 
-            Use(new BindingBufferStop());
             Use(new DependencyResolverBinding(dependencyResolver));
             Use(new MessageBinding());
         }
@@ -129,7 +128,8 @@ namespace Tapeti
                     Method = method,
                     QueueInfo = methodQueueInfo,
                     MessageClass = context.MessageClass,
-                    MessageHandler = messageHandler
+                    MessageHandler = messageHandler,
+                    MessageMiddleware = context.MessageMiddleware
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
@@ -159,7 +159,7 @@ namespace Tapeti
 
         protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
         {
-            MiddlewareHelper.Go(bindingMiddleware, (handler, next) => handler.Handle(context, next));
+            MiddlewareHelper.Go(bindingMiddleware, (handler, next) => handler.Handle(context, next), () => {});
 
             if (context.MessageClass == null)
                 throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} does not resolve to a message class");
@@ -336,6 +336,8 @@ namespace Tapeti
             public MethodInfo Method { get; set; }
             public Type MessageClass { get; set; }
 
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set;  }
+
             public QueueInfo QueueInfo { get; set; }
             public MessageHandlerFunc MessageHandler { get; set; }
 
@@ -361,13 +363,25 @@ namespace Tapeti
 
         internal class BindingContext : IBindingContext
         {
+            private List<IMessageMiddleware> messageMiddleware;
+
             public Type MessageClass { get; set; }
             public IReadOnlyList<IBindingParameter> Parameters { get; }
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware => messageMiddleware;
 
 
             public BindingContext(IReadOnlyList<IBindingParameter> parameters)
             {
                 Parameters = parameters;
+            }
+
+
+            public void Use(IMessageMiddleware middleware)
+            {
+                if (messageMiddleware == null)
+                    messageMiddleware = new List<IMessageMiddleware>();
+
+                messageMiddleware.Add(middleware);
             }
         }
 

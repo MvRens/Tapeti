@@ -11,6 +11,8 @@ namespace Tapeti.Config
     {
         Type MessageClass { get; set; }
         IReadOnlyList<IBindingParameter> Parameters { get; }
+
+        void Use(IMessageMiddleware middleware);
     }
 
 

@@ -13,7 +13,7 @@ namespace Test
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
-            container.Register<ISagaStore, SagaMemoryStore>();
+            container.RegisterSingleton<ISagaStore, SagaMemoryStore>();
 
             var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
                 .Use(new SagaMiddleware())

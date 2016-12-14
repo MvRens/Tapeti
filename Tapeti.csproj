@@ -64,7 +64,6 @@
     <Compile Include="IConnection.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="Config\IMessageContext.cs" />
-    <Compile Include="Default\BindingBufferStop.cs" />
     <Compile Include="Config\IMessageMiddleware.cs" />
     <Compile Include="Config\IMiddlewareBundle.cs" />
     <Compile Include="Config\IConfig.cs" />

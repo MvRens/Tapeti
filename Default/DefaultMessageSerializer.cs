@@ -47,8 +47,8 @@ namespace Tapeti.Default
         {
             object typeName;
 
-            if (!properties.ContentType.Equals(ContentType))
-                throw new ArgumentException("content_type must be {ContentType}");
+            if (properties.ContentType == null || !properties.ContentType.Equals(ContentType))
+                throw new ArgumentException($"content_type must be {ContentType}");
 
             if (properties.Headers == null || !properties.Headers.TryGetValue(ClassTypeHeader, out typeName))
                 throw new ArgumentException($"{ClassTypeHeader} header not present");
