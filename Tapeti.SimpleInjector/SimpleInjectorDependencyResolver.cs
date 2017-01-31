@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Linq;
 using SimpleInjector;
+using Tapeti.Config;
 
 namespace Tapeti.SimpleInjector
 {
-    public class SimpleInjectorDependencyResolver : IDependencyInjector
+    public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
 
@@ -29,6 +30,12 @@ namespace Tapeti.SimpleInjector
             // ReSharper disable once SimplifyLinqExpression - not a fan of negative predicates
             if (!container.GetCurrentRegistrations().Any(ip => ip.ServiceType == typeof(TService)))
                 container.Register<TService, TImplementation>();
+        }
+
+
+        public void RegisterConfig(IConfig config)
+        {
+            container.RegisterSingleton(config);
         }
 
 

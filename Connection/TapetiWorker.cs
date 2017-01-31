@@ -32,17 +32,15 @@ namespace Tapeti.Connection
         }
 
 
-        public Task Publish(object message)
+        public Task Publish(object message, IBasicProperties properties)
         {
-            return taskQueue.Value.Add(async () =>
-            {
-                var properties = new BasicProperties();
-                var body = messageSerializer.Serialize(message, properties);
+            return Publish(message, properties, Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()));
+        }
 
-                (await GetChannel())
-                    .BasicPublish(Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()), false,
-                        properties, body);
-            }).Unwrap();
+
+        public Task PublishDirect(object message, string queueName, IBasicProperties properties)
+        {
+            return Publish(message, properties, "", queueName);
         }
 
 
@@ -50,7 +48,7 @@ namespace Tapeti.Connection
         {
             return taskQueue.Value.Add(async () =>
             {
-                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, dependencyResolver, bindings, messageMiddleware));
+                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, dependencyResolver, bindings, messageMiddleware));
             }).Unwrap();
         }
 
@@ -69,8 +67,10 @@ namespace Tapeti.Connection
                     {
                         var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
                         channel.QueueBind(dynamicQueue.QueueName, Exchange, routingKey);
-                    }
 
+                        (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
+                    }
+                    
                     return dynamicQueue.QueueName;
                 }
 
@@ -129,6 +129,22 @@ namespace Tapeti.Connection
             });
         }
 
+
+        private Task Publish(object message, IBasicProperties properties, string exchange, string routingKey)
+        {
+            return taskQueue.Value.Add(async () =>
+            {
+                var messageProperties = properties ?? new BasicProperties();
+                if (messageProperties.Timestamp.UnixTime == 0)
+                    messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+
+                var body = messageSerializer.Serialize(message, messageProperties);
+
+                (await GetChannel())
+                    .BasicPublish(exchange, routingKey, false, messageProperties, body);
+            }).Unwrap();
+
+        }
 
         /// <remarks>
         /// Only call this from a task in the taskQueue to ensure IModel is only used 

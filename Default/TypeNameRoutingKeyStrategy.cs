@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Tapeti.Default
 {
-    public class DefaultRoutingKeyStrategy : IRoutingKeyStrategy
+    public class TypeNameRoutingKeyStrategy : IRoutingKeyStrategy
     {
         private readonly ConcurrentDictionary<Type, string> routingKeyCache = new ConcurrentDictionary<Type, string>();
 

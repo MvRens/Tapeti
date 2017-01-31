@@ -1,7 +1,7 @@
 ﻿using System;
 using SimpleInjector;
 using Tapeti;
-using Tapeti.Saga;
+using Tapeti.Flow;
 using Tapeti.SimpleInjector;
 
 namespace Test
@@ -13,10 +13,10 @@ namespace Test
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
-            container.Register<ISagaStore, SagaMemoryStore>();
+            //container.RegisterSingleton<ISagaStore, SagaMemoryStore>();
 
             var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
-                .Use(new SagaMiddleware())
+                .Use(new FlowMiddleware())
                 .RegisterAllControllers()
                 .Build();
 

@@ -7,8 +7,8 @@
     <ProjectGuid>{F84AD920-D5A1-455D-AED5-2542B3A47B85}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Tapeti.Saga</RootNamespace>
-    <AssemblyName>Tapeti.Saga</AssemblyName>
+    <RootNamespace>Tapeti.Flow</RootNamespace>
+    <AssemblyName>Tapeti.Flow</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -31,6 +31,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="RabbitMQ.Client, Version=4.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
+      <HintPath>..\packages\RabbitMQ.Client.4.1.1\lib\net451\RabbitMQ.Client.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -41,21 +49,31 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ISaga.cs" />
-    <Compile Include="ISagaProvider.cs" />
-    <Compile Include="ISagaStore.cs" />
+    <Compile Include="Annotations\ContinuationAttribute.cs" />
+    <Compile Include="Annotations\RequestAttribute.cs" />
+    <Compile Include="ContextItems.cs" />
+    <Compile Include="Default\FlowBindingFilter.cs" />
+    <Compile Include="Default\FlowContext.cs" />
+    <Compile Include="Default\FlowMessageMiddleware.cs" />
+    <Compile Include="Default\NonPersistentFlowRepository.cs" />
+    <Compile Include="Default\DelegateYieldPoint.cs" />
+    <Compile Include="FlowHelpers\MethodSerializer.cs" />
+    <Compile Include="FlowMiddleware.cs" />
+    <Compile Include="Default\FlowStore.cs" />
+    <Compile Include="Default\FlowProvider.cs" />
+    <Compile Include="IFlowRepository.cs" />
+    <Compile Include="IFlowStore.cs" />
+    <Compile Include="IFlowProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SagaBindingMiddleware.cs" />
-    <Compile Include="SagaMemoryStore.cs" />
-    <Compile Include="SagaMessageMiddleware.cs" />
-    <Compile Include="SagaMiddleware.cs" />
-    <Compile Include="SagaProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Tapeti.csproj">
       <Project>{8ab4fd33-4aaa-465c-8579-9db3f3b23813}</Project>
       <Name>Tapeti</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

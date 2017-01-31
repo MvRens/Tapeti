@@ -63,9 +63,9 @@
       <Project>{8ab4fd33-4aaa-465c-8579-9db3f3b23813}</Project>
       <Name>Tapeti</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Tapeti.Saga\Tapeti.Saga.csproj">
+    <ProjectReference Include="..\Tapeti.Flow\Tapeti.Flow.csproj">
       <Project>{f84ad920-d5a1-455d-aed5-2542b3a47b85}</Project>
-      <Name>Tapeti.Saga</Name>
+      <Name>Tapeti.Flow</Name>
     </ProjectReference>
     <ProjectReference Include="..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj">
       <Project>{d7ec6f86-eb3b-49c3-8fe7-6e8c1bb413a6}</Project>

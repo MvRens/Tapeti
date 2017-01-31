@@ -36,25 +36,14 @@ namespace Tapeti
             this.exchange = exchange;
             this.dependencyResolver = dependencyResolver;
 
-            Use(new BindingBufferStop());
-            Use(new DependencyResolverBinding(dependencyResolver));
+            Use(new DependencyResolverBinding());
             Use(new MessageBinding());
         }
 
 
         public IConfig Build()
         {
-            var dependencyInjector = dependencyResolver as IDependencyInjector;
-            if (dependencyInjector != null)
-            {
-                if (ConsoleHelper.IsAvailable())
-                    dependencyInjector.RegisterDefault<ILogger, ConsoleLogger>();
-                else
-                    dependencyInjector.RegisterDefault<ILogger, DevNullLogger>();
-
-                dependencyInjector.RegisterDefault<IMessageSerializer, DefaultMessageSerializer>();
-                dependencyInjector.RegisterDefault<IRoutingKeyStrategy, DefaultRoutingKeyStrategy>();
-            }
+            RegisterDefaults();
 
             var queues = new List<IQueue>();
             queues.AddRange(staticRegistrations.Select(qb => new Queue(new QueueInfo { Dynamic = false, Name = qb.Key }, qb.Value)));
@@ -73,7 +62,10 @@ namespace Tapeti
 
             queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
-            return new Config(exchange, dependencyResolver, messageMiddleware, queues);
+            var config = new Config(exchange, dependencyResolver, messageMiddleware, queues);
+            (dependencyResolver as IDependencyContainer)?.RegisterConfig(config);
+
+            return config;
         }
 
 
@@ -108,6 +100,23 @@ namespace Tapeti
         }
 
 
+        public void RegisterDefaults()
+        {
+            var container = dependencyResolver as IDependencyContainer;
+            if (container != null)
+            {
+                if (ConsoleHelper.IsAvailable())
+                    container.RegisterDefault<ILogger, ConsoleLogger>();
+                else
+                    container.RegisterDefault<ILogger, DevNullLogger>();
+
+                container.RegisterDefault<IMessageSerializer, JsonMessageSerializer>();
+                container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
+                container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
+            }
+        }
+
+
         public TapetiConfig RegisterController(Type controller)
         {
             var controllerQueueInfo = GetQueueInfo(controller);
@@ -120,7 +129,7 @@ namespace Tapeti
                 if (!methodQueueInfo.IsValid)
                     throw new TopologyConfigurationException($"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 
-                var context = new BindingContext(method.GetParameters().Select(p => new BindingParameter(p)).ToList());
+                var context = new BindingContext(method);
                 var messageHandler = GetMessageHandler(context, method);
 
                 var handlerInfo = new Binding
@@ -129,7 +138,8 @@ namespace Tapeti
                     Method = method,
                     QueueInfo = methodQueueInfo,
                     MessageClass = context.MessageClass,
-                    MessageHandler = messageHandler
+                    MessageHandler = messageHandler,
+                    MessageMiddleware = context.MessageMiddleware
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
@@ -159,7 +169,7 @@ namespace Tapeti
 
         protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
         {
-            MiddlewareHelper.Go(bindingMiddleware, (handler, next) => handler.Handle(context, next));
+            MiddlewareHelper.Go(bindingMiddleware, (handler, next) => handler.Handle(context, next), () => {});
 
             if (context.MessageClass == null)
                 throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} does not resolve to a message class");
@@ -250,6 +260,8 @@ namespace Tapeti
                 var existing = staticRegistrations[binding.QueueInfo.Name];
 
                 // Technically we could easily do multicasting, but it complicates exception handling and requeueing
+                // TODO allow multiple, if there is a filter which guarantees uniqueness
+                // TODO move to independant validation middleware
                 if (existing.Any(h => h.MessageClass == binding.MessageClass))
                     throw new TopologyConfigurationException($"Multiple handlers for message class {binding.MessageClass.Name} in queue {binding.QueueInfo.Name}");
 
@@ -303,13 +315,24 @@ namespace Tapeti
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
             public IEnumerable<IQueue> Queues { get; }
 
+            private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
+
 
             public Config(string exchange, IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
             {
                 Exchange = exchange;
                 DependencyResolver = dependencyResolver;
                 MessageMiddleware = messageMiddleware;
-                Queues = queues;
+                Queues = queues.ToList();
+
+                bindingMethodLookup = Queues.SelectMany(q => q.Bindings).ToDictionary(b => b.Method, b => b);
+            }
+
+
+            public IBinding GetBinding(Delegate method)
+            {
+                IBinding binding;
+                return bindingMethodLookup.TryGetValue(method.Method, out binding) ? binding : null;
             }
         }
 
@@ -330,14 +353,33 @@ namespace Tapeti
         }
 
 
-        protected class Binding : IBinding
+        protected class Binding : IDynamicQueueBinding
         {
             public Type Controller { get; set; }
             public MethodInfo Method { get; set; }
             public Type MessageClass { get; set; }
+            public string QueueName { get; set; }
 
-            public QueueInfo QueueInfo { get; set; }
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set;  }
+
+            private QueueInfo queueInfo;
+            public QueueInfo QueueInfo
+            {
+                get { return queueInfo; }
+                set
+                {
+                    QueueName = (value?.Dynamic).GetValueOrDefault() ? value?.Name : null;
+                    queueInfo = value;
+                }
+            }
+
             public MessageHandlerFunc MessageHandler { get; set; }
+
+
+            public void SetQueueName(string queueName)
+            {
+                QueueName = queueName;
+            }
 
 
             public bool Accept(object message)
@@ -359,15 +401,52 @@ namespace Tapeti
         }
 
 
+
+        internal interface IBindingResultAccess
+        {
+            ResultHandler GetHandler();
+        }
+
+
         internal class BindingContext : IBindingContext
         {
+            private List<IMessageMiddleware> messageMiddleware;
+            private List<IBindingFilter> bindingFilters;
+
             public Type MessageClass { get; set; }
+
+            public MethodInfo Method { get; }
             public IReadOnlyList<IBindingParameter> Parameters { get; }
+            public IBindingResult Result { get; }
+
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware => messageMiddleware;
+            public IReadOnlyList<IBindingFilter> BindingFilters => bindingFilters;
 
 
-            public BindingContext(IReadOnlyList<IBindingParameter> parameters)
+            public BindingContext(MethodInfo method)
             {
-                Parameters = parameters;
+                Method = method;
+                
+                Parameters = method.GetParameters().Select(p => new BindingParameter(p)).ToList();
+                Result = new BindingResult(method.ReturnParameter);
+            }
+
+
+            public void Use(IMessageMiddleware middleware)
+            {
+                if (messageMiddleware == null)
+                    messageMiddleware = new List<IMessageMiddleware>();
+
+                messageMiddleware.Add(middleware);
+            }
+
+
+            public void Use(IBindingFilter filter)
+            {
+                if (bindingFilters == null)
+                    bindingFilters = new List<IBindingFilter>();
+
+                bindingFilters.Add(filter);
             }
         }
 
@@ -394,6 +473,32 @@ namespace Tapeti
             public void SetBinding(ValueFactory valueFactory)
             {
                 binding = valueFactory;
+            }
+        }
+
+
+        internal class BindingResult : IBindingResult, IBindingResultAccess
+        {
+            private ResultHandler handler;
+
+            public ParameterInfo Info { get; }
+            public bool HasHandler => handler != null;
+
+
+            public BindingResult(ParameterInfo parameter)
+            {
+                Info = parameter;
+            }
+
+
+            public ResultHandler GetHandler()
+            {
+                return handler;
+            }
+
+            public void SetHandler(ResultHandler resultHandler)
+            {
+                handler = resultHandler;
             }
         }
     }
