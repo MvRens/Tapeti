@@ -10,14 +10,16 @@ namespace Tapeti.Connection
     public class TapetiConsumer : DefaultBasicConsumer
     {
         private readonly TapetiWorker worker;
+        private readonly string queueName;
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly List<IBinding> bindings;
 
 
-        public TapetiConsumer(TapetiWorker worker, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware)
+        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware)
         {
             this.worker = worker;
+            this.queueName = queueName;
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
             this.bindings = bindings.ToList();
@@ -33,25 +35,41 @@ namespace Tapeti.Connection
                 if (message == null)
                     throw new ArgumentException("Empty message");
 
-                var handled = false;
+                var validMessageType = false;
                 foreach (var binding in bindings.Where(b => b.Accept(message)))
                 {
-                    var context = new MessageContext
+                    using (var context = new MessageContext
                     {
+                        DependencyResolver = dependencyResolver,
                         Controller = dependencyResolver.Resolve(binding.Controller),
-                        Message = message
-                    };
+                        Queue = queueName,
+                        RoutingKey = routingKey,
+                        Message = message,
+                        Properties = properties
+                    })
+                    {
+                        // ReSharper disable AccessToDisposedClosure - MiddlewareHelper will not keep a reference to the lambdas
+                        MiddlewareHelper.GoAsync(
+                            binding.MessageMiddleware != null
+                                ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
+                                : messageMiddleware,
+                            async (handler, next) => await handler.Handle(context, next),
+                            async () =>
+                            {
+                                var result = binding.Invoke(context, message).Result;
 
-                    MiddlewareHelper.Go(messageMiddleware, (handler, next) => handler.Handle(context, next));
+                                // TODO change to result handler
+                                if (result != null)
+                                    await worker.Publish(result, null);
+                            }
+                        ).Wait();
+                        // ReSharper restore AccessToDisposedClosure
+                    }
 
-                    var result = binding.Invoke(context, message).Result;
-                    if (result != null)
-                        worker.Publish(result);
-
-                    handled = true;
+                    validMessageType = true;
                 }
 
-                if (!handled)
+                if (!validMessageType)
                     throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
 
                 worker.Respond(deliveryTag, ConsumeResponse.Ack);
@@ -66,9 +84,23 @@ namespace Tapeti.Connection
 
         protected class MessageContext : IMessageContext
         {
+            public IDependencyResolver DependencyResolver { get; set; }
+
             public object Controller { get; set; }
+
+            public string Queue { get; set; }
+            public string RoutingKey { get; set; }
             public object Message { get; set;  }
+            public IBasicProperties Properties { get; set;  }
+
             public IDictionary<string, object> Items { get; } = new Dictionary<string, object>();
+
+
+            public void Dispose()
+            {
+                foreach (var value in Items.Values)
+                    (value as IDisposable)?.Dispose();
+            }
         }
     }
 }

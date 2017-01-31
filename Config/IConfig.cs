@@ -11,6 +11,8 @@ namespace Tapeti.Config
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
         IEnumerable<IQueue> Queues { get; }
+
+        IBinding GetBinding(Delegate method);
     }
 
 
@@ -28,8 +30,17 @@ namespace Tapeti.Config
         Type Controller { get; }
         MethodInfo Method { get; }
         Type MessageClass { get; }
+        string QueueName { get; }
+
+        IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
 
         bool Accept(object message);
         Task<object> Invoke(IMessageContext context, object message);
+    }
+
+
+    public interface IDynamicQueueBinding : IBinding
+    {
+        void SetQueueName(string queueName);
     }
 }

@@ -8,7 +8,7 @@ using RabbitMQ.Client;
 
 namespace Tapeti.Default
 {
-    public class DefaultMessageSerializer : IMessageSerializer
+    public class JsonMessageSerializer : IMessageSerializer
     {
         protected const string ContentType = "application/json";
         protected const string ClassTypeHeader = "classType";
@@ -18,7 +18,7 @@ namespace Tapeti.Default
         private readonly ConcurrentDictionary<Type, string> serializedTypeNames = new ConcurrentDictionary<Type, string>();
         private readonly JsonSerializerSettings serializerSettings;
 
-        public DefaultMessageSerializer()
+        public JsonMessageSerializer()
         {
             serializerSettings = new JsonSerializerSettings
             {
@@ -47,8 +47,8 @@ namespace Tapeti.Default
         {
             object typeName;
 
-            if (!properties.ContentType.Equals(ContentType))
-                throw new ArgumentException("content_type must be {ContentType}");
+            if (properties.ContentType == null || !properties.ContentType.Equals(ContentType))
+                throw new ArgumentException($"content_type must be {ContentType}");
 
             if (properties.Headers == null || !properties.Headers.TryGetValue(ClassTypeHeader, out typeName))
                 throw new ArgumentException($"{ClassTypeHeader} header not present");
