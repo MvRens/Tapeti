@@ -10,14 +10,10 @@ namespace Tapeti.Flow.Default
         public async Task<bool> Accept(IMessageContext context, IBinding binding)
         {
             var flowContext = await GetFlowContext(context);
-            if (flowContext?.FlowState == null)
+            if (flowContext?.ContinuationMetadata == null)
                 return false;
 
-            string continuation;
-            if (!flowContext.FlowState.Continuations.TryGetValue(flowContext.ContinuationID, out continuation))
-                return false;
-
-            return continuation == MethodSerializer.Serialize(binding.Method);
+            return flowContext.ContinuationMetadata.MethodName == MethodSerializer.Serialize(binding.Method);
         }
 
 
@@ -35,27 +31,29 @@ namespace Tapeti.Flow.Default
 
             var flowStore = context.DependencyResolver.Resolve<IFlowStore>();
 
-            var flowStateID = await flowStore.FindFlowStateID(continuationID);
-            if (!flowStateID.HasValue)
+            var flowID = await flowStore.FindFlowID(continuationID);
+            if (!flowID.HasValue)
                 return null;
 
-            var flowStateLock = await flowStore.LockFlowState(flowStateID.Value);
+            var flowStateLock = await flowStore.LockFlowState(flowID.Value);
             if (flowStateLock == null)
                 return null;
 
             var flowState = await flowStateLock.GetFlowState();
+            if (flowState == null)
+                return null;
 
-
-            var flowMetadata = flowState != null ? Newtonsoft.Json.JsonConvert.DeserializeObject<FlowMetadata>(flowState.Metadata) : null;
-            //var continuationMetaData = Newtonsoft.Json.JsonConvert.DeserializeObject<ContinuationMetadata>(continuation.MetaData);
+            ContinuationMetadata continuation;
 
             var flowContext = new FlowContext
             {
                 MessageContext = context,
-                ContinuationID = continuationID,
+
                 FlowStateLock = flowStateLock,
                 FlowState = flowState,
-                Reply = flowMetadata?.Reply
+
+                ContinuationID = continuationID,
+                ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out continuation) ? continuation : null
             };
 
             // IDisposable items in the IMessageContext are automatically disposed

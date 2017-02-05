@@ -61,10 +61,12 @@
     <Compile Include="Default\ConsoleLogger.cs" />
     <Compile Include="Default\DevNullLogger.cs" />
     <Compile Include="Default\JsonMessageSerializer.cs" />
+    <Compile Include="Default\PublishResultBinding.cs" />
     <Compile Include="Default\NamespaceMatchExchangeStrategy.cs" />
     <Compile Include="Default\TypeNameRoutingKeyStrategy.cs" />
     <Compile Include="Helpers\ConsoleHelper.cs" />
     <Compile Include="Helpers\MiddlewareHelper.cs" />
+    <Compile Include="Helpers\TaskTypeHelper.cs" />
     <Compile Include="IConnection.cs" />
     <Compile Include="IExchangeStrategy.cs" />
     <Compile Include="ILogger.cs" />

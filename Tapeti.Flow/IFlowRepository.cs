@@ -7,9 +7,9 @@ namespace Tapeti.Flow
 {
     public interface IFlowRepository
     {
-        Task<IQueryable<FlowStateRecord>> GetAllStates();
-        Task CreateState(Guid flowID, DateTime timestamp, string metadata, string data, IDictionary<Guid, string> continuations);
-        Task UpdateState(Guid flowID, string metadata, string data, IDictionary<Guid, string> continuations);
+        Task<IQueryable<FlowStateRecord>> GetStates();
+        Task CreateState(FlowStateRecord stateRecord, DateTime timestamp);
+        Task UpdateState(FlowStateRecord stateRecord);
         Task DeleteState(Guid flowID);
     }
 
@@ -19,6 +19,6 @@ namespace Tapeti.Flow
         public Guid FlowID;
         public string Metadata;
         public string Data;
-        public Dictionary<Guid, string> Continuations;
+        public Dictionary<Guid, string> ContinuationMetadata;
     }
 }

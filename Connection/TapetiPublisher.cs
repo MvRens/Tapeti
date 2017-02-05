@@ -4,7 +4,7 @@ using RabbitMQ.Client;
 
 namespace Tapeti.Connection
 {
-    public class TapetiPublisher : IAdvancedPublisher
+    public class TapetiPublisher : IInternalPublisher
     {
         private readonly Func<TapetiWorker> workerFactory;
 

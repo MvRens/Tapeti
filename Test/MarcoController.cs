@@ -30,30 +30,30 @@ namespace Test
          * The Visualizer could've been injected through the constructor, which is
          * the recommended way. Just testing the injection middleware here.
          */
-        public async Task Marco(MarcoMessage message, Visualizer myVisualizer)
+        public async Task<IYieldPoint> Marco(MarcoMessage message, Visualizer myVisualizer)
         {
+            Console.WriteLine(">> Marco (yielding with request)");
+
             await myVisualizer.VisualizeMarco();
-            await publisher.Publish(new PoloMessage());
-        }
 
-
-        public IYieldPoint Polo(PoloMessage message)
-        {
-            StateTestGuid = Guid.NewGuid();
-
-            return flowProvider.YieldWithRequest<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(
+            return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(
                 new PoloConfirmationRequestMessage()
                 {
                     StoredInState = StateTestGuid
-                }, 
+                },
                 HandlePoloConfirmationResponse);
         }
 
 
-        public async Task<IYieldPoint> HandlePoloConfirmationResponse(PoloConfirmationResponseMessage message)
+        [Continuation]
+        public IYieldPoint HandlePoloConfirmationResponse(PoloConfirmationResponseMessage message)
         {
-            await visualizer.VisualizePolo(message.ShouldMatchState.Equals(StateTestGuid));
-            return flowProvider.End();
+            Console.WriteLine(">> HandlePoloConfirmationResponse (ending flow)");
+
+            Console.WriteLine(message.ShouldMatchState.Equals(StateTestGuid) ? "Confirmed!" : "Oops! Mismatch!");
+
+            // This should error, as MarcoMessage expects a PoloMessage as a response
+            return flowProvider.EndWithResponse(new PoloMessage());
         }
 
 
@@ -63,16 +63,28 @@ namespace Test
          * use the replyTo header of the request if provided.
          */
 
+        // TODO validation middleware to ensure a request message returns the specified response (already done for IYieldPoint methods)
         public PoloConfirmationResponseMessage PoloConfirmation(PoloConfirmationRequestMessage message)
         {
+            Console.WriteLine(">> PoloConfirmation (returning confirmation)");
+
             return new PoloConfirmationResponseMessage
             {
                 ShouldMatchState = message.StoredInState
             };
         }
+
+
+
+        public void Polo(PoloMessage message)
+        {
+            Console.WriteLine(">> Polo");
+            StateTestGuid = Guid.NewGuid();
+        }
     }
 
 
+    [Request(Response = typeof(PoloMessage))]
     public class MarcoMessage
     {
     }

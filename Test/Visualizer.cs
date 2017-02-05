@@ -11,9 +11,9 @@ namespace Test
             return Task.CompletedTask;
         }
 
-        public Task VisualizePolo(bool matches)
+        public Task VisualizePolo()
         {
-            Console.WriteLine(matches ? "Polo!" : "Oops! Mismatch!");
+            Console.WriteLine("Polo!");
             return Task.CompletedTask;
         }
     }

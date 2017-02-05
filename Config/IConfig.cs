@@ -7,7 +7,7 @@ namespace Tapeti.Config
 {
     public interface IConfig
     {
-        string Exchange { get; }
+        string SubscribeExchange { get; }
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
         IEnumerable<IQueue> Queues { get; }
@@ -33,9 +33,10 @@ namespace Tapeti.Config
         string QueueName { get; }
 
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+        IReadOnlyList<IBindingFilter> BindingFilters { get; }
 
-        bool Accept(object message);
-        Task<object> Invoke(IMessageContext context, object message);
+        Task<bool> Accept(IMessageContext context, object message);
+        Task Invoke(IMessageContext context, object message);
     }
 
 

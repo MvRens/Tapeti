@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Tapeti.Config;
-using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {

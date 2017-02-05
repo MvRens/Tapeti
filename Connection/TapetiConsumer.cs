@@ -36,37 +36,36 @@ namespace Tapeti.Connection
                     throw new ArgumentException("Empty message");
 
                 var validMessageType = false;
-                foreach (var binding in bindings.Where(b => b.Accept(message)))
+
+                using (var context = new MessageContext
                 {
-                    using (var context = new MessageContext
+                    DependencyResolver = dependencyResolver,
+                    Queue = queueName,
+                    RoutingKey = routingKey,
+                    Message = message,
+                    Properties = properties
+                })
+                {
+                    foreach (var binding in bindings)
                     {
-                        DependencyResolver = dependencyResolver,
-                        Controller = dependencyResolver.Resolve(binding.Controller),
-                        Queue = queueName,
-                        RoutingKey = routingKey,
-                        Message = message,
-                        Properties = properties
-                    })
-                    {
+                        if (!binding.Accept(context, message).Result)
+                            continue;
+
+                        context.Controller = dependencyResolver.Resolve(binding.Controller);
+                        context.Binding = binding;
+
                         // ReSharper disable AccessToDisposedClosure - MiddlewareHelper will not keep a reference to the lambdas
                         MiddlewareHelper.GoAsync(
                             binding.MessageMiddleware != null
                                 ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
                                 : messageMiddleware,
                             async (handler, next) => await handler.Handle(context, next),
-                            async () =>
-                            {
-                                var result = binding.Invoke(context, message).Result;
-
-                                // TODO change to result handler
-                                if (result != null)
-                                    await worker.Publish(result, null);
-                            }
+                            () => binding.Invoke(context, message)
                         ).Wait();
                         // ReSharper restore AccessToDisposedClosure
-                    }
 
-                    validMessageType = true;
+                        validMessageType = true;
+                    }
                 }
 
                 if (!validMessageType)
@@ -74,9 +73,15 @@ namespace Tapeti.Connection
 
                 worker.Respond(deliveryTag, ConsumeResponse.Ack);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                // TODO allow different exception handling depending on exception type
                 worker.Respond(deliveryTag, ConsumeResponse.Requeue);
+
+                var aggregateException = e as AggregateException;
+                if (aggregateException != null && aggregateException.InnerExceptions.Count == 1)
+                    throw aggregateException.InnerExceptions[0];
+
                 throw;
             }
         }
@@ -87,6 +92,7 @@ namespace Tapeti.Connection
             public IDependencyResolver DependencyResolver { get; set; }
 
             public object Controller { get; set; }
+            public IBinding Binding { get; set; }
 
             public string Queue { get; set; }
             public string RoutingKey { get; set; }
