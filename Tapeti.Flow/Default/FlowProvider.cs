@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
@@ -11,13 +12,13 @@ namespace Tapeti.Flow.Default
     public class FlowProvider : IFlowProvider, IFlowHandler
     {
         private readonly IConfig config;
-        private readonly IAdvancedPublisher publisher;
+        private readonly IInternalPublisher publisher;
 
 
         public FlowProvider(IConfig config, IPublisher publisher)
         {
             this.config = config;
-            this.publisher = (IAdvancedPublisher)publisher;
+            this.publisher = (IInternalPublisher)publisher;
         }
 
 
@@ -55,11 +56,11 @@ namespace Tapeti.Flow.Default
             var continuationID = Guid.NewGuid();
 
             context.FlowState.Continuations.Add(continuationID,
-                Newtonsoft.Json.JsonConvert.SerializeObject(new ContinuationMetadata
+                new ContinuationMetadata
                 {
                     MethodName = responseHandlerInfo.MethodName,
                     ConvergeMethodName = null
-                }));
+                });
 
             var properties = new BasicProperties
             {
@@ -73,25 +74,32 @@ namespace Tapeti.Flow.Default
 
         private async Task SendResponse(FlowContext context, object message)
         {
-            if (context.Reply == null)
-                throw new InvalidOperationException("No response is required");
+            var reply = context.FlowState.Metadata.Reply;
+            if (reply == null)
+                throw new YieldPointException("No response is required");
 
-            if (message.GetType().FullName != context.Reply.ResponseTypeName)
-                throw new InvalidOperationException($"Flow must end with a response message of type {context.Reply.ResponseTypeName}, {message.GetType().FullName} was returned instead");
+            if (message.GetType().FullName != reply.ResponseTypeName)
+                throw new YieldPointException($"Flow must end with a response message of type {reply.ResponseTypeName}, {message.GetType().FullName} was returned instead");
 
-            var properties = new BasicProperties
-            {
-                CorrelationId = context.Reply.CorrelationId
-            };
+            var properties = new BasicProperties();
 
-            await publisher.PublishDirect(message, context.Reply.ReplyTo, properties);
+            // Only set the property if it's not null, otherwise a string reference exception can occur:
+            // http://rabbitmq.1065348.n5.nabble.com/SocketException-when-invoking-model-BasicPublish-td36330.html
+            if (reply.CorrelationId != null)
+                properties.CorrelationId = reply.CorrelationId;
+
+            // TODO disallow if replyto is not specified?
+            if (context.FlowState.Metadata.Reply.ReplyTo != null)
+                await publisher.PublishDirect(message, reply.ReplyTo, properties);
+            else
+                await publisher.Publish(message, properties);
         }
 
 
         private static Task EndFlow(FlowContext context)
         {
-            if (context.Reply != null)
-                throw new InvalidOperationException($"Flow must end with a response message of type {context.Reply.ResponseTypeName}");
+            if (context.FlowState.Metadata.Reply != null)
+                throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
 
             return Task.CompletedTask;
         }
@@ -107,6 +115,10 @@ namespace Tapeti.Flow.Default
             if (requestAttribute?.Response != null && requestAttribute.Response != binding.MessageClass)
                 throw new ArgumentException($"responseHandler must accept message of type {binding.MessageClass}", nameof(responseHandler));
 
+            var continuationAttribute = binding.Method.GetCustomAttribute<ContinuationAttribute>();
+            if (continuationAttribute == null)
+                throw new ArgumentException($"responseHandler must be marked with the Continuation attribute", nameof(responseHandler));
+
             return new ResponseHandlerInfo
             {
                 MethodName = MethodSerializer.Serialize(responseHandler.Method),
@@ -115,16 +127,71 @@ namespace Tapeti.Flow.Default
         }
 
 
+        private static ReplyMetadata GetReply(IMessageContext context)
+        {
+            var requestAttribute = context.Message.GetType().GetCustomAttribute<RequestAttribute>();
+            if (requestAttribute?.Response == null)
+                return null;
+
+            return new ReplyMetadata
+            {
+                CorrelationId = context.Properties.CorrelationId,
+                ReplyTo = context.Properties.ReplyTo,
+                ResponseTypeName = requestAttribute.Response.FullName
+            };
+        }
+
+
         public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
         {
-            var flowContext = (FlowContext)context.Items[ContextItems.FlowContext];
-            if (flowContext == null)
-                return;
-
             var delegateYieldPoint = (DelegateYieldPoint)yieldPoint;
-            await delegateYieldPoint.Execute(flowContext);
+            var storeState = delegateYieldPoint.StoreState;
 
-            if (delegateYieldPoint.StoreState)
+            FlowContext flowContext;
+            object flowContextItem;
+
+            if (!context.Items.TryGetValue(ContextItems.FlowContext, out flowContextItem))
+            {
+                flowContext = new FlowContext
+                {
+                    MessageContext = context
+                };
+
+                if (storeState)
+                {
+                    // Initiate the flow
+                    var flowStore = context.DependencyResolver.Resolve<IFlowStore>();
+
+                    var flowID = Guid.NewGuid();
+                    flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
+
+                    if (flowContext.FlowStateLock == null)
+                        throw new InvalidOperationException("Unable to lock a new flow");
+
+                    flowContext.FlowState = await flowContext.FlowStateLock.GetFlowState();
+                    if (flowContext.FlowState == null)
+                        throw new InvalidOperationException("Unable to get state for new flow");
+
+                    flowContext.FlowState.Metadata.Reply = GetReply(context);
+                }
+            }
+            else
+                flowContext = (FlowContext) flowContextItem;
+
+
+            try
+            {
+                await delegateYieldPoint.Execute(flowContext);
+            }
+            catch (YieldPointException e)
+            {
+                var controllerName = flowContext.MessageContext.Controller.GetType().FullName;
+                var methodName = flowContext.MessageContext.Binding.Method.Name;
+
+                throw new YieldPointException($"{e.Message} in controller {controllerName}, method {methodName}", e);
+            }
+
+            if (storeState)
             {
                 flowContext.FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(context.Controller);
                 await flowContext.FlowStateLock.StoreFlowState(flowContext.FlowState);
@@ -202,61 +269,5 @@ namespace Tapeti.Flow.Default
             public string MethodName { get; set; }
             public string ReplyToQueue { get; set; }
         }
-
-
-
-        /*
-         * Handle response (correlationId known)
-            internal async Task HandleMessage(object message, string correlationID)
-            {
-                var continuationID = Guid.Parse(correlationID);
-                var flowStateID = await owner.flowStore.FindFlowStateID(continuationID);
-
-                if (!flowStateID.HasValue)
-                    return;
-
-                using (flowStateLock = await owner.flowStore.LockFlowState(flowStateID.Value))
-                {
-                    flowState = await flowStateLock.GetFlowState();
-
-                    continuation = flowState.Continuations[continuationID];
-                    if (continuation != null)
-                        await HandleContinuation(message);
-                }
-            }
-
-            private async Task HandleContinuation(object message)
-            {
-                var flowMetaData = Newtonsoft.Json.JsonConvert.DeserializeObject<FlowMetaData>(flowState.MetaData);
-                var continuationMetaData =
-                    Newtonsoft.Json.JsonConvert.DeserializeObject<ContinuationMetaData>(continuation.MetaData);
-
-                reply = flowMetaData.Reply;
-                controllerType = owner.GetControllerType(flowMetaData.ControllerTypeName);
-                method = controllerType.GetMethod(continuationMetaData.MethodName);
-
-                controller = owner.container.GetInstance(controllerType);
-
-                Newtonsoft.Json.JsonConvert.PopulateObject(flowState.Data, controller);
-
-                var yieldPoint = (AbstractYieldPoint) await owner.CallFlowController(controller, method, message);
-
-                await yieldPoint.Execute(this);
-
-                if (yieldPoint.Store)
-                {
-                    flowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(controller);
-                    flowState.Continuations.Remove(continuation);
-
-                    await flowStateLock.StoreFlowState(flowState);
-                }
-                else
-                {
-                    await flowStateLock.DeleteFlowState();
-                }
-            }
-
-        }
-        */
     }
 }

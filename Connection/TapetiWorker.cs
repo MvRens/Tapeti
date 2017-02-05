@@ -12,7 +12,7 @@ namespace Tapeti.Connection
     public class TapetiWorker
     {
         public TapetiConnectionParams ConnectionParams { get; set; }
-        public string Exchange { get; set; }
+        public string SubscribeExchange { get; set; }
 
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
@@ -34,7 +34,8 @@ namespace Tapeti.Connection
 
         public Task Publish(object message, IBasicProperties properties)
         {
-            return Publish(message, properties, Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()));
+            // TODO use exchange strategy!
+            return Publish(message, properties, SubscribeExchange, routingKeyStrategy.GetRoutingKey(message.GetType()));
         }
 
 
@@ -66,7 +67,7 @@ namespace Tapeti.Connection
                     foreach (var binding in queue.Bindings)
                     {
                         var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                        channel.QueueBind(dynamicQueue.QueueName, Exchange, routingKey);
+                        channel.QueueBind(dynamicQueue.QueueName, SubscribeExchange, routingKey);
 
                         (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }
@@ -172,6 +173,9 @@ namespace Tapeti.Connection
                 {
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
+
+                    if (ConnectionParams.PrefetchCount > 0)
+                        channelInstance.BasicQos(0, ConnectionParams.PrefetchCount, false);
 
                     break;
                 }

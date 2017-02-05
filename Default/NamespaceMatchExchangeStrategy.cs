@@ -10,9 +10,9 @@ namespace Tapeti.Default
         private readonly Regex namespaceRegEx;
 
 
-        public NamespaceMatchExchangeStrategy(string namespaceFormat = DefaultFormat)
+        public NamespaceMatchExchangeStrategy()
         {
-            namespaceRegEx = new Regex(namespaceFormat, RegexOptions.Compiled | RegexOptions.Singleline);
+            namespaceRegEx = new Regex(DefaultFormat, RegexOptions.Compiled | RegexOptions.Singleline);
         }
 
 

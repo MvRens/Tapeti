@@ -7,17 +7,17 @@ namespace Tapeti.Flow.Default
 {
     public class NonPersistentFlowRepository : IFlowRepository
     {
-        public Task<IQueryable<FlowStateRecord>> GetAllStates()
+        public Task<IQueryable<FlowStateRecord>> GetStates()
         {
             return Task.FromResult(new List<FlowStateRecord>().AsQueryable());
         }
 
-        public Task CreateState(Guid flowID, DateTime timestamp, string metadata, string data, IDictionary<Guid, string> continuations)
+        public Task CreateState(FlowStateRecord stateRecord, DateTime timestamp)
         {
             return Task.CompletedTask;
         }
 
-        public Task UpdateState(Guid flowID, string metadata, string data, IDictionary<Guid, string> continuations)
+        public Task UpdateState(FlowStateRecord stateRecord)
         {
             return Task.CompletedTask;
         }

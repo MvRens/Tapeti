@@ -1,17 +1,19 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Tapeti.Flow
+namespace Tapeti.Flow.Default
 {
     public class FlowStore : IFlowStore
     {
+        private static readonly ConcurrentDictionary<Guid, FlowState> FlowStates = new ConcurrentDictionary<Guid, FlowState>();
+        private static readonly ConcurrentDictionary<Guid, Guid> ContinuationLookup = new ConcurrentDictionary<Guid, Guid>();
+
         private readonly IFlowRepository repository;
-        private readonly ConcurrentDictionary<Guid, FlowState> flowStates = new ConcurrentDictionary<Guid, FlowState>();
-        private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
 
 
         public FlowStore(IFlowRepository repository) 
@@ -22,41 +24,37 @@ namespace Tapeti.Flow
 
         public async Task Load()
         {
-            flowStates.Clear();
-            continuationLookup.Clear();
+            FlowStates.Clear();
+            ContinuationLookup.Clear();
 
-            foreach (var state in await repository.GetAllStates())
+            foreach (var flowStateRecord in await repository.GetStates())
             {
-                flowStates.GetOrAdd(state.FlowID, new FlowState
-                {
-                    Metadata = state.Metadata,
-                    Data = state.Data,
-                    Continuations = state.Continuations
-                });
+                var flowState = ToFlowState(flowStateRecord);
+                FlowStates.GetOrAdd(flowStateRecord.FlowID, flowState);
 
-                foreach (var continuation in state.Continuations)
-                    continuationLookup.GetOrAdd(continuation.Key, state.FlowID);
+                foreach (var continuation in flowStateRecord.ContinuationMetadata)
+                    ContinuationLookup.GetOrAdd(continuation.Key, flowStateRecord.FlowID);
             }
         }
 
 
-        public Task<Guid?> FindFlowStateID(Guid continuationID)
+        public Task<Guid?> FindFlowID(Guid continuationID)
         {
             Guid result;
-            return Task.FromResult(continuationLookup.TryGetValue(continuationID, out result) ? result : (Guid?)null);
+            return Task.FromResult(ContinuationLookup.TryGetValue(continuationID, out result) ? result : (Guid?)null);
         }
 
 
-        public async Task<IFlowStateLock> LockFlowState(Guid flowStateID)
+        public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
             var isNew = false;
-            var flowState = flowStates.GetOrAdd(flowStateID, id =>
+            var flowState = FlowStates.GetOrAdd(flowID, id =>
             {
                 isNew = true;
                 return new FlowState();
             });
 
-            var result = new FlowStateLock(this, flowState, flowStateID, isNew);
+            var result = new FlowStateLock(this, flowState, flowID, isNew);
             await result.Lock();
 
             return result;
@@ -103,7 +101,7 @@ namespace Tapeti.Flow
                 }
             }
 
-            public Guid FlowStateID => flowID;
+            public Guid FlowID => flowID;
 
             public Task<FlowState> GetFlowState()
             {
@@ -112,12 +110,7 @@ namespace Tapeti.Flow
                     if (isDisposed)
                         throw new ObjectDisposedException("FlowStateLock");
 
-                    return Task.FromResult(new FlowState
-                    {
-                        Data = flowState.Data,
-                        Metadata = flowState.Metadata,
-                        Continuations = flowState.Continuations.ToDictionary(kv => kv.Key, kv => kv.Value)
-                    });
+                    return Task.FromResult(flowState.Clone());
                 }
             }
 
@@ -128,37 +121,29 @@ namespace Tapeti.Flow
                     if (isDisposed)
                         throw new ObjectDisposedException("FlowStateLock");
 
-                    foreach (
-                        var removedContinuation in
-                            flowState.Continuations.Keys.Where(
-                                k => !newFlowState.Continuations.ContainsKey(k)))
+                    foreach (var removedContinuation in flowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
                     {
                         Guid removedValue;
-                        owner.continuationLookup.TryRemove(removedContinuation, out removedValue);
+                        ContinuationLookup.TryRemove(removedContinuation, out removedValue);
                     }
 
-                    foreach (
-                        var addedContinuation in
-                            newFlowState.Continuations.Where(
-                                c => !flowState.Continuations.ContainsKey(c.Key)))
+                    foreach (var addedContinuation in newFlowState.Continuations.Where(c => !flowState.Continuations.ContainsKey(c.Key)))
                     {
-                        owner.continuationLookup.TryAdd(addedContinuation.Key, flowID);
+                        ContinuationLookup.TryAdd(addedContinuation.Key, flowID);
                     }
 
-                    flowState.Metadata = newFlowState.Metadata;
-                    flowState.Data = newFlowState.Data;
-                    flowState.Continuations = newFlowState.Continuations.ToDictionary(kv => kv.Key, kv => kv.Value);
+                    flowState.Assign(newFlowState);
                 }
+
                 if (isNew)
                 {
                     isNew = false;
                     var now = DateTime.UtcNow;
-                    await
-                        owner.repository.CreateState(flowID, now, flowState.Metadata, flowState.Data, flowState.Continuations);
+                    await owner.repository.CreateState(ToFlowStateRecord(flowID, flowState), now);
                 }
                 else
                 {
-                    await owner.repository.UpdateState(flowID, flowState.Metadata, flowState.Data, flowState.Continuations);
+                    await owner.repository.UpdateState(ToFlowStateRecord(flowID, flowState));
                 }
             }
 
@@ -172,15 +157,42 @@ namespace Tapeti.Flow
                     foreach (var removedContinuation in flowState.Continuations.Keys)
                     {
                         Guid removedValue;
-                        owner.continuationLookup.TryRemove(removedContinuation, out removedValue);
+                        ContinuationLookup.TryRemove(removedContinuation, out removedValue);
                     }
+
                     FlowState removedFlow;
-                    owner.flowStates.TryRemove(flowID, out removedFlow);
+                    FlowStates.TryRemove(flowID, out removedFlow);
                 }
+
                 if (!isNew)
                     await owner.repository.DeleteState(flowID);
             }
+        }
 
+
+        private static FlowStateRecord ToFlowStateRecord(Guid flowID, FlowState flowState)
+        {
+            return new FlowStateRecord
+            {
+                FlowID = flowID,
+                Metadata = JsonConvert.SerializeObject(flowState.Metadata),
+                Data = flowState.Data,
+                ContinuationMetadata = flowState.Continuations.ToDictionary(
+                    kv => kv.Key, 
+                    kv => JsonConvert.SerializeObject(kv.Value))
+            };
+        }
+
+        private static FlowState ToFlowState(FlowStateRecord flowStateRecord)
+        {
+            return new FlowState
+            {
+                Metadata = JsonConvert.DeserializeObject<FlowMetadata>(flowStateRecord.Metadata),
+                Data = flowStateRecord.Data,
+                Continuations = flowStateRecord.ContinuationMetadata.ToDictionary(
+                    kv => kv.Key, 
+                    kv => JsonConvert.DeserializeObject<ContinuationMetadata>(kv.Value))
+            };
         }
     }
 }

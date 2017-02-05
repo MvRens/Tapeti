@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using RabbitMQ.Client;
 
 namespace Tapeti.Config
@@ -19,5 +20,10 @@ namespace Tapeti.Config
         /// Controller will be null when passed to an IBindingFilter
         /// </summary>
         object Controller { get; }
+
+        /// <summary>
+        /// Binding will be null when passed to an IBindingFilter
+        /// </summary>
+        IBinding Binding { get; }
     }
 }

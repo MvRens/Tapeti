@@ -16,7 +16,7 @@ namespace Tapeti
         public TopologyConfigurationException(string message) : base(message) { }
     }
 
-    public delegate Task<object> MessageHandlerFunc(IMessageContext context, object message);
+    public delegate Task MessageHandlerFunc(IMessageContext context, object message);
 
 
     public class TapetiConfig
@@ -27,17 +27,18 @@ namespace Tapeti
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
 
-        private readonly string exchange;
+        private readonly string subscribeExchange;
         private readonly IDependencyResolver dependencyResolver;
 
 
-        public TapetiConfig(string exchange, IDependencyResolver dependencyResolver)
+        public TapetiConfig(string subscribeExchange, IDependencyResolver dependencyResolver)
         {
-            this.exchange = exchange;
+            this.subscribeExchange = subscribeExchange;
             this.dependencyResolver = dependencyResolver;
 
             Use(new DependencyResolverBinding());
             Use(new MessageBinding());
+            Use(new PublishResultBinding());
         }
 
 
@@ -62,8 +63,8 @@ namespace Tapeti
 
             queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
-            var config = new Config(exchange, dependencyResolver, messageMiddleware, queues);
-            (dependencyResolver as IDependencyContainer)?.RegisterConfig(config);
+            var config = new Config(subscribeExchange, dependencyResolver, messageMiddleware, queues);
+            (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
 
             return config;
         }
@@ -139,7 +140,8 @@ namespace Tapeti
                     QueueInfo = methodQueueInfo,
                     MessageClass = context.MessageClass,
                     MessageHandler = messageHandler,
-                    MessageMiddleware = context.MessageMiddleware
+                    MessageMiddleware = context.MessageMiddleware,
+                    BindingFilters = context.BindingFilters
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
@@ -177,61 +179,59 @@ namespace Tapeti
 
             var invalidBindings = context.Parameters.Where(p => !p.HasBinding).ToList();
 
-            // ReSharper disable once InvertIf - doesn't make the flow clearer imo
+            // ReSharper disable once InvertIf
             if (invalidBindings.Count > 0)
             {
                 var parameterNames = string.Join(", ", invalidBindings.Select(p => p.Info.Name));
                 throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} has unknown parameters: {parameterNames}");
             }
 
-            return WrapMethod(method, context.Parameters.Select(p => ((IBindingParameterAccess)p).GetBinding()));
+            var resultHandler = ((IBindingResultAccess) context.Result).GetHandler();
+
+            return WrapMethod(method, context.Parameters.Select(p => ((IBindingParameterAccess)p).GetBinding()), resultHandler);
         }
 
 
-        protected MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
+        protected MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameters, ResultHandler resultHandler)
         {
+            if (resultHandler != null)
+                return WrapResultHandlerMethod(method, parameters, resultHandler);
+
             if (method.ReturnType == typeof(void))
                 return WrapNullMethod(method, parameters);
 
             if (method.ReturnType == typeof(Task))
                 return WrapTaskMethod(method, parameters);
 
-            if (method.ReturnType == typeof(Task<>))
-            {
-                var genericArguments = method.GetGenericArguments();
-                if (genericArguments.Length != 1)
-                    throw new ArgumentException($"Method {method.Name} in controller {method.DeclaringType?.Name} must have exactly one generic argument to Task<>");
-
-                if (!genericArguments[0].IsClass)
-                    throw new ArgumentException($"Method {method.Name} in controller {method.DeclaringType?.Name} must have an object generic argument to Task<>");
-
+            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
                 return WrapGenericTaskMethod(method, parameters);
-            }
 
-            if (method.ReturnType.IsClass)
-                return WrapObjectMethod(method, parameters);
-
-            throw new ArgumentException($"Method {method.Name} in controller {method.DeclaringType?.Name} has an invalid return type");
+            return WrapObjectMethod(method, parameters);
         }
 
+
+        protected MessageHandlerFunc WrapResultHandlerMethod(MethodInfo method, IEnumerable<ValueFactory> parameters, ResultHandler resultHandler)
+        {
+            return (context, message) =>
+            {
+                var result = method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
+                return resultHandler(context, result);
+            };
+        }
 
         protected MessageHandlerFunc WrapNullMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
         {
             return (context, message) =>
             {
                 method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-                return Task.FromResult<object>(null);
+                return Task.CompletedTask;
             };
         }
 
 
         protected MessageHandlerFunc WrapTaskMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
         {
-            return async (context, message) =>
-            {
-                await (Task)method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-                return Task.FromResult<object>(null);
-            };
+            return (context, message) => (Task)method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
         }
 
 
@@ -310,7 +310,7 @@ namespace Tapeti
 
         protected class Config : IConfig
         {
-            public string Exchange { get; }
+            public string SubscribeExchange { get; }
             public IDependencyResolver DependencyResolver { get; }
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
             public IEnumerable<IQueue> Queues { get; }
@@ -318,9 +318,9 @@ namespace Tapeti
             private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
 
 
-            public Config(string exchange, IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
+            public Config(string subscribeExchange, IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
             {
-                Exchange = exchange;
+                SubscribeExchange = subscribeExchange;
                 DependencyResolver = dependencyResolver;
                 MessageMiddleware = messageMiddleware;
                 Queues = queues.ToList();
@@ -361,6 +361,7 @@ namespace Tapeti
             public string QueueName { get; set; }
 
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set;  }
+            public IReadOnlyList<IBindingFilter> BindingFilters { get; set; }
 
             private QueueInfo queueInfo;
             public QueueInfo QueueInfo
@@ -382,13 +383,25 @@ namespace Tapeti
             }
 
 
-            public bool Accept(object message)
+            public async Task<bool> Accept(IMessageContext context, object message)
             {
-                return message.GetType() == MessageClass;
+                if (message.GetType() != MessageClass)
+                    return false;
+
+                if (BindingFilters == null)
+                    return true;
+
+                foreach (var filter in BindingFilters)
+                {
+                    if (!await filter.Accept(context, this))
+                        return false;
+                }
+
+                return true;
             }
 
 
-            public Task<object> Invoke(IMessageContext context, object message)
+            public Task Invoke(IMessageContext context, object message)
             {
                 return MessageHandler(context, message);
             }

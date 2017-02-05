@@ -13,15 +13,21 @@ namespace Test
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
-            //container.RegisterSingleton<ISagaStore, SagaMemoryStore>();
 
             var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
-                .Use(new FlowMiddleware())
+                .WithFlow()
                 .RegisterAllControllers()
                 .Build();
 
-            using (var connection = new TapetiConnection(config))
-            {   
+            using (var connection = new TapetiConnection(config)
+            {
+                Params = new TapetiConnectionParams
+                {
+                    HostName = "localhost",
+                    PrefetchCount = 200
+                }
+            })
+            {
                 Console.WriteLine("Subscribing...");
                 connection.Subscribe().Wait();
                 Console.WriteLine("Done!");

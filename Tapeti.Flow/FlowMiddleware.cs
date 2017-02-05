@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Flow.Annotations;
 using Tapeti.Flow.Default;
+using Tapeti.Helpers;
 
 namespace Tapeti.Flow
 {
@@ -13,13 +14,14 @@ namespace Tapeti.Flow
         public IEnumerable<object> GetContents(IDependencyResolver dependencyResolver)
         {
             var container = dependencyResolver as IDependencyContainer;
+
+            // ReSharper disable once InvertIf
             if (container != null)
             {
                 container.RegisterDefault<IFlowProvider, FlowProvider>();
                 container.RegisterDefault<IFlowHandler, FlowProvider>();
-                // TODO singleton
-                container.RegisterDefault<IFlowStore, FlowStore>();
                 container.RegisterDefault<IFlowRepository, NonPersistentFlowRepository>();
+                container.RegisterDefault<IFlowStore, FlowStore>();
             }
 
             return new[] { new FlowBindingMiddleware() };
@@ -30,40 +32,41 @@ namespace Tapeti.Flow
         {
             public void Handle(IBindingContext context, Action next)
             {
-                HandleContinuationFilter(context);
-                HandleYieldPointResult(context);
+                RegisterContinuationFilter(context);
+                RegisterYieldPointResult(context);
 
                 next();
             }
 
 
-            private static void HandleContinuationFilter(IBindingContext context)
+            private static void RegisterContinuationFilter(IBindingContext context)
             {
                 var continuationAttribute = context.Method.GetCustomAttribute<ContinuationAttribute>();
-                if (continuationAttribute != null)
-                {
-                    context.Use(new FlowBindingFilter());
-                    context.Use(new FlowMessageMiddleware());
-                }
+                if (continuationAttribute == null)
+                    return;
+
+                context.Use(new FlowBindingFilter());
+                context.Use(new FlowMessageMiddleware());
             }
 
 
-            private static void HandleYieldPointResult(IBindingContext context)
+            private static void RegisterYieldPointResult(IBindingContext context)
             {
-                if (context.Result.Info.ParameterType == typeof(IYieldPoint))
-                    context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
+                bool isTask;
+                if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out isTask))
+                    return;
 
-                else if (context.Result.Info.ParameterType == typeof(Task<>))
+                if (isTask)
                 {
-                    var genericArguments = context.Result.Info.ParameterType.GetGenericArguments();
-                    if (genericArguments.Length == 1 && genericArguments[0] == typeof(IYieldPoint))
-                        context.Result.SetHandler(async (messageContext, value) =>
-                        {
-                            var yieldPoint = await (Task<IYieldPoint>)value;
-                            if (yieldPoint != null)
-                                await HandleYieldPoint(messageContext, yieldPoint);
-                        });
+                    context.Result.SetHandler(async (messageContext, value) =>
+                    {
+                        var yieldPoint = await (Task<IYieldPoint>)value;
+                        if (yieldPoint != null)
+                            await HandleYieldPoint(messageContext, yieldPoint);
+                    });
                 }
+                else
+                    context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
             }
 
 
