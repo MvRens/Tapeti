@@ -16,12 +16,11 @@ namespace Tapeti
         public TapetiConnection(IConfig config)
         {
             this.config = config;
-            (config.DependencyResolver as IDependencyInjector)?.RegisterPublisher(GetPublisher);
+            (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
             worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config.DependencyResolver, config.MessageMiddleware)
             {
-                ConnectionParams = Params ?? new TapetiConnectionParams(),
-                Exchange = config.Exchange
+                ConnectionParams = Params ?? new TapetiConnectionParams()
             });
         }
 

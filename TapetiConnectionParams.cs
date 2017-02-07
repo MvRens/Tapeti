@@ -10,6 +10,13 @@ namespace Tapeti
         public string Username { get; set; } = "guest";
         public string Password { get; set; } = "guest";
 
+        /// <summary>
+        /// The amount of message to prefetch. See http://www.rabbitmq.com/consumer-prefetch.html for more information.
+        /// 
+        /// If set to 0, no limit will be applied.
+        /// </summary>
+        public ushort PrefetchCount { get; set; } = 50;
+
 
         public TapetiConnectionParams()
         {            
