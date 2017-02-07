@@ -82,17 +82,27 @@ namespace Tapeti
         }
 
 
-        public TapetiConfig Use(IMiddlewareBundle bundle)
+        public TapetiConfig Use(ITapetiExtension extension)
         {
-            foreach (var middleware in bundle.GetContents(dependencyResolver))
+            var container = dependencyResolver as IDependencyContainer;
+            if (container != null)
+                extension.RegisterDefaults(container);
+
+            var middlewareBundle = extension.GetMiddleware(dependencyResolver);
+
+            // ReSharper disable once InvertIf
+            if (middlewareBundle != null)
             {
-                // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
-                if (middleware is IBindingMiddleware)
-                    Use((IBindingMiddleware) middleware);
-                else if (middleware is IMessageMiddleware)
-                    Use((IMessageMiddleware)middleware);
-                else
-                    throw new ArgumentException($"Unsupported middleware implementation: {middleware.GetType().Name}");
+                foreach (var middleware in middlewareBundle)
+                {
+                    // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
+                    if (middleware is IBindingMiddleware)
+                        Use((IBindingMiddleware)middleware);
+                    else if (middleware is IMessageMiddleware)
+                        Use((IMessageMiddleware)middleware);
+                    else
+                        throw new ArgumentException($"Unsupported middleware implementation: {middleware.GetType().Name}");
+                }
             }
 
             return this;

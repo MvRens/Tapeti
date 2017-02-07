@@ -74,7 +74,7 @@
     <Compile Include="ILogger.cs" />
     <Compile Include="Config\IMessageContext.cs" />
     <Compile Include="Config\IMessageMiddleware.cs" />
-    <Compile Include="Config\IMiddlewareBundle.cs" />
+    <Compile Include="Config\ITapetiExtension.cs" />
     <Compile Include="Config\IConfig.cs" />
     <Compile Include="MessageController.cs" />
     <Compile Include="Config\IBindingMiddleware.cs" />
