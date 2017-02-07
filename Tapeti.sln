@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti", "Tapeti.csproj", "{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti", "Tapeti\Tapeti.csproj", "{8AB4FD33-4AAA-465C-8579-9DB3F3B23813}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.SimpleInjector", "Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj", "{D7EC6F86-EB3B-49C3-8FE7-6E8C1BB413A6}"
 EndProject
