@@ -17,6 +17,8 @@ namespace Test
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
 
+            container.Register<IFlowRepository>();
+
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
                 .RegisterAllControllers()

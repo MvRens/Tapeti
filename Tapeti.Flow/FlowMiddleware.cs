@@ -4,21 +4,18 @@ using Tapeti.Flow.Default;
 
 namespace Tapeti.Flow
 {
-    public class FlowMiddleware : IMiddlewareBundle
+    public class FlowMiddleware : ITapetiExtension
     {
-        public IEnumerable<object> GetContents(IDependencyResolver dependencyResolver)
+        public void RegisterDefaults(IDependencyContainer container)
         {
-            var container = dependencyResolver as IDependencyContainer;
+            container.RegisterDefault<IFlowProvider, FlowProvider>();
+            container.RegisterDefault<IFlowHandler, FlowProvider>();
+            container.RegisterDefault<IFlowRepository, NonPersistentFlowRepository>();
+            container.RegisterDefault<IFlowStore, FlowStore>();
+        }
 
-            // ReSharper disable once InvertIf
-            if (container != null)
-            {
-                container.RegisterDefault<IFlowProvider, FlowProvider>();
-                container.RegisterDefault<IFlowHandler, FlowProvider>();
-                container.RegisterDefault<IFlowRepository, NonPersistentFlowRepository>();
-                container.RegisterDefault<IFlowStore, FlowStore>();
-            }
-
+        public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
+        {
             return new[] { new FlowBindingMiddleware() };
         }
     }
