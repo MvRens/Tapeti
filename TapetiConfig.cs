@@ -27,13 +27,11 @@ namespace Tapeti
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
 
-        private readonly string subscribeExchange;
         private readonly IDependencyResolver dependencyResolver;
 
 
-        public TapetiConfig(string subscribeExchange, IDependencyResolver dependencyResolver)
+        public TapetiConfig(IDependencyResolver dependencyResolver)
         {
-            this.subscribeExchange = subscribeExchange;
             this.dependencyResolver = dependencyResolver;
 
             Use(new DependencyResolverBinding());
@@ -63,7 +61,7 @@ namespace Tapeti
 
             queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
-            var config = new Config(subscribeExchange, dependencyResolver, messageMiddleware, queues);
+            var config = new Config(dependencyResolver, messageMiddleware, queues);
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
 
             return config;
@@ -104,17 +102,18 @@ namespace Tapeti
         public void RegisterDefaults()
         {
             var container = dependencyResolver as IDependencyContainer;
-            if (container != null)
-            {
-                if (ConsoleHelper.IsAvailable())
-                    container.RegisterDefault<ILogger, ConsoleLogger>();
-                else
-                    container.RegisterDefault<ILogger, DevNullLogger>();
+            if (container == null)
+                return;
 
-                container.RegisterDefault<IMessageSerializer, JsonMessageSerializer>();
-                container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
-                container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
-            }
+            if (ConsoleHelper.IsAvailable())
+                container.RegisterDefault<ILogger, ConsoleLogger>();
+            else
+                container.RegisterDefault<ILogger, DevNullLogger>();
+
+            container.RegisterDefault<IMessageSerializer, JsonMessageSerializer>();
+            container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
+            container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
+            container.RegisterDefault<IExceptionStrategy, RequeueExceptionStrategy>();
         }
 
 
@@ -310,7 +309,6 @@ namespace Tapeti
 
         protected class Config : IConfig
         {
-            public string SubscribeExchange { get; }
             public IDependencyResolver DependencyResolver { get; }
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
             public IEnumerable<IQueue> Queues { get; }
@@ -318,9 +316,8 @@ namespace Tapeti
             private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
 
 
-            public Config(string subscribeExchange, IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
+            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
             {
-                SubscribeExchange = subscribeExchange;
                 DependencyResolver = dependencyResolver;
                 MessageMiddleware = messageMiddleware;
                 Queues = queues.ToList();

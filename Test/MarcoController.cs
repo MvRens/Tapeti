@@ -62,8 +62,6 @@ namespace Test
          * This will automatically include the correlationId in the response and
          * use the replyTo header of the request if provided.
          */
-
-        // TODO validation middleware to ensure a request message returns the specified response (already done for IYieldPoint methods)
         public PoloConfirmationResponseMessage PoloConfirmation(PoloConfirmationRequestMessage message)
         {
             Console.WriteLine(">> PoloConfirmation (returning confirmation)");

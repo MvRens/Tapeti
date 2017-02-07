@@ -5,15 +5,9 @@ namespace Tapeti.Default
 {
     public class NamespaceMatchExchangeStrategy : IExchangeStrategy
     {
-        public const string DefaultFormat = "^Messaging\\.(.[^\\.]+)";
-
-        private readonly Regex namespaceRegEx;
-
-
-        public NamespaceMatchExchangeStrategy()
-        {
-            namespaceRegEx = new Regex(DefaultFormat, RegexOptions.Compiled | RegexOptions.Singleline);
-        }
+        // If the namespace starts with "Messaging.Service[.Optional.Further.Parts]", the exchange will be "Service".
+        // If no Messaging prefix is present, the first part of the namespace will be used instead.
+        private static readonly Regex NamespaceRegex = new Regex("^(Messaging\\.)?(?<exchange>[^\\.]+)", RegexOptions.Compiled | RegexOptions.Singleline);
 
 
         public string GetExchange(Type messageType)
@@ -21,11 +15,11 @@ namespace Tapeti.Default
             if (messageType.Namespace == null)
                 throw new ArgumentException($"{messageType.FullName} does not have a namespace");
 
-            var match = namespaceRegEx.Match(messageType.Namespace);
+            var match = NamespaceRegex.Match(messageType.Namespace);
             if (!match.Success)
                 throw new ArgumentException($"Namespace for {messageType.FullName} does not match the specified format");
 
-            return match.Groups[1].Value.ToLower();
+            return match.Groups["exchange"].Value.ToLower();
         }
     }
 }

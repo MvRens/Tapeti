@@ -14,6 +14,7 @@ namespace Tapeti.Connection
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly List<IBinding> bindings;
+        private readonly IExceptionStrategy exceptionStrategy;
 
 
         public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware)
@@ -23,6 +24,8 @@ namespace Tapeti.Connection
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
             this.bindings = bindings.ToList();
+
+            exceptionStrategy = dependencyResolver.Resolve<IExceptionStrategy>();
         }
 
 
@@ -46,44 +49,58 @@ namespace Tapeti.Connection
                     Properties = properties
                 })
                 {
-                    foreach (var binding in bindings)
+                    try
                     {
-                        if (!binding.Accept(context, message).Result)
-                            continue;
+                        foreach (var binding in bindings)
+                        {
+                            if (!binding.Accept(context, message).Result)
+                                continue;
 
-                        context.Controller = dependencyResolver.Resolve(binding.Controller);
-                        context.Binding = binding;
+                            context.Controller = dependencyResolver.Resolve(binding.Controller);
+                            context.Binding = binding;
 
-                        // ReSharper disable AccessToDisposedClosure - MiddlewareHelper will not keep a reference to the lambdas
-                        MiddlewareHelper.GoAsync(
-                            binding.MessageMiddleware != null
-                                ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
-                                : messageMiddleware,
-                            async (handler, next) => await handler.Handle(context, next),
-                            () => binding.Invoke(context, message)
-                        ).Wait();
-                        // ReSharper restore AccessToDisposedClosure
+                            // ReSharper disable AccessToDisposedClosure - MiddlewareHelper will not keep a reference to the lambdas
+                            MiddlewareHelper.GoAsync(
+                                binding.MessageMiddleware != null
+                                    ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
+                                    : messageMiddleware,
+                                async (handler, next) => await handler.Handle(context, next),
+                                () => binding.Invoke(context, message)
+                            ).Wait();
+                            // ReSharper restore AccessToDisposedClosure
 
-                        validMessageType = true;
+                            validMessageType = true;
+                        }
+
+                        if (!validMessageType)
+                            throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
+                    }
+                    catch (Exception e)
+                    {
+                        worker.Respond(deliveryTag, exceptionStrategy.HandleException(context, UnwrapException(e)));
                     }
                 }
-
-                if (!validMessageType)
-                    throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
 
                 worker.Respond(deliveryTag, ConsumeResponse.Ack);
             }
             catch (Exception e)
             {
-                // TODO allow different exception handling depending on exception type
-                worker.Respond(deliveryTag, ConsumeResponse.Requeue);
-
-                var aggregateException = e as AggregateException;
-                if (aggregateException != null && aggregateException.InnerExceptions.Count == 1)
-                    throw aggregateException.InnerExceptions[0];
-
-                throw;
+                worker.Respond(deliveryTag, exceptionStrategy.HandleException(null, UnwrapException(e)));
             }
+        }
+
+
+        private static Exception UnwrapException(Exception exception)
+        {
+            // In async/await style code this is handled similarly. For synchronous
+            // code using Tasks we have to unwrap these ourselves to get the proper
+            // exception directly instead of "Errors occured". We might lose
+            // some stack traces in the process though.
+            var aggregateException = exception as AggregateException;
+            if (aggregateException != null && aggregateException.InnerExceptions.Count == 1)
+                throw aggregateException.InnerExceptions[0];
+
+            return UnwrapException(exception);
         }
 
 

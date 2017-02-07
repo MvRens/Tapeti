@@ -20,8 +20,7 @@ namespace Tapeti
 
             worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config.DependencyResolver, config.MessageMiddleware)
             {
-                ConnectionParams = Params ?? new TapetiConnectionParams(),
-                SubscribeExchange = config.SubscribeExchange
+                ConnectionParams = Params ?? new TapetiConnectionParams()
             });
         }
 
