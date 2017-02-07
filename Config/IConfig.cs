@@ -7,10 +7,11 @@ namespace Tapeti.Config
 {
     public interface IConfig
     {
-        string Exchange { get; }
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
         IEnumerable<IQueue> Queues { get; }
+
+        IBinding GetBinding(Delegate method);
     }
 
 
@@ -28,10 +29,18 @@ namespace Tapeti.Config
         Type Controller { get; }
         MethodInfo Method { get; }
         Type MessageClass { get; }
+        string QueueName { get; }
 
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+        IReadOnlyList<IBindingFilter> BindingFilters { get; }
 
-        bool Accept(object message);
-        Task<object> Invoke(IMessageContext context, object message);
+        Task<bool> Accept(IMessageContext context, object message);
+        Task Invoke(IMessageContext context, object message);
+    }
+
+
+    public interface IDynamicQueueBinding : IBinding
+    {
+        void SetQueueName(string queueName);
     }
 }

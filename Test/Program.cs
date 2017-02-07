@@ -1,7 +1,7 @@
 ﻿using System;
 using SimpleInjector;
 using Tapeti;
-using Tapeti.Saga;
+using Tapeti.Flow;
 using Tapeti.SimpleInjector;
 
 namespace Test
@@ -10,18 +10,27 @@ namespace Test
     {
         private static void Main()
         {
+            // TODO SQL based flow store
+            // TODO logging
+
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
-            container.RegisterSingleton<ISagaStore, SagaMemoryStore>();
 
-            var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
-                .Use(new SagaMiddleware())
+            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
+                .WithFlow()
                 .RegisterAllControllers()
                 .Build();
 
-            using (var connection = new TapetiConnection(config))
-            {   
+            using (var connection = new TapetiConnection(config)
+            {
+                Params = new TapetiConnectionParams
+                {
+                    HostName = "localhost",
+                    PrefetchCount = 200
+                }
+            })
+            {
                 Console.WriteLine("Subscribing...");
                 connection.Subscribe().Wait();
                 Console.WriteLine("Done!");

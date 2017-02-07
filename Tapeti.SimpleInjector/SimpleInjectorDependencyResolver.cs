@@ -4,7 +4,7 @@ using SimpleInjector;
 
 namespace Tapeti.SimpleInjector
 {
-    public class SimpleInjectorDependencyResolver : IDependencyInjector
+    public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
 
@@ -26,23 +26,44 @@ namespace Tapeti.SimpleInjector
 
         public void RegisterDefault<TService, TImplementation>() where TService : class where TImplementation : class, TService
         {
-            // ReSharper disable once SimplifyLinqExpression - not a fan of negative predicates
-            if (!container.GetCurrentRegistrations().Any(ip => ip.ServiceType == typeof(TService)))
+            if (CanRegisterDefault<TService>())
                 container.Register<TService, TImplementation>();
         }
 
-
-        public void RegisterPublisher(Func<IPublisher> publisher)
+        public void RegisterDefault<TService>(Func<TService> factory) where TService : class
         {
-            // ReSharper disable once SimplifyLinqExpression - still not a fan of negative predicates
-            if (!container.GetCurrentRegistrations().Any(ip => ip.ServiceType == typeof(IPublisher)))
-                container.Register(publisher);
+            if (CanRegisterDefault<TService>())
+                container.Register(factory);
         }
 
+        public void RegisterDefaultSingleton<TService, TImplementation>() where TService : class where TImplementation : class, TService
+        {
+            if (CanRegisterDefault<TService>())
+                container.RegisterSingleton<TService, TImplementation>();
+        }
+
+        public void RegisterDefaultSingleton<TService>(TService instance) where TService : class
+        {
+            if (CanRegisterDefault<TService>())
+                container.RegisterSingleton(instance);
+        }
+
+        public void RegisterDefaultSingleton<TService>(Func<TService> factory) where TService : class
+        {
+            if (CanRegisterDefault<TService>())
+                container.RegisterSingleton(factory);
+        }
 
         public void RegisterController(Type type)
         {
             container.Register(type);
+        }
+
+
+        private bool CanRegisterDefault<TService>() where TService : class
+        {
+            // ReSharper disable once SimplifyLinqExpression - not a fan of negative predicates
+            return !container.GetCurrentRegistrations().Any(ip => ip.ServiceType == typeof(TService));
         }
     }
 }

@@ -12,12 +12,12 @@ namespace Tapeti.Connection
     public class TapetiWorker
     {
         public TapetiConnectionParams ConnectionParams { get; set; }
-        public string Exchange { get; set; }
 
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
+        private readonly IExchangeStrategy exchangeStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
         private RabbitMQ.Client.IConnection connection;
         private IModel channelInstance;
@@ -27,25 +27,22 @@ namespace Tapeti.Connection
         {
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
+
             messageSerializer = dependencyResolver.Resolve<IMessageSerializer>();
             routingKeyStrategy = dependencyResolver.Resolve<IRoutingKeyStrategy>();
+            exchangeStrategy = dependencyResolver.Resolve<IExchangeStrategy>();
         }
 
 
         public Task Publish(object message, IBasicProperties properties)
         {
-            return taskQueue.Value.Add(async () =>
-            {
-                var messageProperties = properties ?? new BasicProperties();
-                if (messageProperties.Timestamp.UnixTime == 0)
-                    messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+            return Publish(message, properties, exchangeStrategy.GetExchange(message.GetType()), routingKeyStrategy.GetRoutingKey(message.GetType()));
+        }
 
-                var body = messageSerializer.Serialize(message, messageProperties);
 
-                (await GetChannel())
-                    .BasicPublish(Exchange, routingKeyStrategy.GetRoutingKey(message.GetType()), false,
-                        messageProperties, body);
-            }).Unwrap();
+        public Task PublishDirect(object message, string queueName, IBasicProperties properties)
+        {
+            return Publish(message, properties, "", queueName);
         }
 
 
@@ -53,7 +50,7 @@ namespace Tapeti.Connection
         {
             return taskQueue.Value.Add(async () =>
             {
-                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, dependencyResolver, bindings, messageMiddleware));
+                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, dependencyResolver, bindings, messageMiddleware));
             }).Unwrap();
         }
 
@@ -71,9 +68,11 @@ namespace Tapeti.Connection
                     foreach (var binding in queue.Bindings)
                     {
                         var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                        channel.QueueBind(dynamicQueue.QueueName, Exchange, routingKey);
-                    }
+                        channel.QueueBind(dynamicQueue.QueueName, exchangeStrategy.GetExchange(binding.MessageClass), routingKey);
 
+                        (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
+                    }
+                    
                     return dynamicQueue.QueueName;
                 }
 
@@ -133,6 +132,22 @@ namespace Tapeti.Connection
         }
 
 
+        private Task Publish(object message, IBasicProperties properties, string exchange, string routingKey)
+        {
+            return taskQueue.Value.Add(async () =>
+            {
+                var messageProperties = properties ?? new BasicProperties();
+                if (messageProperties.Timestamp.UnixTime == 0)
+                    messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+
+                var body = messageSerializer.Serialize(message, messageProperties);
+
+                (await GetChannel())
+                    .BasicPublish(exchange, routingKey, false, messageProperties, body);
+            }).Unwrap();
+
+        }
+
         /// <remarks>
         /// Only call this from a task in the taskQueue to ensure IModel is only used 
         /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
@@ -159,6 +174,9 @@ namespace Tapeti.Connection
                 {
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
+
+                    if (ConnectionParams.PrefetchCount > 0)
+                        channelInstance.BasicQos(0, ConnectionParams.PrefetchCount, false);
 
                     break;
                 }
