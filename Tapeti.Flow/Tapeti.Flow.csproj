@@ -53,6 +53,7 @@
     <Compile Include="Annotations\RequestAttribute.cs" />
     <Compile Include="ContextItems.cs" />
     <Compile Include="Default\FlowBindingFilter.cs" />
+    <Compile Include="Default\FlowBindingMiddleware.cs" />
     <Compile Include="Default\FlowContext.cs" />
     <Compile Include="Default\FlowMessageMiddleware.cs" />
     <Compile Include="Default\FlowState.cs" />
@@ -67,6 +68,7 @@
     <Compile Include="IFlowStore.cs" />
     <Compile Include="IFlowProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResponseExpectedException.cs" />
     <Compile Include="YieldPointException.cs" />
   </ItemGroup>
   <ItemGroup>

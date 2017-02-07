@@ -7,7 +7,6 @@ namespace Tapeti.Config
 {
     public interface IConfig
     {
-        string SubscribeExchange { get; }
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
         IEnumerable<IQueue> Queues { get; }

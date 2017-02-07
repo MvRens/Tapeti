@@ -12,12 +12,12 @@ namespace Tapeti.Connection
     public class TapetiWorker
     {
         public TapetiConnectionParams ConnectionParams { get; set; }
-        public string SubscribeExchange { get; set; }
 
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
+        private readonly IExchangeStrategy exchangeStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
         private RabbitMQ.Client.IConnection connection;
         private IModel channelInstance;
@@ -27,15 +27,16 @@ namespace Tapeti.Connection
         {
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
+
             messageSerializer = dependencyResolver.Resolve<IMessageSerializer>();
             routingKeyStrategy = dependencyResolver.Resolve<IRoutingKeyStrategy>();
+            exchangeStrategy = dependencyResolver.Resolve<IExchangeStrategy>();
         }
 
 
         public Task Publish(object message, IBasicProperties properties)
         {
-            // TODO use exchange strategy!
-            return Publish(message, properties, SubscribeExchange, routingKeyStrategy.GetRoutingKey(message.GetType()));
+            return Publish(message, properties, exchangeStrategy.GetExchange(message.GetType()), routingKeyStrategy.GetRoutingKey(message.GetType()));
         }
 
 
@@ -67,7 +68,7 @@ namespace Tapeti.Connection
                     foreach (var binding in queue.Bindings)
                     {
                         var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                        channel.QueueBind(dynamicQueue.QueueName, SubscribeExchange, routingKey);
+                        channel.QueueBind(dynamicQueue.QueueName, exchangeStrategy.GetExchange(binding.MessageClass), routingKey);
 
                         (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }

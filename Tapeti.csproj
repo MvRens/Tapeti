@@ -63,11 +63,13 @@
     <Compile Include="Default\JsonMessageSerializer.cs" />
     <Compile Include="Default\PublishResultBinding.cs" />
     <Compile Include="Default\NamespaceMatchExchangeStrategy.cs" />
+    <Compile Include="Default\RequeueExceptionStrategy.cs" />
     <Compile Include="Default\TypeNameRoutingKeyStrategy.cs" />
     <Compile Include="Helpers\ConsoleHelper.cs" />
     <Compile Include="Helpers\MiddlewareHelper.cs" />
     <Compile Include="Helpers\TaskTypeHelper.cs" />
     <Compile Include="IConnection.cs" />
+    <Compile Include="IExceptionStrategy.cs" />
     <Compile Include="IExchangeStrategy.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="Config\IMessageContext.cs" />
@@ -78,7 +80,7 @@
     <Compile Include="Config\IBindingMiddleware.cs" />
     <Compile Include="TapetiConnectionParams.cs" />
     <Compile Include="TapetiConfig.cs" />
-    <Compile Include="TapetiTypes.cs" />
+    <Compile Include="ConsumeResponse.cs" />
     <Compile Include="Tasks\SingleThreadTaskQueue.cs" />
     <Compile Include="IDependencyResolver.cs" />
     <Compile Include="IMessageSerializer.cs" />

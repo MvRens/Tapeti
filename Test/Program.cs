@@ -10,11 +10,14 @@ namespace Test
     {
         private static void Main()
         {
+            // TODO SQL based flow store
+            // TODO logging
+
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
 
-            var config = new TapetiConfig("test", new SimpleInjectorDependencyResolver(container))
+            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
                 .RegisterAllControllers()
                 .Build();
