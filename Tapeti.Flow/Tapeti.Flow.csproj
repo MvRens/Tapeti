@@ -72,7 +72,7 @@
     <Compile Include="YieldPointException.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Tapeti.csproj">
+    <ProjectReference Include="..\Tapeti\Tapeti.csproj">
       <Project>{8ab4fd33-4aaa-465c-8579-9db3f3b23813}</Project>
       <Name>Tapeti</Name>
     </ProjectReference>
