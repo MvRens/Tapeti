@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>X2Software.Tapeti.Flow</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Menno van Lavieren, Mark van Renswoude</authors>
+    <owners>Mark van Renswoude</owners>
+    <licenseUrl>https://git.x2software.net/pub/tapeti/raw/master/UNLICENSE</licenseUrl>
+    <projectUrl>https://git.x2software.net/pub/tapeti</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Flow extension for Tapeti</description>
+    <copyright></copyright>
+    <tags>rabbitmq tapeti flow</tags>
+  </metadata>
+</package>

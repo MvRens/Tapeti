@@ -1,5 +1,8 @@
 .vs/
 bin/
 obj/
+lib/
 packages/
 *.user
+.nuget.apikey
+publish/
