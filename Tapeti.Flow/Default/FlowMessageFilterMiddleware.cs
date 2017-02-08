@@ -5,15 +5,18 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
-    public class FlowBindingFilter : IBindingFilter
+    public class FlowMessageFilterMiddleware : IMessageFilterMiddleware
     {
-        public async Task<bool> Accept(IMessageContext context, IBinding binding)
+        public async Task Handle(IMessageContext context, Func<Task> next)
         {
             var flowContext = await GetFlowContext(context);
             if (flowContext?.ContinuationMetadata == null)
-                return false;
+                return;
 
-            return flowContext.ContinuationMetadata.MethodName == MethodSerializer.Serialize(binding.Method);
+            if (flowContext.ContinuationMetadata.MethodName != MethodSerializer.Serialize(context.Binding.Method))
+                return;
+
+            await next();
         }
 
 

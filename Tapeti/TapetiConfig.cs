@@ -150,7 +150,7 @@ namespace Tapeti
                     MessageClass = context.MessageClass,
                     MessageHandler = messageHandler,
                     MessageMiddleware = context.MessageMiddleware,
-                    BindingFilters = context.BindingFilters
+                    MessageFilterMiddleware = context.MessageFilterMiddleware
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
@@ -268,11 +268,9 @@ namespace Tapeti
             {
                 var existing = staticRegistrations[binding.QueueInfo.Name];
 
-                // Technically we could easily do multicasting, but it complicates exception handling and requeueing
-                // TODO allow multiple, if there is a filter which guarantees uniqueness
-                // TODO move to independant validation middleware
-                if (existing.Any(h => h.MessageClass == binding.MessageClass))
-                    throw new TopologyConfigurationException($"Multiple handlers for message class {binding.MessageClass.Name} in queue {binding.QueueInfo.Name}");
+                // TODO allow multiple only if there is a filter which guarantees uniqueness? and/or move to independant validation middleware
+                //if (existing.Any(h => h.MessageClass == binding.MessageClass))
+                //    throw new TopologyConfigurationException($"Multiple handlers for message class {binding.MessageClass.Name} in queue {binding.QueueInfo.Name}");
 
                 existing.Add(binding);
             }
@@ -368,7 +366,7 @@ namespace Tapeti
             public string QueueName { get; set; }
 
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set;  }
-            public IReadOnlyList<IBindingFilter> BindingFilters { get; set; }
+            public IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; set; }
 
             private QueueInfo queueInfo;
             public QueueInfo QueueInfo
@@ -390,21 +388,9 @@ namespace Tapeti
             }
 
 
-            public async Task<bool> Accept(IMessageContext context, object message)
+            public bool Accept(IMessageContext context, object message)
             {
-                if (message.GetType() != MessageClass)
-                    return false;
-
-                if (BindingFilters == null)
-                    return true;
-
-                foreach (var filter in BindingFilters)
-                {
-                    if (!await filter.Accept(context, this))
-                        return false;
-                }
-
-                return true;
+                return message.GetType() == MessageClass;
             }
 
 
@@ -431,7 +417,7 @@ namespace Tapeti
         internal class BindingContext : IBindingContext
         {
             private List<IMessageMiddleware> messageMiddleware;
-            private List<IBindingFilter> bindingFilters;
+            private List<IMessageFilterMiddleware> messageFilterMiddleware;
 
             public Type MessageClass { get; set; }
 
@@ -440,7 +426,7 @@ namespace Tapeti
             public IBindingResult Result { get; }
 
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware => messageMiddleware;
-            public IReadOnlyList<IBindingFilter> BindingFilters => bindingFilters;
+            public IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware => messageFilterMiddleware;
 
 
             public BindingContext(MethodInfo method)
@@ -461,12 +447,12 @@ namespace Tapeti
             }
 
 
-            public void Use(IBindingFilter filter)
+            public void Use(IMessageFilterMiddleware filterMiddleware)
             {
-                if (bindingFilters == null)
-                    bindingFilters = new List<IBindingFilter>();
+                if (messageFilterMiddleware == null)
+                    messageFilterMiddleware = new List<IMessageFilterMiddleware>();
 
-                bindingFilters.Add(filter);
+                messageFilterMiddleware.Add(filterMiddleware);
             }
         }
 

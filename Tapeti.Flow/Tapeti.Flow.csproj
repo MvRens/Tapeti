@@ -52,7 +52,7 @@
     <Compile Include="Annotations\ContinuationAttribute.cs" />
     <Compile Include="Annotations\RequestAttribute.cs" />
     <Compile Include="ContextItems.cs" />
-    <Compile Include="Default\FlowBindingFilter.cs" />
+    <Compile Include="Default\FlowMessageFilterMiddleware.cs" />
     <Compile Include="Default\FlowBindingMiddleware.cs" />
     <Compile Include="Default\FlowContext.cs" />
     <Compile Include="Default\FlowMessageMiddleware.cs" />

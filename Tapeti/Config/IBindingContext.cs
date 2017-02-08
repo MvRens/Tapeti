@@ -17,7 +17,7 @@ namespace Tapeti.Config
         IReadOnlyList<IBindingParameter> Parameters { get; }
         IBindingResult Result { get; }
 
-        void Use(IBindingFilter filter);
+        void Use(IMessageFilterMiddleware filterMiddleware);
         void Use(IMessageMiddleware middleware);
     }
 

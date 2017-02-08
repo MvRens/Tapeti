@@ -8,8 +8,8 @@ namespace Tapeti.Helpers
     {
         public static void Go<T>(IReadOnlyList<T> middleware, Action<T, Action> handle, Action lastHandler)
         {
-            var handlerIndex = middleware.Count - 1;
-            if (handlerIndex == -1)
+            var handlerIndex = middleware?.Count - 1 ?? -1;
+            if (middleware == null || handlerIndex == -1)
             {
                 lastHandler();
                 return;
@@ -32,8 +32,8 @@ namespace Tapeti.Helpers
 
         public static async Task GoAsync<T>(IReadOnlyList<T> middleware, Func<T, Func<Task>, Task> handle, Func<Task> lastHandler)
         {
-            var handlerIndex = middleware.Count - 1;
-            if (handlerIndex == -1)
+            var handlerIndex = middleware?.Count - 1 ?? -1;
+            if (middleware == null || handlerIndex == -1)
             {
                 await lastHandler();
                 return;

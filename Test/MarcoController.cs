@@ -7,8 +7,9 @@ using Tapeti.Flow.Annotations;
 
 namespace Test
 {
+    [MessageController]
     [DynamicQueue]
-    public class MarcoController : MessageController
+    public class MarcoController
     {
         private readonly IPublisher publisher;
         private readonly IFlowProvider flowProvider;
@@ -52,7 +53,6 @@ namespace Test
 
             Console.WriteLine(message.ShouldMatchState.Equals(StateTestGuid) ? "Confirmed!" : "Oops! Mismatch!");
 
-            // This should error, as MarcoMessage expects a PoloMessage as a response
             return flowProvider.EndWithResponse(new PoloMessage());
         }
 

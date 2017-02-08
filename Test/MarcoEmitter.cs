@@ -17,9 +17,8 @@ namespace Test
 
         public async Task Run()
         {
-            await publisher.Publish(new MarcoMessage());
+//            await publisher.Publish(new MarcoMessage());
 
-            /*
             var concurrent = new SemaphoreSlim(20);
 
             while (true)
@@ -37,14 +36,14 @@ namespace Test
                     }
                 }
 
-                await Task.Delay(1000);
+                await Task.Delay(200);
             }
-            */
 
+            /*
             while (true)
             {
                 await Task.Delay(1000);
-            }
+            }*/
         }
     }
 }

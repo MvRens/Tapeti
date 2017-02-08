@@ -53,20 +53,27 @@ namespace Tapeti.Connection
                     {
                         foreach (var binding in bindings)
                         {
-                            if (!binding.Accept(context, message).Result)
+                            if (!binding.Accept(context, message))
                                 continue;
 
-                            context.Controller = dependencyResolver.Resolve(binding.Controller);
                             context.Binding = binding;
 
                             // ReSharper disable AccessToDisposedClosure - MiddlewareHelper will not keep a reference to the lambdas
                             MiddlewareHelper.GoAsync(
-                                binding.MessageMiddleware != null
-                                    ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
-                                    : messageMiddleware,
+                                binding.MessageFilterMiddleware,
                                 async (handler, next) => await handler.Handle(context, next),
-                                () => binding.Invoke(context, message)
-                            ).Wait();
+                                async () =>
+                                {
+                                    context.Controller = dependencyResolver.Resolve(binding.Controller);
+
+                                    await MiddlewareHelper.GoAsync(
+                                        binding.MessageMiddleware != null
+                                            ? messageMiddleware.Concat(binding.MessageMiddleware).ToList()
+                                            : messageMiddleware,
+                                        async (handler, next) => await handler.Handle(context, next),
+                                        () => binding.Invoke(context, message)
+                                    );
+                                }).Wait();
                             // ReSharper restore AccessToDisposedClosure
 
                             validMessageType = true;

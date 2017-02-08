@@ -40,6 +40,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -53,7 +54,7 @@
     <Compile Include="Annotations\MessageControllerAttribute.cs" />
     <Compile Include="Annotations\StaticQueueAttribute.cs" />
     <Compile Include="Annotations\DynamicQueueAttribute.cs" />
-    <Compile Include="Config\IBindingFilter.cs" />
+    <Compile Include="Config\IMessageFilterMiddleware.cs" />
     <Compile Include="Connection\TapetiConsumer.cs" />
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
@@ -78,6 +79,7 @@
     <Compile Include="Config\IConfig.cs" />
     <Compile Include="MessageController.cs" />
     <Compile Include="Config\IBindingMiddleware.cs" />
+    <Compile Include="TapetiAppSettingsConnectionParams.cs" />
     <Compile Include="TapetiConnectionParams.cs" />
     <Compile Include="TapetiConfig.cs" />
     <Compile Include="ConsumeResponse.cs" />
