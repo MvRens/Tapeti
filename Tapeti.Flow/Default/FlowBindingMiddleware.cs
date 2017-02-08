@@ -27,7 +27,7 @@ namespace Tapeti.Flow.Default
             if (continuationAttribute == null)
                 return;
 
-            context.Use(new FlowBindingFilter());
+            context.Use(new FlowMessageFilterMiddleware());
             context.Use(new FlowMessageMiddleware());
         }
 

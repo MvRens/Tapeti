@@ -2,6 +2,7 @@
 using SimpleInjector;
 using Tapeti;
 using Tapeti.Flow;
+using Tapeti.Flow.SQL;
 using Tapeti.SimpleInjector;
 
 namespace Test
@@ -12,25 +13,23 @@ namespace Test
         {
             // TODO SQL based flow store
             // TODO logging
+            // TODO uitzoeken of we consumers kunnen pauzeren (denk: SQL down) --> nee, EFDBContext Get Async maken en retryen? kan dat, of timeout dan Rabbit?
 
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
 
-            container.Register<IFlowRepository>();
+            //container.Register<IFlowRepository>(() => new EF(serviceID));
 
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
+                //.WithFlowSqlRepository("data source=localhost;initial catalog=lef;integrated security=True;multipleactiveresultsets=True", 1)
                 .RegisterAllControllers()
                 .Build();
 
             using (var connection = new TapetiConnection(config)
             {
-                Params = new TapetiConnectionParams
-                {
-                    HostName = "localhost",
-                    PrefetchCount = 200
-                }
+                Params = new TapetiAppSettingsConnectionParams()
             })
             {
                 Console.WriteLine("Subscribing...");

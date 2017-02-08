@@ -31,10 +31,10 @@ namespace Tapeti.Config
         Type MessageClass { get; }
         string QueueName { get; }
 
+        IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
-        IReadOnlyList<IBindingFilter> BindingFilters { get; }
 
-        Task<bool> Accept(IMessageContext context, object message);
+        bool Accept(IMessageContext context, object message);
         Task Invoke(IMessageContext context, object message);
     }
 
