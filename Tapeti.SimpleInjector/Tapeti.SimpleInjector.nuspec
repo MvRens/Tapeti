@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>X2Software.Tapeti.SimpleInjector</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Mark van Renswoude</authors>
+    <owners>Mark van Renswoude</owners>
+    <licenseUrl>https://git.x2software.net/pub/tapeti/raw/master/UNLICENSE</licenseUrl>
+    <projectUrl>https://git.x2software.net/pub/tapeti</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>SimpleInjector integration package for Tapeti</description>
+    <copyright></copyright>
+    <tags>rabbitmq tapeti simpleinjector</tags>
+  </metadata>
+</package>
