@@ -1,6 +1,6 @@
 New-Item -Path publish -Type directory -Force | Out-Null
 
-$version = GitVersion.exe | ConvertFrom-Json
+$version = GitVersion.exe | Out-String | ConvertFrom-Json
 $nugetkey = Get-Content .nuget.apikey
 
 
