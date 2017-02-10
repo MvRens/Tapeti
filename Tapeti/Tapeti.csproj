@@ -50,10 +50,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Annotations\ExchangeAttribute.cs" />
-    <Compile Include="Annotations\MessageControllerAttribute.cs" />
-    <Compile Include="Annotations\StaticQueueAttribute.cs" />
-    <Compile Include="Annotations\DynamicQueueAttribute.cs" />
     <Compile Include="Config\IMessageFilterMiddleware.cs" />
     <Compile Include="Connection\TapetiConsumer.cs" />
     <Compile Include="Connection\TapetiPublisher.cs" />
@@ -101,7 +97,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\Tapeti.Annotations\Tapeti.Annotations.csproj">
+      <Project>{c4897d64-d04e-4ae9-bd98-d64295d1d13a}</Project>
+      <Name>Tapeti.Annotations</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
