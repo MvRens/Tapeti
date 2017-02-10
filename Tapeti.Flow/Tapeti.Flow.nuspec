@@ -12,5 +12,9 @@
     <description>Flow extension for Tapeti</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti flow</tags>
+    <dependencies>
+      <dependency id="X2Software.Tapeti" version="[$depversion$]" />
+      <dependency id="X2Software.Tapeti.Annotations" version="[$depversion$]" />
+    </dependencies>
   </metadata>
 </package>

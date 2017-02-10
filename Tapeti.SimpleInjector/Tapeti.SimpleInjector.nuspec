@@ -12,5 +12,8 @@
     <description>SimpleInjector integration package for Tapeti</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti simpleinjector</tags>
+    <dependencies>
+      <dependency id="X2Software.Tapeti" version="[$depversion$]" />
+    </dependencies>
   </metadata>
 </package>

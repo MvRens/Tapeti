@@ -12,5 +12,9 @@
     <description>SQL backing repository for the Tapeti Flow package</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti sql</tags>
+    <dependencies>
+      <dependency id="X2Software.Tapeti" version="[$depversion$]" />
+      <dependency id="X2Software.Tapeti.Flow" version="[$depversion$]" />
+    </dependencies>
   </metadata>
 </package>
