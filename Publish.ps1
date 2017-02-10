@@ -1,4 +1,4 @@
-param([switch]$nopush = "nopush")
+param([switch]$nopush)
 
 New-Item -Path publish -Type directory -Force | Out-Null
 
