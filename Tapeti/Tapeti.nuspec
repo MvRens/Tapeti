@@ -12,5 +12,8 @@
     <description>Controller-based framework for RabbitMQ microservice architectures</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti</tags>
+    <dependencies>
+      <dependency id="X2Software.Tapeti.Annotations" version="[$depversion$]" />
+    </dependencies>
   </metadata>
 </package>
