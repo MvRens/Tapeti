@@ -34,6 +34,12 @@ namespace Tapeti
         }
 
 
+        public ISubscriber SubscribeSync()
+        {
+            return Subscribe().Result;
+        }
+
+
         public IPublisher GetPublisher()
         {
             return new TapetiPublisher(() => worker.Value);
