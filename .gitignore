@@ -6,3 +6,5 @@ packages/
 *.user
 .nuget.apikey
 publish/
+*.sublime-workspace
+docs/_build/
