@@ -1,12 +1,8 @@
-# Tapeti
-> 'Small to medium-sized and classified as "Least Concern" by the IUCN.'
->
-> [_Wikipedia_](https://en.wikipedia.org/wiki/Tapeti)
+## Documentation
+The documentation for Tapeti is available on Read the Docs:
 
-Tapeti is a wrapper for the RabbitMQ .NET client designed for long-running microservices with a few specific goals:
+[Develop branch](http://tapeti.readthedocs.io/en/latest/)<br />
+[![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=latest)](http://tapeti.readthedocs.io/en/latest/?badge=latest)
 
-1. Automatic registration of message handlers
-2. Publishing without transport details, exchange and routing key determined by strategies
-3. Attribute based, no base class requirements (only for convenience)
-4. Graceful handling of connection issues, even at startup
-5. Support for message flow using an extension package
+[Master branch](http://tapeti.readthedocs.io/en/stable/)<br />
+[![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=stable)](http://tapeti.readthedocs.io/en/stable/?badge=stable)
