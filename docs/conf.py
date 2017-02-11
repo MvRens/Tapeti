@@ -155,4 +155,4 @@ texinfo_documents = [
 ]
 
 
-
+highlight_language = 'csharp'

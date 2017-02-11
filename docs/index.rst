@@ -7,3 +7,5 @@ Tapeti documentation
 
    introduction
    gettingstarted
+   indepth
+   flow
