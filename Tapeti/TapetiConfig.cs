@@ -174,7 +174,7 @@ namespace Tapeti
 
         public TapetiConfig RegisterAllControllers()
         {
-            return RegisterAllControllers(Assembly.GetCallingAssembly());
+            return RegisterAllControllers(Assembly.GetEntryAssembly());
         }
 
 
