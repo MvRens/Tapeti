@@ -9,17 +9,30 @@ namespace Tapeti.Connection
     public class TapetiSubscriber : ISubscriber
     {
         private readonly Func<TapetiWorker> workerFactory;
+        private readonly List<IQueue> queues;
+        private bool consuming;
 
 
-        public TapetiSubscriber(Func<TapetiWorker> workerFactory)
+        public TapetiSubscriber(Func<TapetiWorker> workerFactory, IEnumerable<IQueue> queues)
         {
             this.workerFactory = workerFactory;
+            this.queues = queues.ToList();
         }
 
 
-        public async Task BindQueues(IEnumerable<IQueue> queues)
+        public Task BindQueues()
+        {           
+            return Task.WhenAll(queues.Select(queue => workerFactory().Subscribe(queue)).ToList());
+        }
+
+
+        public Task Resume()
         {
-            await Task.WhenAll(queues.Select(queue => workerFactory().Subscribe(queue)).ToList());
+            if (consuming)
+                return Task.CompletedTask;
+
+            consuming = true;
+            return Task.WhenAll(queues.Select(queue => workerFactory().Consume(queue.Name, queue.Bindings)).ToList());
         }
     }
 }

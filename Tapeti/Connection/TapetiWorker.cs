@@ -48,6 +48,9 @@ namespace Tapeti.Connection
 
         public Task Consume(string queueName, IEnumerable<IBinding> bindings)
         {
+            if (string.IsNullOrEmpty(queueName))
+                throw new ArgumentNullException(nameof(queueName));
+
             return taskQueue.Value.Add(async () =>
             {
                 (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, dependencyResolver, bindings, messageMiddleware));
@@ -55,32 +58,29 @@ namespace Tapeti.Connection
         }
 
 
-        public async Task Subscribe(IQueue queue)
+        public Task Subscribe(IQueue queue)
         {
-            var queueName = await taskQueue.Value.Add(async () =>
+            return taskQueue.Value.Add(async () =>
             {
                 var channel = await GetChannel();
 
                 if (queue.Dynamic)
                 {
                     var dynamicQueue = channel.QueueDeclare();
+                    (queue as IDynamicQueue)?.SetName(dynamicQueue.QueueName);
 
                     foreach (var binding in queue.Bindings)
                     {
                         var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                        channel.QueueBind(dynamicQueue.QueueName, exchangeStrategy.GetExchange(binding.MessageClass), routingKey);
+                        var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
 
+                        channel.QueueBind(dynamicQueue.QueueName, exchange, routingKey);
                         (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }
-                    
-                    return dynamicQueue.QueueName;
                 }
-
-                channel.QueueDeclarePassive(queue.Name);
-                return queue.Name;
+                else
+                    channel.QueueDeclarePassive(queue.Name);
             }).Unwrap();
-
-            await Consume(queueName, queue.Bindings);
         }
 
 

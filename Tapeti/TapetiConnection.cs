@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Connection;
@@ -25,10 +26,13 @@ namespace Tapeti
         }
 
 
-        public async Task<ISubscriber> Subscribe()
+        public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
-            var subscriber = new TapetiSubscriber(() => worker.Value);
-            await subscriber.BindQueues(config.Queues);
+            var subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
+            await subscriber.BindQueues();
+
+            if (startConsuming)
+                await subscriber.Resume();
 
             return subscriber;
         }
