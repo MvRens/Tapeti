@@ -2,58 +2,59 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Tapeti.Default
 {
     public class TypeNameRoutingKeyStrategy : IRoutingKeyStrategy
     {
-        private readonly ConcurrentDictionary<Type, string> routingKeyCache = new ConcurrentDictionary<Type, string>();
+        private const string SeparatorPattern = @"
+                (?<!^) # Not start
+                (
+                    # Digit, not preceded by another digit
+                    (?<!\d)\d 
+                    |
+                    # Upper-case letter, followed by lower-case letter if
+                    # preceded by another upper-case letter, e.g. 'G' in HTMLGuide
+                    (?(?<=[A-Z])[A-Z](?=[a-z])|[A-Z])
+                )";
+
+        private static readonly Regex SeparatorRegex = new Regex(SeparatorPattern, RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
+
+        private static readonly ConcurrentDictionary<Type, string> RoutingKeyCache = new ConcurrentDictionary<Type, string>();
 
 
         public string GetRoutingKey(Type messageType)
         {
-            return routingKeyCache.GetOrAdd(messageType, BuildRoutingKey);
+            return RoutingKeyCache.GetOrAdd(messageType, BuildRoutingKey);
         }
 
 
         protected virtual string BuildRoutingKey(Type messageType)
         {
             // Split PascalCase into dot-separated parts. If the class name ends in "Message" leave that out.
-            var words = SplitUpperCase(messageType.Name);
+            var words = SplitPascalCase(messageType.Name);
+            if (words == null)
+                return "";
 
-            if (words.Count > 1 && words.Last().Equals("Message", StringComparison.InvariantCulture))
+            if (words.Count > 1 && words.Last().Equals("Message", StringComparison.InvariantCultureIgnoreCase))
                 words.RemoveAt(words.Count - 1);
 
             return string.Join(".", words.Select(s => s.ToLower()));
         }
 
-
-        protected static List<string> SplitUpperCase(string source)
+        private static List<string> SplitPascalCase(string value)
         {
-            var words = new List<string>();
+            var split = SeparatorRegex.Split(value);
+            if (split.Length == 0)
+                return null;
 
-            if (string.IsNullOrEmpty(source))
-                return words;
+            var result = new List<string>(split.Length - 1 / 2) { split[0] };
+            for (var i = 1; i < split.Length; i += 2)
+                result.Add(split[i] + split[i + 1]);
 
-            var wordStartIndex = 0;
-
-            var letters = source.ToCharArray();
-            var previousChar = char.MinValue;
-
-            // Intentionally skip the first character
-            for (var charIndex = 1; charIndex < letters.Length; charIndex++)
-            {
-                if (char.IsUpper(letters[charIndex]) && !char.IsWhiteSpace(previousChar))
-                {
-                    words.Add(new string(letters, wordStartIndex, charIndex - wordStartIndex));
-                    wordStartIndex = charIndex;
-                }
-
-                previousChar = letters[charIndex];
-            }
-
-            words.Add(new string(letters, wordStartIndex, letters.Length - wordStartIndex));
-            return words;
+            return result;
         }
     }
 }
