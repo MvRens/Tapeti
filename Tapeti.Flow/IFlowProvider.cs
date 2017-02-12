@@ -30,7 +30,7 @@ namespace Tapeti.Flow
         IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
 
         IYieldPoint Yield(Func<Task<IYieldPoint>> continuation);
-        IYieldPoint Yield(Func<IYieldPoint> continuation);
+        IYieldPoint YieldSync(Func<IYieldPoint> continuation);
     }
 
     public interface IYieldPoint

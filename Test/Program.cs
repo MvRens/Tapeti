@@ -33,7 +33,11 @@ namespace Test
             })
             {
                 Console.WriteLine("Subscribing...");
-                connection.Subscribe().Wait();
+                var subscriber = connection.Subscribe(false).Result;
+
+                Console.WriteLine("Consuming...");
+                subscriber.Resume().Wait();
+
                 Console.WriteLine("Done!");
 
                 var emitter = container.GetInstance<MarcoEmitter>();

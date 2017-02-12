@@ -81,6 +81,7 @@ namespace Tapeti.Flow.Default
     {
         public string MethodName { get; set; }
         public string ConvergeMethodName { get; set; }
+        public bool ConvergeMethodSync { get; set; }
 
 
         public ContinuationMetadata Clone()
@@ -88,7 +89,8 @@ namespace Tapeti.Flow.Default
             return new ContinuationMetadata
             {
                 MethodName = MethodName,
-                ConvergeMethodName = ConvergeMethodName
+                ConvergeMethodName = ConvergeMethodName,
+                ConvergeMethodSync = ConvergeMethodSync
             };
         }
     }

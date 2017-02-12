@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
@@ -36,8 +37,7 @@ namespace Tapeti.Flow.Default
 
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
         {
-            throw new NotImplementedException();
-            //return new ParallelRequestBuilder();
+            return new ParallelRequestBuilder(config, SendRequest);
         }
 
         public IYieldPoint EndWithResponse<TResponse>(TResponse message)
@@ -51,7 +51,8 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo)
+        private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
+            string convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
             var continuationID = Guid.NewGuid();
 
@@ -59,7 +60,8 @@ namespace Tapeti.Flow.Default
                 new ContinuationMetadata
                 {
                     MethodName = responseHandlerInfo.MethodName,
-                    ConvergeMethodName = null
+                    ConvergeMethodName = convergeMethodName,
+                    ConvergeMethodSync = convergeMethodTaskSync
                 });
 
             var properties = new BasicProperties
@@ -144,8 +146,10 @@ namespace Tapeti.Flow.Default
 
         public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
         {
-            var delegateYieldPoint = (DelegateYieldPoint)yieldPoint;
-            var storeState = delegateYieldPoint.StoreState;
+            var stateYieldPoint = yieldPoint as IStateYieldPoint;
+            var executableYieldPoint = yieldPoint as IExecutableYieldPoint;
+
+            var storeState = stateYieldPoint?.StoreState ?? false;
 
             FlowContext flowContext;
             object flowContextItem;
@@ -181,7 +185,8 @@ namespace Tapeti.Flow.Default
 
             try
             {
-                await delegateYieldPoint.Execute(flowContext);
+                if (executableYieldPoint != null)
+                    await executableYieldPoint.Execute(flowContext);
             }
             catch (YieldPointException e)
             {
@@ -203,10 +208,16 @@ namespace Tapeti.Flow.Default
         }
 
 
-        /*
         private class ParallelRequestBuilder : IFlowParallelRequestBuilder
         {
-            internal class RequestInfo
+            public delegate Task SendRequestFunc(FlowContext context, 
+                object message, 
+                ResponseHandlerInfo responseHandlerInfo, 
+                string convergeMethodName,
+                bool convergeMethodSync);
+
+
+            private class RequestInfo
             {
                 public object Message { get; set; }
                 public ResponseHandlerInfo ResponseHandlerInfo { get; set; }
@@ -214,15 +225,13 @@ namespace Tapeti.Flow.Default
 
 
             private readonly IConfig config;
-            private readonly IFlowStore flowStore;
-            private readonly Func<FlowContext, object, ResponseHandlerInfo, Task> sendRequest;
+            private readonly SendRequestFunc sendRequest;
             private readonly List<RequestInfo> requests = new List<RequestInfo>();
 
 
-            public ParallelRequestBuilder(IConfig config, IFlowStore flowStore, Func<FlowContext, object, ResponseHandlerInfo, Task> sendRequest)
+            public ParallelRequestBuilder(IConfig config, SendRequestFunc sendRequest)
             {
                 this.config = config;
-                this.flowStore = flowStore;
                 this.sendRequest = sendRequest;
             }
 
@@ -253,15 +262,34 @@ namespace Tapeti.Flow.Default
 
             public IYieldPoint Yield(Func<Task<IYieldPoint>> continuation)
             {
-                return new YieldPoint(flowStore, true, context => Task.WhenAll(requests.Select(requestInfo => sendRequest(context, requestInfo.Message, requestInfo.ResponseHandlerInfo))));
+                return BuildYieldPoint(continuation, false);
             }
 
 
-            public IYieldPoint Yield(Func<IYieldPoint> continuation)
+            public IYieldPoint YieldSync(Func<IYieldPoint> continuation)
             {
-                return new YieldPoint(flowStore, true, context => Task.WhenAll(requests.Select(requestInfo => sendRequest(context, requestInfo.Message, requestInfo.ResponseHandlerInfo))));
+                return BuildYieldPoint(continuation, true);
             }
-        }*/
+
+
+            private IYieldPoint BuildYieldPoint(Delegate convergeMethod, bool convergeMethodSync)
+            {
+                if (convergeMethod?.Method == null)
+                    throw new ArgumentNullException(nameof(convergeMethod));
+
+                return new DelegateYieldPoint(true, context =>
+                {
+                    if (convergeMethod.Method.DeclaringType != context.MessageContext.Controller.GetType())
+                        throw new YieldPointException("Converge method must be in the same controller class");
+
+                    return Task.WhenAll(requests.Select(requestInfo =>
+                        sendRequest(context, requestInfo.Message,
+                            requestInfo.ResponseHandlerInfo,
+                            convergeMethod.Method.Name,
+                            convergeMethodSync)));
+                });
+            }
+        }
 
 
         internal class ResponseHandlerInfo
