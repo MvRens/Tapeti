@@ -24,6 +24,12 @@ namespace Tapeti.Config
     }
 
 
+    public interface IDynamicQueue : IQueue
+    {
+        void SetName(string name);
+    }
+
+
     public interface IBinding
     {
         Type Controller { get; }

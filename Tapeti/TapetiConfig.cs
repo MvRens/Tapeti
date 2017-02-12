@@ -342,10 +342,10 @@ namespace Tapeti
         }
 
 
-        protected class Queue : IQueue
+        protected class Queue : IDynamicQueue
         {
             public bool Dynamic { get; }
-            public string Name { get; }
+            public string Name { get; set;  }
             public IEnumerable<IBinding> Bindings { get; }
 
 
@@ -354,6 +354,12 @@ namespace Tapeti
                 Dynamic = queue.Dynamic.GetValueOrDefault();
                 Name = queue.Name;
                 Bindings = bindings;
+            }
+
+
+            public void SetName(string name)
+            {
+                Name = name;
             }
         }
 
