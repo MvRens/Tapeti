@@ -3,15 +3,7 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
-    internal interface IExecutableYieldPoint : IYieldPoint
-    {
-        bool StoreState { get; }
-
-        Task Execute(FlowContext context);
-    }
-
-
-    internal class DelegateYieldPoint : IYieldPoint
+    internal class DelegateYieldPoint : IStateYieldPoint, IExecutableYieldPoint
     {
         public bool StoreState { get; }
 

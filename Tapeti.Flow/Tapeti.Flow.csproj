@@ -56,9 +56,11 @@
     <Compile Include="Default\FlowContext.cs" />
     <Compile Include="Default\FlowMessageMiddleware.cs" />
     <Compile Include="Default\FlowState.cs" />
+    <Compile Include="Default\IInternalYieldPoint.cs" />
     <Compile Include="Default\NonPersistentFlowRepository.cs" />
     <Compile Include="Default\DelegateYieldPoint.cs" />
     <Compile Include="ConfigExtensions.cs" />
+    <Compile Include="Default\StateYieldPoint.cs" />
     <Compile Include="FlowHelpers\MethodSerializer.cs" />
     <Compile Include="FlowMiddleware.cs" />
     <Compile Include="Default\FlowStore.cs" />

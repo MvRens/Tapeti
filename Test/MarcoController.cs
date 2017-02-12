@@ -36,23 +36,42 @@ namespace Test
             Console.WriteLine(">> Marco (yielding with request)");
 
             await myVisualizer.VisualizeMarco();
+            StateTestGuid = Guid.NewGuid();
 
-            return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(
-                new PoloConfirmationRequestMessage()
+            return flowProvider.YieldWithParallelRequest()
+                .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
                 {
                     StoredInState = StateTestGuid
-                },
-                HandlePoloConfirmationResponse);
+                }, HandlePoloConfirmationResponse1)
+
+                .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
+                {
+                    StoredInState = StateTestGuid
+                }, HandlePoloConfirmationResponse2)
+
+                .YieldSync(ContinuePoloConfirmation);
         }
 
 
         [Continuation]
-        public IYieldPoint HandlePoloConfirmationResponse(PoloConfirmationResponseMessage message)
+        public void HandlePoloConfirmationResponse1(PoloConfirmationResponseMessage message)
         {
-            Console.WriteLine(">> HandlePoloConfirmationResponse (ending flow)");
+            Console.WriteLine(">> HandlePoloConfirmationResponse1");
+            Console.WriteLine(message.ShouldMatchState.Equals(StateTestGuid) ? "Confirmed!" : "Oops! Mismatch!");            
+        }
 
+
+        [Continuation]
+        public void HandlePoloConfirmationResponse2(PoloConfirmationResponseMessage message)
+        {
+            Console.WriteLine(">> HandlePoloConfirmationResponse2");
             Console.WriteLine(message.ShouldMatchState.Equals(StateTestGuid) ? "Confirmed!" : "Oops! Mismatch!");
+        }
 
+
+        private IYieldPoint ContinuePoloConfirmation()
+        {
+            Console.WriteLine("> ConvergePoloConfirmation (ending flow)");
             return flowProvider.EndWithResponse(new PoloMessage());
         }
 
@@ -77,7 +96,6 @@ namespace Test
         public void Polo(PoloMessage message)
         {
             Console.WriteLine(">> Polo");
-            StateTestGuid = Guid.NewGuid();
         }
     }
 

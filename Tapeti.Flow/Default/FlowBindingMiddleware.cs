@@ -12,8 +12,8 @@ namespace Tapeti.Flow.Default
     {
         public void Handle(IBindingContext context, Action next)
         {
-            RegisterContinuationFilter(context);
             RegisterYieldPointResult(context);
+            RegisterContinuationFilter(context);
 
             next();
 
@@ -29,6 +29,26 @@ namespace Tapeti.Flow.Default
 
             context.Use(new FlowMessageFilterMiddleware());
             context.Use(new FlowMessageMiddleware());
+
+            if (context.Result.HasHandler)
+                return;
+
+            // Continuation without IYieldPoint indicates a ParallelRequestBuilder response handler,
+            // make sure to store it's state as well
+            if (context.Result.Info.ParameterType == typeof(Task))
+            {
+                context.Result.SetHandler(async (messageContext, value) =>
+                {
+                    await (Task)value;
+                    await HandleParallelResponse(messageContext);
+                });
+            }
+            else if (context.Result.Info.ParameterType == typeof(void))
+            {
+                context.Result.SetHandler((messageContext, value) => HandleParallelResponse(messageContext));
+            }
+            else
+                throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context. Method.DeclaringType?.FullName}, method {context.Method.Name}");
         }
 
 
@@ -56,6 +76,13 @@ namespace Tapeti.Flow.Default
         {
             var flowHandler = context.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(context, yieldPoint);
+        }
+
+
+        private static Task HandleParallelResponse(IMessageContext context)
+        {
+            var flowHandler = context.DependencyResolver.Resolve<IFlowHandler>();
+            return flowHandler.Execute(context, new StateYieldPoint(true));
         }
 
 

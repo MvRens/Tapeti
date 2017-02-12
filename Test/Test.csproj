@@ -59,6 +59,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Tapeti.Annotations\Tapeti.Annotations.csproj">
+      <Project>{c4897d64-d04e-4ae9-bd98-d64295d1d13a}</Project>
+      <Name>Tapeti.Annotations</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Tapeti.Flow.SQL\Tapeti.Flow.SQL.csproj">
       <Project>{6de7b122-eb6a-46b8-aeaf-f84dde18f9c7}</Project>
       <Name>Tapeti.Flow.SQL</Name>
