@@ -26,6 +26,7 @@ namespace Tapeti
 
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
+        private readonly List<IPublishMiddleware> publishMiddleware = new List<IPublishMiddleware>();
 
         private readonly IDependencyResolver dependencyResolver;
 
@@ -61,7 +62,7 @@ namespace Tapeti
 
             queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
-            var config = new Config(dependencyResolver, messageMiddleware, queues);
+            var config = new Config(dependencyResolver, messageMiddleware, publishMiddleware, queues);
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
 
             return config;
@@ -78,6 +79,13 @@ namespace Tapeti
         public TapetiConfig Use(IMessageMiddleware handler)
         {
             messageMiddleware.Add(handler);
+            return this;
+        }
+
+
+        public TapetiConfig Use(IPublishMiddleware handler)
+        {
+            publishMiddleware.Add(handler);
             return this;
         }
 
@@ -100,6 +108,8 @@ namespace Tapeti
                         Use((IBindingMiddleware)middleware);
                     else if (middleware is IMessageMiddleware)
                         Use((IMessageMiddleware)middleware);
+                    else if (middleware is IPublishMiddleware)
+                        Use((IPublishMiddleware)middleware);
                     else
                         throw new ArgumentException($"Unsupported middleware implementation: {middleware.GetType().Name}");
                 }
@@ -319,15 +329,17 @@ namespace Tapeti
         {
             public IDependencyResolver DependencyResolver { get; }
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+            public IReadOnlyList<IPublishMiddleware> PublishMiddleware { get; }
             public IEnumerable<IQueue> Queues { get; }
 
             private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
 
 
-            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IEnumerable<IQueue> queues)
+            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<IPublishMiddleware> publishMiddleware, IEnumerable<IQueue> queues)
             {
                 DependencyResolver = dependencyResolver;
                 MessageMiddleware = messageMiddleware;
+                PublishMiddleware = publishMiddleware;
                 Queues = queues.ToList();
 
                 bindingMethodLookup = Queues.SelectMany(q => q.Bindings).ToDictionary(b => b.Method, b => b);

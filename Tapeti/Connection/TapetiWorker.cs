@@ -5,16 +5,16 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using RabbitMQ.Client.Framing;
 using Tapeti.Config;
+using Tapeti.Helpers;
 using Tapeti.Tasks;
 
 namespace Tapeti.Connection
 {
     public class TapetiWorker
     {
+        private readonly IConfig config;
         public TapetiConnectionParams ConnectionParams { get; set; }
 
-        private readonly IDependencyResolver dependencyResolver;
-        private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly IExchangeStrategy exchangeStrategy;
@@ -23,14 +23,13 @@ namespace Tapeti.Connection
         private IModel channelInstance;
 
 
-        public TapetiWorker(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware)
+        public TapetiWorker(IConfig config)
         {
-            this.dependencyResolver = dependencyResolver;
-            this.messageMiddleware = messageMiddleware;
+            this.config = config;
 
-            messageSerializer = dependencyResolver.Resolve<IMessageSerializer>();
-            routingKeyStrategy = dependencyResolver.Resolve<IRoutingKeyStrategy>();
-            exchangeStrategy = dependencyResolver.Resolve<IExchangeStrategy>();
+            messageSerializer = config.DependencyResolver.Resolve<IMessageSerializer>();
+            routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
+            exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
         }
 
 
@@ -53,7 +52,7 @@ namespace Tapeti.Connection
 
             return taskQueue.Value.Add(async () =>
             {
-                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, dependencyResolver, bindings, messageMiddleware));
+                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware));
             }).Unwrap();
         }
 
@@ -134,21 +133,33 @@ namespace Tapeti.Connection
 
         private Task Publish(object message, IBasicProperties properties, string exchange, string routingKey)
         {
-            return taskQueue.Value.Add(async () =>
+            var context = new PublishContext
             {
-                var messageProperties = properties ?? new BasicProperties();
-                if (!messageProperties.IsTimestampPresent())
-                    messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+                DependencyResolver = config.DependencyResolver,
+                Exchange = exchange,
+                RoutingKey = routingKey,
+                Message = message,
+                Properties = properties ?? new BasicProperties()
+            };
 
-                if (!messageProperties.IsDeliveryModePresent())
-                    messageProperties.DeliveryMode = 2; // Persistent
+            if (!context.Properties.IsTimestampPresent())
+                context.Properties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
 
-                var body = messageSerializer.Serialize(message, messageProperties);
+            if (!context.Properties.IsDeliveryModePresent())
+                context.Properties.DeliveryMode = 2; // Persistent
 
-                (await GetChannel())
-                    .BasicPublish(exchange, routingKey, false, messageProperties, body);
-            }).Unwrap();
 
+            // ReSharper disable ImplicitlyCapturedClosure - MiddlewareHelper will not keep a reference to the lambdas
+            return MiddlewareHelper.GoAsync(
+                config.PublishMiddleware,
+                async (handler, next) => await handler.Handle(context, next),
+                () => taskQueue.Value.Add(async () =>
+                {
+                    var body = messageSerializer.Serialize(context.Message, context.Properties);
+                    (await GetChannel()).BasicPublish(context.Exchange, context.RoutingKey, false,
+                        context.Properties, body);
+                }).Unwrap());
+            // ReSharper restore ImplicitlyCapturedClosure
         }
 
         /// <remarks>
@@ -190,6 +201,16 @@ namespace Tapeti.Connection
             }
 
             return channelInstance;
+        }
+
+
+        private class PublishContext : IPublishContext
+        {
+            public IDependencyResolver DependencyResolver { get; set; }
+            public string Exchange { get; set; }
+            public string RoutingKey { get; set; }
+            public object Message { get; set; }
+            public IBasicProperties Properties { get; set; }
         }
     }
 }

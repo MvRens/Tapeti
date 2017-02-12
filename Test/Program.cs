@@ -1,8 +1,10 @@
 ﻿using System;
 using SimpleInjector;
 using Tapeti;
+using Tapeti.DataAnnotations;
 using Tapeti.Flow;
 using Tapeti.Flow.SQL;
+using Tapeti.Helpers;
 using Tapeti.SimpleInjector;
 
 namespace Test
@@ -24,6 +26,7 @@ namespace Test
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
                 //.WithFlowSqlRepository("data source=localhost;initial catalog=lef;integrated security=True;multipleactiveresultsets=True", 1)
+                .WithDataAnnotations()
                 .RegisterAllControllers()
                 .Build();
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using Tapeti;
 using Tapeti.Annotations;
@@ -114,12 +115,14 @@ namespace Test
     [Request(Response = typeof(PoloConfirmationResponseMessage))]
     public class PoloConfirmationRequestMessage
     {
+        [Required]
         public Guid StoredInState { get; set; }
     }
 
 
     public class PoloConfirmationResponseMessage
     {
+        [Required]
         public Guid ShouldMatchState { get; set; }
     }
 }
