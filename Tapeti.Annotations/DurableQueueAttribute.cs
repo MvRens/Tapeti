@@ -12,12 +12,12 @@ namespace Tapeti.Annotations
     /// for deploy-time management of durable queues (shameless plug intended).
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-    public class StaticQueueAttribute : Attribute
+    public class DurableQueueAttribute : Attribute
     {
         public string Name { get; set; }
 
 
-        public StaticQueueAttribute(string name)
+        public DurableQueueAttribute(string name)
         {
             Name = name;
         }

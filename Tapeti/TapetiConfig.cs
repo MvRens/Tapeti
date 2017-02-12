@@ -291,16 +291,16 @@ namespace Tapeti
         protected QueueInfo GetQueueInfo(MemberInfo member)
         {
             var dynamicQueueAttribute = member.GetCustomAttribute<DynamicQueueAttribute>();
-            var staticQueueAttribute = member.GetCustomAttribute<StaticQueueAttribute>();
+            var durableQueueAttribute = member.GetCustomAttribute<DurableQueueAttribute>();
 
-            if (dynamicQueueAttribute != null && staticQueueAttribute != null)
+            if (dynamicQueueAttribute != null && durableQueueAttribute != null)
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on {member.Name}");
 
             if (dynamicQueueAttribute != null)
                 return new QueueInfo { Dynamic = true };
 
-            if (staticQueueAttribute != null)
-                return new QueueInfo { Dynamic = false, Name = staticQueueAttribute.Name };
+            if (durableQueueAttribute != null)
+                return new QueueInfo { Dynamic = false, Name = durableQueueAttribute.Name };
 
             return null;
         }

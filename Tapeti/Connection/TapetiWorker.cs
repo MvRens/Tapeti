@@ -137,8 +137,11 @@ namespace Tapeti.Connection
             return taskQueue.Value.Add(async () =>
             {
                 var messageProperties = properties ?? new BasicProperties();
-                if (messageProperties.Timestamp.UnixTime == 0)
+                if (!messageProperties.IsTimestampPresent())
                     messageProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds());
+
+                if (!messageProperties.IsDeliveryModePresent())
+                    messageProperties.DeliveryMode = 2; // Persistent
 
                 var body = messageSerializer.Serialize(message, messageProperties);
 
