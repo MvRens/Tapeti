@@ -19,7 +19,7 @@ namespace Tapeti
             this.config = config;
             (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
-            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config.DependencyResolver, config.MessageMiddleware)
+            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config)
             {
                 ConnectionParams = Params ?? new TapetiConnectionParams()
             });

@@ -50,7 +50,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\IPublishContext.cs" />
     <Compile Include="Config\IMessageFilterMiddleware.cs" />
+    <Compile Include="Config\IPublishMiddleware.cs" />
     <Compile Include="Connection\TapetiConsumer.cs" />
     <Compile Include="Connection\TapetiPublisher.cs" />
     <Compile Include="Connection\TapetiSubscriber.cs" />
