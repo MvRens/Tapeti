@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Flow.SQL", "Tapeti.F
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Annotations", "Tapeti.Annotations\Tapeti.Annotations.csproj", "{C4897D64-D04E-4AE9-BD98-D64295D1D13A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapet.Tests", "Tapet.Tests\Tapet.Tests.csproj", "{BA6BC046-5E60-410A-AE84-BE1D91561A96}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{C4897D64-D04E-4AE9-BD98-D64295D1D13A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C4897D64-D04E-4AE9-BD98-D64295D1D13A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C4897D64-D04E-4AE9-BD98-D64295D1D13A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA6BC046-5E60-410A-AE84-BE1D91561A96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA6BC046-5E60-410A-AE84-BE1D91561A96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA6BC046-5E60-410A-AE84-BE1D91561A96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA6BC046-5E60-410A-AE84-BE1D91561A96}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
