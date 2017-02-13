@@ -5,11 +5,18 @@ namespace Tapeti.Helpers
 {
     public static class TaskTypeHelper
     {
-        public static bool IsTypeOrTaskOf(this Type type, Func<Type, bool> predicate, out bool isTask, out Type actualType)
+        public static bool IsTypeOrTaskOf(this Type type, Func<Type, bool> predicate, out bool isTaskOf, out Type actualType)
         {
+            if (type == typeof(Task))
+            {
+                isTaskOf = false;
+                actualType = type;
+                return false;
+            }
+
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
             {
-                isTask = true;
+                isTaskOf = true;
 
                 var genericArguments = type.GetGenericArguments();
                 if (genericArguments.Length == 1 && predicate(genericArguments[0]))
@@ -19,21 +26,21 @@ namespace Tapeti.Helpers
                 }
             }
 
-            isTask = false;
+            isTaskOf = false;
             actualType = type;
             return predicate(type);
         }
 
 
-        public static bool IsTypeOrTaskOf(this Type type, Func<Type, bool> predicate, out bool isTask)
+        public static bool IsTypeOrTaskOf(this Type type, Func<Type, bool> predicate, out bool isTaskOf)
         {
             Type actualType;
-            return IsTypeOrTaskOf(type, predicate, out isTask, out actualType);
+            return IsTypeOrTaskOf(type, predicate, out isTaskOf, out actualType);
         }
 
-        public static bool IsTypeOrTaskOf(this Type type, Type compareTo, out bool isTask)
+        public static bool IsTypeOrTaskOf(this Type type, Type compareTo, out bool isTaskOf)
         {
-            return IsTypeOrTaskOf(type, t => t == compareTo, out isTask);
+            return IsTypeOrTaskOf(type, t => t == compareTo, out isTaskOf);
         }
     }
 }

@@ -18,13 +18,13 @@ namespace Tapeti.Default
                 return;
 
 
-            bool isTask;
+            bool isTaskOf;
             Type actualType;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out isTask, out actualType))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out isTaskOf, out actualType))
                 return;
 
 
-            if (isTask)
+            if (isTaskOf)
             {
                 var handler = GetType().GetMethod("PublishGenericTaskResult", BindingFlags.NonPublic | BindingFlags.Static).MakeGenericMethod(actualType);
 

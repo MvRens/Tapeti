@@ -54,11 +54,11 @@ namespace Tapeti.Flow.Default
 
         private static void RegisterYieldPointResult(IBindingContext context)
         {
-            bool isTask;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out isTask))
+            bool isTaskOf;
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out isTaskOf))
                 return;
 
-            if (isTask)
+            if (isTaskOf)
             {
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
@@ -92,8 +92,8 @@ namespace Tapeti.Flow.Default
             if (request?.Response == null)
                 return;
 
-            bool isTask;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t == request.Response || t == typeof(IYieldPoint), out isTask))
+            bool isTaskOf;
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t == request.Response || t == typeof(IYieldPoint), out isTaskOf))
                 throw new ResponseExpectedException($"Response of class {request.Response.FullName} expected in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
         }
     }
