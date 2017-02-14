@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>Tapeti.DataAnnotations</id>
+    <id>X2Software.Tapeti.DataAnnotations</id>
     <version>$version$</version>
     <title>$title$</title>
     <authors>Mark van Renswoude</authors>
@@ -14,7 +14,7 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti dataannotations</tags>
     <dependencies>
-      <dependency id="Tapeti" version="[$depversion$]" />
+      <dependency id="X2Software.Tapeti" version="[$depversion$]" />
     </dependencies>
   </metadata>
 </package>

@@ -15,7 +15,7 @@ function push
   param([string]$project)
 
   Write-Host "Pushing $($project).csproj" -Foreground Blue
-  NuGet.exe push "publish\$($project).$($version.NuGetVersion).nupkg" -apikey "$($nugetkey)" -Source https://www.nuget.org/api/v2/package
+  NuGet.exe push "publish\X2Software.$($project).$($version.NuGetVersion).nupkg" -apikey "$($nugetkey)" -Source https://www.nuget.org/api/v2/package
 }
 
 
