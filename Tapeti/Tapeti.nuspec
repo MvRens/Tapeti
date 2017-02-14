@@ -8,6 +8,7 @@
     <owners>Mark van Renswoude</owners>
     <licenseUrl>https://git.x2software.net/pub/tapeti/raw/master/UNLICENSE</licenseUrl>
     <projectUrl>https://git.x2software.net/pub/tapeti</projectUrl>
+    <iconUrl>https://git.x2software.net/pub/tapeti/raw/master/resources/icons/Tapeti.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Controller-based framework for RabbitMQ microservice architectures</description>
     <copyright></copyright>

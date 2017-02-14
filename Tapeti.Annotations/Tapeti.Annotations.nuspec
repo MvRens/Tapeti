@@ -8,6 +8,7 @@
     <owners>Mark van Renswoude</owners>
     <licenseUrl>https://git.x2software.net/pub/tapeti/raw/master/UNLICENSE</licenseUrl>
     <projectUrl>https://git.x2software.net/pub/tapeti</projectUrl>
+    <iconUrl>https://git.x2software.net/pub/tapeti/raw/master/resources/icons/Tapeti.Annotations.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Annotations for Tapeti</description>
     <copyright></copyright>
