@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>Tapeti.Annotations</id>
+    <id>X2Software.Tapeti.Annotations</id>
     <version>$version$</version>
     <title>$title$</title>
     <authors>Mark van Renswoude</authors>
