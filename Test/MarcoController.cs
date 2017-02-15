@@ -28,6 +28,26 @@ namespace Test
         }
 
 
+        [Start]
+        public async Task<IYieldPoint> StartFlow()
+        {
+            Console.WriteLine("Starting stand-alone flow");
+            await Task.Delay(1000);
+
+            return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
+                (new PoloConfirmationRequestMessage(),
+                HandlePoloConfirmationResponse);
+        }
+
+
+        [Continuation]
+        public IYieldPoint HandlePoloConfirmationResponse(PoloConfirmationResponseMessage msg)
+        {
+            Console.WriteLine("Ending stand-alone flow");
+            return flowProvider.End();
+        }
+
+
         /**
          * The Visualizer could've been injected through the constructor, which is
          * the recommended way. Just testing the injection middleware here.

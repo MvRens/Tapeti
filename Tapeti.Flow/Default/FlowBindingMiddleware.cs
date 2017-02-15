@@ -7,11 +7,16 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
-    // TODO figure out a way to prevent binding on Continuation methods (which are always the target of a direct response)
     internal class FlowBindingMiddleware : IBindingMiddleware
     {
         public void Handle(IBindingContext context, Action next)
         {
+            if (context.Method.GetCustomAttribute<StartAttribute>() != null)
+                return;
+
+            if (context.Method.GetCustomAttribute<ContinuationAttribute>() != null)
+                context.QueueBindingMode = QueueBindingMode.DirectToQueue;
+
             RegisterYieldPointResult(context);
             RegisterContinuationFilter(context);
 

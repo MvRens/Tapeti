@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
@@ -70,10 +71,14 @@ namespace Tapeti.Connection
 
                     foreach (var binding in queue.Bindings)
                     {
-                        var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                        var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
+                        if (binding.QueueBindingMode == QueueBindingMode.RoutingKey)
+                        {
+                            var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
+                            var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
 
-                        channel.QueueBind(dynamicQueue.QueueName, exchange, routingKey);
+                            channel.QueueBind(dynamicQueue.QueueName, exchange, routingKey);
+                        }
+
                         (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }
                 }

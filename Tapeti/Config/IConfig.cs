@@ -37,6 +37,7 @@ namespace Tapeti.Config
         MethodInfo Method { get; }
         Type MessageClass { get; }
         string QueueName { get; }
+        QueueBindingMode QueueBindingMode { get; set; }
 
         IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }

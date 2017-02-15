@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Tapeti.Config;
 
@@ -19,6 +20,18 @@ namespace Tapeti.Flow
         IYieldPoint End();
     }
 
+    /// <summary>
+    /// Allows starting a flow outside of a message handler.
+    /// </summary>
+    public interface IFlowStarter
+    {
+        Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class;
+        Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class;
+    }
+
+    /// <summary>
+    /// Internal interface. Do not call directly.
+    /// </summary>
     public interface IFlowHandler
     {
         Task Execute(IMessageContext context, IYieldPoint yieldPoint);

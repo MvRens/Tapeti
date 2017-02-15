@@ -145,18 +145,22 @@ namespace Tapeti
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object))
                 .Select(m => (MethodInfo)m))
             {
-                var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
-                if (!methodQueueInfo.IsValid)
-                    throw new TopologyConfigurationException($"Method {method.Name} or controller {controller.Name} requires a queue attribute");
-
                 var context = new BindingContext(method);
                 var messageHandler = GetMessageHandler(context, method);
+                if (messageHandler == null)
+                    continue;
+
+                var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
+                if (!methodQueueInfo.IsValid)
+                    throw new TopologyConfigurationException(
+                        $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 
                 var handlerInfo = new Binding
                 {
                     Controller = controller,
                     Method = method,
                     QueueInfo = methodQueueInfo,
+                    QueueBindingMode = context.QueueBindingMode,
                     MessageClass = context.MessageClass,
                     MessageHandler = messageHandler,
                     MessageMiddleware = context.MessageMiddleware,
@@ -190,7 +194,17 @@ namespace Tapeti
 
         protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
         {
-            MiddlewareHelper.Go(bindingMiddleware, (handler, next) => handler.Handle(context, next), () => {});
+            var allowBinding= false;
+
+            MiddlewareHelper.Go(bindingMiddleware, 
+                (handler, next) => handler.Handle(context, next),
+                () =>
+                {
+                    allowBinding = true;
+                });
+
+            if (!allowBinding)
+                return null;
 
             if (context.MessageClass == null)
                 throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} does not resolve to a message class");
@@ -382,6 +396,7 @@ namespace Tapeti
             public MethodInfo Method { get; set; }
             public Type MessageClass { get; set; }
             public string QueueName { get; set; }
+            public QueueBindingMode QueueBindingMode { get; set; }
 
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set;  }
             public IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; set; }
@@ -442,6 +457,8 @@ namespace Tapeti
             public MethodInfo Method { get; }
             public IReadOnlyList<IBindingParameter> Parameters { get; }
             public IBindingResult Result { get; }
+
+            public QueueBindingMode QueueBindingMode { get; set; }
 
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware => messageMiddleware;
             public IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware => messageFilterMiddleware;

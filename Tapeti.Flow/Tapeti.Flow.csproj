@@ -52,11 +52,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Annotations\ContinuationAttribute.cs" />
+    <Compile Include="Annotations\StartAttribute.cs" />
     <Compile Include="ContextItems.cs" />
     <Compile Include="Default\FlowMessageFilterMiddleware.cs" />
     <Compile Include="Default\FlowBindingMiddleware.cs" />
     <Compile Include="Default\FlowContext.cs" />
     <Compile Include="Default\FlowMessageMiddleware.cs" />
+    <Compile Include="Default\FlowStarter.cs" />
     <Compile Include="Default\FlowState.cs" />
     <Compile Include="Default\IInternalYieldPoint.cs" />
     <Compile Include="Default\NonPersistentFlowRepository.cs" />
