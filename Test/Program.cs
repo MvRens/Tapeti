@@ -43,6 +43,8 @@ namespace Test
 
                 Console.WriteLine("Done!");
 
+                container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.StartFlow);
+
                 var emitter = container.GetInstance<MarcoEmitter>();
                 emitter.Run().Wait();
             }

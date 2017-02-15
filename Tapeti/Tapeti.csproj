@@ -63,6 +63,7 @@
     <Compile Include="Default\ConsoleLogger.cs" />
     <Compile Include="Default\DevNullLogger.cs" />
     <Compile Include="Default\JsonMessageSerializer.cs" />
+    <Compile Include="Default\MessageContext.cs" />
     <Compile Include="Default\PublishResultBinding.cs" />
     <Compile Include="Default\NamespaceMatchExchangeStrategy.cs" />
     <Compile Include="Default\RequeueExceptionStrategy.cs" />

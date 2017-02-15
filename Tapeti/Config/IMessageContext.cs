@@ -15,9 +15,9 @@ namespace Tapeti.Config
 
         IDictionary<string, object> Items { get; }
 
-        /// <summary>
+        /// <remarks>
         /// Controller will be null when passed to a IMessageFilterMiddleware
-        /// </summary>
+        /// </remarks>
         object Controller { get; }
 
         IBinding Binding { get; }

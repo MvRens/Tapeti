@@ -9,6 +9,7 @@ namespace Tapeti.Flow
         public void RegisterDefaults(IDependencyContainer container)
         {
             container.RegisterDefault<IFlowProvider, FlowProvider>();
+            container.RegisterDefault<IFlowStarter, FlowStarter>();
             container.RegisterDefault<IFlowHandler, FlowProvider>();
             container.RegisterDefault<IFlowRepository, NonPersistentFlowRepository>();
             container.RegisterDefault<IFlowStore, FlowStore>();

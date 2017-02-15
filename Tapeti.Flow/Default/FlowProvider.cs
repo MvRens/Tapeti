@@ -119,7 +119,10 @@ namespace Tapeti.Flow.Default
 
             var continuationAttribute = binding.Method.GetCustomAttribute<ContinuationAttribute>();
             if (continuationAttribute == null)
-                throw new ArgumentException($"responseHandler must be marked with the Continuation attribute", nameof(responseHandler));
+                throw new ArgumentException("responseHandler must be marked with the Continuation attribute", nameof(responseHandler));
+
+            if (binding.QueueName == null)
+                throw new ArgumentException("responseHandler must bind to a valid queue", nameof(responseHandler));
 
             return new ResponseHandlerInfo
             {
@@ -131,7 +134,7 @@ namespace Tapeti.Flow.Default
 
         private static ReplyMetadata GetReply(IMessageContext context)
         {
-            var requestAttribute = context.Message.GetType().GetCustomAttribute<RequestAttribute>();
+            var requestAttribute = context.Message?.GetType().GetCustomAttribute<RequestAttribute>();
             if (requestAttribute?.Response == null)
                 return null;
 
