@@ -6,6 +6,8 @@ Introduction
 
 Tapeti is a wrapper for the RabbitMQ .NET Client designed for long-running microservices. It's main goal is to minimize the amount of messaging code required, and instead focus on the higher-level flow.
 
+Tapeti requires at least .NET 4.6.1.
+
 Key features
 ------------
 
@@ -27,4 +29,4 @@ Durable queues are not created and bound automatically yet. The assumption is ma
 
 The author shamelessly plugs `RabbitMetaQueue <https://github.com/PsychoMark/RabbitMetaQueue>`_, which will probably be integrated into Tapeti at one point.
 
-Furthermore there are no unit tests yet. This will require a bit more decoupling in the lower levels of the Tapeti code.
+Furthermore there are hardly any unit tests yet. This will require a bit more decoupling in the lower levels of the Tapeti code.
