@@ -70,6 +70,7 @@ namespace Tapeti.Flow.Default
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
+            await context.EnsureStored();
             await publisher.Publish(message, properties);
         }
 
@@ -149,10 +150,8 @@ namespace Tapeti.Flow.Default
 
         public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
         {
-            var stateYieldPoint = yieldPoint as IStateYieldPoint;
             var executableYieldPoint = yieldPoint as IExecutableYieldPoint;
-
-            var storeState = stateYieldPoint?.StoreState ?? false;
+            var storeState = executableYieldPoint?.StoreState ?? false;
 
             FlowContext flowContext;
             object flowContextItem;
@@ -200,14 +199,9 @@ namespace Tapeti.Flow.Default
             }
 
             if (storeState)
-            {
-                flowContext.FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(context.Controller);
-                await flowContext.FlowStateLock.StoreFlowState(flowContext.FlowState);
-            }
+                await flowContext.EnsureStored();
             else
-            {
                 await flowContext.FlowStateLock.DeleteFlowState();
-            }
         }
 
 

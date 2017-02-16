@@ -1,6 +1,8 @@
-﻿namespace Tapeti.Flow.Default
+﻿using System.Threading.Tasks;
+
+namespace Tapeti.Flow.Default
 {
-    internal class StateYieldPoint : IStateYieldPoint
+    internal class StateYieldPoint : IExecutableYieldPoint
     {
         public bool StoreState { get; }
 
@@ -8,6 +10,13 @@
         public StateYieldPoint(bool storeState)
         {
             StoreState = storeState;
+        }
+
+
+        public async Task Execute(FlowContext context)
+        {
+            if (StoreState)
+                await context.EnsureStored();
         }
     }
 }

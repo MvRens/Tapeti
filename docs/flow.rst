@@ -1,5 +1,5 @@
-Flow
-====
+Flow extension
+==============
 
 .. error:: You've stumbled upon a piece of unfinished documentation.
    Behind you is all prior knowledge. In front of you is nothing but emptyness. What do you do?

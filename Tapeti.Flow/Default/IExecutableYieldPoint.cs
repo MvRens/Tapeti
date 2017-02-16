@@ -2,14 +2,9 @@
 
 namespace Tapeti.Flow.Default
 {
-    internal interface IStateYieldPoint : IYieldPoint
-    {
-        bool StoreState { get; }
-    }
-
-
     internal interface IExecutableYieldPoint : IYieldPoint
     {
+        bool StoreState { get; }
         Task Execute(FlowContext context);
     }
 }
