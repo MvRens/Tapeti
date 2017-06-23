@@ -68,6 +68,7 @@
     <Compile Include="Default\NamespaceMatchExchangeStrategy.cs" />
     <Compile Include="Default\RequeueExceptionStrategy.cs" />
     <Compile Include="Default\TypeNameRoutingKeyStrategy.cs" />
+    <Compile Include="Helpers\ConnectionstringParser.cs" />
     <Compile Include="Helpers\ConsoleHelper.cs" />
     <Compile Include="Helpers\MiddlewareHelper.cs" />
     <Compile Include="Helpers\TaskTypeHelper.cs" />
