@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Helpers
 {
-    public class ConnectionstringParser
+    public class ConnectionStringParser
     {
         readonly TapetiConnectionParams result = new TapetiConnectionParams();
 
@@ -16,10 +16,10 @@ namespace Tapeti.Helpers
 
         public static TapetiConnectionParams Parse(string connectionstring)
         {
-            return new ConnectionstringParser(connectionstring).result;
+            return new ConnectionStringParser(connectionstring).result;
         }
 
-        private ConnectionstringParser(string connectionstring)
+        private ConnectionStringParser(string connectionstring)
         {
             this.connectionstring = connectionstring;
 
@@ -35,7 +35,6 @@ namespace Tapeti.Helpers
 
             if (current == '=')
             {
-                MoveNext();
                 var value = ParseValue();
                 SetValue(key, value);
             }
@@ -70,21 +69,29 @@ namespace Tapeti.Helpers
         private string ParseValue()
         {
             var valueBuilder = new StringBuilder();
+
+            MoveNext();
             if (current == '"')
             {
-                while (current == '"') // support two double quotes to be an escaped quote
+                while (MoveNext())
                 {
-                    while (MoveNext() && current != '"')
+                    if (current == '"')
                     {
-                        valueBuilder.Append(current);
+                        // support two double quotes to be an escaped quote
+                        if (!MoveNext() || current != '"')
+                            break;
                     }
-                    MoveNext(); // consume the trailing double quote
+                    valueBuilder.Append(current);
                 }
             }
             else
             {
                 while (current != ';')
+                {
                     valueBuilder.Append(current);
+                    if (!MoveNext())
+                        break;
+                }
             }
 
             // Always leave the ';' to be consumed by the caller
@@ -113,12 +120,12 @@ namespace Tapeti.Helpers
         private void SetValue(string key, string value)
         {
             switch (key.ToLowerInvariant()) {
-                case "HostName": result.HostName = value; break;
-                case "Port": result.Port = int.Parse(value); break;
-                case "VirtualHost": result.VirtualHost = value; break;
-                case "Username": result.Username = value; break;
-                case "Password": result.Password = value; break;
-                case "PrefetchCount": result.PrefetchCount = ushort.Parse(value); break;
+                case "hostname": result.HostName = value; break;
+                case "port": result.Port = int.Parse(value); break;
+                case "virtualhost": result.VirtualHost = value; break;
+                case "username": result.Username = value; break;
+                case "password": result.Password = value; break;
+                case "prefetchcount": result.PrefetchCount = ushort.Parse(value); break;
             }
         }
     }
