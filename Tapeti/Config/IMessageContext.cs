@@ -21,5 +21,7 @@ namespace Tapeti.Config
         object Controller { get; }
 
         IBinding Binding { get; }
+
+        IMessageContext SetupNestedContext();
     }
 }
