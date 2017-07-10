@@ -7,11 +7,6 @@ using System.Linq;
 
 namespace Tapeti.Default
 {
-    public interface ICallFrame {
-        void UseNestedContext(MessageContext context);
-        void OnContextDisposed(MessageContext context);
-    }
-
     public class MessageContext : IMessageContext
     {
         public IDependencyResolver DependencyResolver { get; set; }
@@ -27,18 +22,12 @@ namespace Tapeti.Default
         public IDictionary<string, object> Items { get; }
 
         private readonly MessageContext outerContext;
-        private ICallFrame callFrame;
+        internal Action<MessageContext> UseNestedContext;
+        internal Action<MessageContext> OnContextDisposed;
 
         public MessageContext()
         {
             Items = new Dictionary<string, object>();
-        }
-
-        public MessageContext(ICallFrame callFrame)
-        {
-            Items = new Dictionary<string, object>();
-
-            this.callFrame = callFrame;
         }
 
         private MessageContext(MessageContext outerContext)
@@ -65,22 +54,17 @@ namespace Tapeti.Default
             foreach (var value in items.Values)
                 (value as IDisposable)?.Dispose();
 
-            callFrame?.OnContextDisposed(this);
-        }
-
-        public void SetCallFrame(ICallFrame callFrame)
-        {
-            this.callFrame = callFrame;
+            OnContextDisposed?.Invoke(this);
         }
 
         public IMessageContext SetupNestedContext()
         {
-            if (callFrame == null)
+            if (UseNestedContext == null)
                 throw new NotSupportedException("This context does not support creating nested contexts");
 
             var nested = new MessageContext(this);
 
-            callFrame.UseNestedContext(nested);
+            UseNestedContext(nested);
 
             return nested;
         }

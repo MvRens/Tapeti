@@ -160,10 +160,10 @@ namespace Tapeti.Connection
 
     public delegate Task Handler(MessageContext context, Func<Task> next);
 
-    public class RecursiveCaller: ICallFrame
+    public class RecursiveCaller
     {
         private Handler handle;
-        private MessageContext context;
+        private MessageContext currentContext;
         private MessageContext nextContext;
         public RecursiveCaller next;
 
@@ -174,41 +174,55 @@ namespace Tapeti.Connection
 
         internal async Task Call(MessageContext context)
         {
-            if (this.context != null)
+            if (currentContext != null)
                 throw new InvalidOperationException("Cannot simultaneously call 'next' in Middleware.");
 
             try
             {
-                this.context = context;
+                currentContext = context;
 
-                if (next != null)
-                    context.SetCallFrame(this);
+                context.UseNestedContext = next == null ? (Action<MessageContext>)null : UseNestedContext;
 
                 await handle(context, callNext);
             }
             finally
             {
-                context = null;
+                currentContext = null;
             }
         }
 
-        private Task callNext()
+        private async Task callNext()
         {
             if (next == null)
-                return Task.CompletedTask;
-
-            return next.Call(nextContext ?? context);
+                return;
+            if (nextContext != null)
+            {
+                await next.Call(nextContext);
+            }else
+            {
+                try
+                {
+                    await next.Call(currentContext);
+                }
+                finally
+                {
+                    currentContext.UseNestedContext = UseNestedContext;
+                }
+            }
         }
 
-        void ICallFrame.UseNestedContext(MessageContext context)
+        void UseNestedContext(MessageContext context)
         {
             if (nextContext != null)
                 throw new InvalidOperationException("Previous nested context was not yet disposed.");
+
+            context.OnContextDisposed = OnContextDisposed;
             nextContext = context;
         }
 
-        void ICallFrame.OnContextDisposed(MessageContext context)
+        void OnContextDisposed(MessageContext context)
         {
+            context.OnContextDisposed = null;
             if (nextContext == context)
                 nextContext = null;
         }
