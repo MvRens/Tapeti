@@ -133,7 +133,7 @@ namespace Tapeti.Connection
 
             addHandler(async (c, next) =>
             {
-                await binding.Invoke(context, message);
+                await binding.Invoke(c, message);
             });
 
             firstCaller.Call(context)
