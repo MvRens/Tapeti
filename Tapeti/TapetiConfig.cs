@@ -111,7 +111,7 @@ namespace Tapeti
                     else if (middleware is IPublishMiddleware)
                         Use((IPublishMiddleware)middleware);
                     else
-                        throw new ArgumentException($"Unsupported middleware implementation: {middleware.GetType().Name}");
+                        throw new ArgumentException($"Unsupported middleware implementation: {(middleware == null ? "null" : middleware.GetType().Name)}");
                 }
             }
 
