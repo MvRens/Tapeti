@@ -35,6 +35,16 @@ namespace Test
                 Params = new TapetiAppSettingsConnectionParams()
             })
             {
+                connection.Connected += (sender, e) => {
+                    Console.WriteLine("Event Connected");
+                };
+                connection.Disconnected += (sender, e) => {
+                    Console.WriteLine("Event Disconnected");
+                };
+                connection.Reconnected += (sender, e) => {
+                    Console.WriteLine("Event Reconnected");
+                };
+
                 Console.WriteLine("Subscribing...");
                 var subscriber = connection.Subscribe(false).Result;
 

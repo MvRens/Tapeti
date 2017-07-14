@@ -21,10 +21,16 @@ namespace Tapeti
 
             worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config)
             {
-                ConnectionParams = Params ?? new TapetiConnectionParams()
+                ConnectionParams = Params ?? new TapetiConnectionParams(),
+                ConnectionEventListener = new ConnectionEventListener(this)
             });
         }
 
+        public event EventHandler Connected;
+
+        public event EventHandler Disconnected;
+
+        public event EventHandler Reconnected;
 
         public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
@@ -60,6 +66,46 @@ namespace Tapeti
         public void Dispose()
         {
             Close().Wait();
+        }
+
+        private class ConnectionEventListener: IConnectionEventListener
+        {
+            private readonly TapetiConnection owner;
+
+            internal ConnectionEventListener(TapetiConnection owner)
+            {
+                this.owner = owner;
+            }
+
+            public void Connected()
+            {
+                owner.OnConnected(new EventArgs());
+            }
+
+            public void Disconnected()
+            {
+                owner.OnDisconnected(new EventArgs());
+            }
+
+            public void Reconnected()
+            {
+                owner.OnReconnected(new EventArgs());
+            }
+        }
+
+        protected virtual void OnConnected(EventArgs e)
+        {
+            Connected?.Invoke(this, e);
+        }
+
+        protected virtual void OnReconnected(EventArgs e)
+        {
+            Reconnected?.Invoke(this, e);
+        }
+
+        protected virtual void OnDisconnected(EventArgs e)
+        {
+            Disconnected?.Invoke(this, e);
         }
     }
 }

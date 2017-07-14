@@ -18,6 +18,7 @@ namespace Tapeti.Connection
 
         private readonly IConfig config;
         public TapetiConnectionParams ConnectionParams { get; set; }
+        public IConnectionEventListener ConnectionEventListener { get; set; }
 
         private readonly IMessageSerializer messageSerializer;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
@@ -187,7 +188,7 @@ namespace Tapeti.Connection
                 VirtualHost = ConnectionParams.VirtualHost,
                 UserName = ConnectionParams.Username,
                 Password = ConnectionParams.Password,
-                AutomaticRecoveryEnabled = true,
+                AutomaticRecoveryEnabled = true, // The created connection is an IRecoverable
                 RequestedHeartbeat = 30
             };
 
@@ -201,6 +202,11 @@ namespace Tapeti.Connection
                     if (ConnectionParams.PrefetchCount > 0)
                         channelInstance.BasicQos(0, ConnectionParams.PrefetchCount, false);
 
+                    ((IRecoverable)connection).Recovery += (sender, e) => ConnectionEventListener?.Reconnected();
+
+                    channelInstance.ModelShutdown += (sender, e) => ConnectionEventListener?.Disconnected();
+
+                    ConnectionEventListener?.Connected();
                     break;
                 }
                 catch (BrokerUnreachableException)
