@@ -392,7 +392,7 @@ namespace Tapeti
         }
 
 
-        protected class Binding : IDynamicQueueBinding
+        protected class Binding : IBuildBinding
         {
             public Type Controller { get; set; }
             public MethodInfo Method { get; set; }

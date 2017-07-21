@@ -47,7 +47,7 @@ namespace Tapeti.Config
     }
 
 
-    public interface IDynamicQueueBinding : IBinding
+    public interface IBuildBinding : IBinding
     {
         void SetQueueName(string queueName);
     }
