@@ -83,11 +83,17 @@ namespace Tapeti.Connection
                             channel.QueueBind(dynamicQueue.QueueName, exchange, routingKey);
                         }
 
-                        (binding as IDynamicQueueBinding)?.SetQueueName(dynamicQueue.QueueName);
+                        (binding as IBuildBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }
                 }
                 else
+                {
                     channel.QueueDeclarePassive(queue.Name);
+                    foreach (var binding in queue.Bindings)
+                    {
+                        (binding as IBuildBinding)?.SetQueueName(queue.Name);
+                    }
+                }
             }).Unwrap();
         }
 
