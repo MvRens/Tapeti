@@ -17,7 +17,7 @@ namespace Test
         private readonly Visualizer visualizer;
 
         // Public properties are automatically stored and retrieved while in a flow
-        public Guid StateTestGuid;
+        public Guid StateTestGuid { get; set; }
 
 
         public MarcoController(IPublisher publisher, IFlowProvider flowProvider, Visualizer visualizer)

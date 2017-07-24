@@ -144,7 +144,7 @@ namespace Tapeti
             (dependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
             foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object))
+                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && !(m as MethodInfo).IsSpecialName)
                 .Select(m => (MethodInfo)m))
             {
                 var context = new BindingContext(method);
