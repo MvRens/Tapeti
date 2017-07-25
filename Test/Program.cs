@@ -53,10 +53,14 @@ namespace Test
 
                 Console.WriteLine("Done!");
 
+                connection.GetPublisher().Publish(new FlowEndController.PingMessage());
+
                 container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.StartFlow);
 
                 var emitter = container.GetInstance<MarcoEmitter>();
                 emitter.Run().Wait();
+
+
             }
         }
     }
