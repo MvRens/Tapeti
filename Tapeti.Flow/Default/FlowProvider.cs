@@ -160,7 +160,8 @@ namespace Tapeti.Flow.Default
             {
                 flowContext = new FlowContext
                 {
-                    MessageContext = context
+                    MessageContext = context,
+                    FlowState = new FlowState()
                 };
 
                 if (storeState)
@@ -182,7 +183,7 @@ namespace Tapeti.Flow.Default
                 }
             }
             else
-                flowContext = (FlowContext) flowContextItem;
+                flowContext = (FlowContext)flowContextItem;
 
 
             try
@@ -200,7 +201,7 @@ namespace Tapeti.Flow.Default
 
             if (storeState)
                 await flowContext.EnsureStored();
-            else
+            else if (flowContext.FlowStateLock != null)
                 await flowContext.FlowStateLock.DeleteFlowState();
         }
 
