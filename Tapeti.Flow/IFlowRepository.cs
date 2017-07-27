@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow
 {
-    public interface IFlowRepository
+    public interface IFlowRepository<T>
     {
-        Task<IQueryable<FlowStateRecord>> GetStates();
-        Task CreateState(FlowStateRecord stateRecord, DateTime timestamp);
-        Task UpdateState(FlowStateRecord stateRecord);
+        Task<List<KeyValuePair<Guid, T>>> GetStates();
+        Task CreateState(Guid flowID, T state, DateTime timestamp);
+        Task UpdateState(Guid flowID, T state);
         Task DeleteState(Guid flowID);
     }
 

@@ -30,7 +30,7 @@ namespace Tapeti.Flow.SQL
 
         public void RegisterDefaults(IDependencyContainer container)
         {
-            container.RegisterDefault<IFlowRepository>(() => new SqlConnectionFlowRepository(connectionString, serviceId, schema));
+            container.RegisterDefault<IFlowRepository<Default.FlowState>>(() => new SqlConnectionFlowRepository<Default.FlowState>(connectionString, serviceId, schema));
         }
 
 
