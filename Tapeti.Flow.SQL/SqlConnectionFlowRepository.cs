@@ -18,7 +18,7 @@ namespace Tapeti.Flow.SQL
 	        FlowID uniqueidentifier not null,
 	        ServiceID int not null,
 	        CreationTime datetime2(3) not null,
-	        Flowdata nvarchar(max) null,
+	        StateJson nvarchar(max) null,
 
 	        constraint PK_Flow primary key clustered (FlowID)
         );
@@ -44,8 +44,8 @@ namespace Tapeti.Flow.SQL
             using (var connection = await GetConnection())
             {
                 var flowQuery = new SqlCommand($"select FlowID, StateJson from {schema}.Flow " +
-                                                "where ServiceID = @ServiceID " +
-                                                "order by FlowID", connection);
+                                                "where ServiceID = @ServiceID ",
+                                                connection);
                 var flowServiceParam = flowQuery.Parameters.Add("@ServiceID", SqlDbType.Int);
 
                 flowServiceParam.Value = serviceId;
