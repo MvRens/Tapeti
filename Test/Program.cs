@@ -25,7 +25,6 @@ namespace Test
 
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
-                //.WithFlowSqlRepository("data source=localhost;initial catalog=lef;integrated security=True;multipleactiveresultsets=True", 1)
                 .WithDataAnnotations()
                 .RegisterAllControllers()
                 .Build();
