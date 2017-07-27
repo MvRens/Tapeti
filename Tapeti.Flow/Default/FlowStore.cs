@@ -13,10 +13,10 @@ namespace Tapeti.Flow.Default
         private static readonly ConcurrentDictionary<Guid, FlowState> FlowStates = new ConcurrentDictionary<Guid, FlowState>();
         private static readonly ConcurrentDictionary<Guid, Guid> ContinuationLookup = new ConcurrentDictionary<Guid, Guid>();
 
-        private readonly IFlowRepository repository;
+        private readonly IFlowRepository<FlowState> repository;
 
 
-        public FlowStore(IFlowRepository repository) 
+        public FlowStore(IFlowRepository<FlowState> repository) 
         {
             this.repository = repository;
         }
@@ -29,11 +29,10 @@ namespace Tapeti.Flow.Default
 
             foreach (var flowStateRecord in await repository.GetStates())
             {
-                var flowState = ToFlowState(flowStateRecord);
-                FlowStates.GetOrAdd(flowStateRecord.FlowID, flowState);
+                FlowStates.TryAdd(flowStateRecord.Key, flowStateRecord.Value);
 
-                foreach (var continuation in flowStateRecord.ContinuationMetadata)
-                    ContinuationLookup.GetOrAdd(continuation.Key, flowStateRecord.FlowID);
+                foreach (var continuation in flowStateRecord.Value.Continuations)
+                    ContinuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
             }
         }
 
@@ -139,11 +138,11 @@ namespace Tapeti.Flow.Default
                 {
                     isNew = false;
                     var now = DateTime.UtcNow;
-                    await owner.repository.CreateState(ToFlowStateRecord(flowID, flowState), now);
+                    await owner.repository.CreateState(flowID, flowState, now);
                 }
                 else
                 {
-                    await owner.repository.UpdateState(ToFlowStateRecord(flowID, flowState));
+                    await owner.repository.UpdateState(flowID, flowState);
                 }
             }
 

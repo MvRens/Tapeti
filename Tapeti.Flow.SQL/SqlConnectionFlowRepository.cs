@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Tapeti.Flow.SQL
 {
@@ -11,30 +13,18 @@ namespace Tapeti.Flow.SQL
         Assumes the following table layout (schema configurable):
          
      
-        create table dbo.Flow
+        create table shared.Flow
         (
 	        FlowID uniqueidentifier not null,
 	        ServiceID int not null,
 	        CreationTime datetime2(3) not null,
-	        Metadata nvarchar(max) null,
 	        Flowdata nvarchar(max) null,
 
 	        constraint PK_Flow primary key clustered (FlowID)
         );
-	
-        create table dbo.FlowContinuation
-        (
-	        FlowID uniqueidentifier not null,
-	        ContinuationID uniqueidentifier not null,
-	        Metadata nvarchar(max) null,
-
-	        constraint PK_FlowContinuation primary key clustered (FlowID, ContinuationID)
-        );
         go;
-
-        alter table shared.FlowContinuation with check add constraint FK_FlowContinuation_Flow foreign key (FlowID) references shared.Flow (FlowID);
     */
-    public class SqlConnectionFlowRepository : IFlowRepository
+    public class SqlConnectionFlowRepository<T> : IFlowRepository<T>
     {
         private readonly string connectionString;
         private readonly int serviceId;
@@ -49,65 +39,44 @@ namespace Tapeti.Flow.SQL
         }
 
 
-        public async Task<IQueryable<FlowStateRecord>> GetStates()
+        public async Task<List<KeyValuePair<Guid, T>>> GetStates()
         {
-            var result = new List<FlowStateRecord>();
-
             using (var connection = await GetConnection())
             {
-                var flowQuery = new SqlCommand($"select FlowID, Metadata, Flowdata from {schema}.Flow " +
+                var flowQuery = new SqlCommand($"select FlowID, StateJson from {schema}.Flow " +
                                                 "where ServiceID = @ServiceID " +
                                                 "order by FlowID", connection);
                 var flowServiceParam = flowQuery.Parameters.Add("@ServiceID", SqlDbType.Int);
 
-                var continuationQuery = new SqlCommand($"select FlowID, ContinuationID, Metadata from {schema}.FlowContinuation " +
-                                                        "where ServiceID = @ServiceID " +
-                                                        "order by FlowID", connection);
-                var continuationQueryParam = flowQuery.Parameters.Add("@ServiceID", SqlDbType.Int);
-
-
                 flowServiceParam.Value = serviceId;
-                continuationQueryParam.Value = serviceId;
 
 
                 var flowReader = await flowQuery.ExecuteReaderAsync();
-                var continuationReader = await continuationQuery.ExecuteReaderAsync();
-                var hasContinuation = await continuationReader.ReadAsync();
+
+                var result = new List<KeyValuePair<Guid, T>>();
 
                 while (await flowReader.ReadAsync())
                 {
-                    var flowStateRecord = new FlowStateRecord
-                    {
-                        FlowID = flowReader.GetGuid(0),
-                        Metadata = flowReader.GetString(1),
-                        Data = flowReader.GetString(2),
-                        ContinuationMetadata = new Dictionary<Guid, string>()
-                    };
+                    var flowID = flowReader.GetGuid(0);
+                    var stateJson = flowReader.GetString(1);
 
-                    while (hasContinuation && continuationReader.GetGuid(0) == flowStateRecord.FlowID)
-                    {
-                        flowStateRecord.ContinuationMetadata.Add(
-                            continuationReader.GetGuid(1),
-                            continuationReader.GetString(2)
-                        );
-
-                        hasContinuation = await continuationReader.ReadAsync();
-                    }
-
-                    result.Add(flowStateRecord);
+                    var state = JsonConvert.DeserializeObject<T>(stateJson);
+                    result.Add(new KeyValuePair<Guid, T>(flowID, state));
                 }
+
+                return result;
             }
 
-            return result.AsQueryable();
         }
 
-
-        public Task CreateState(FlowStateRecord stateRecord, DateTime timestamp)
+        public Task CreateState(Guid flowID, T state, DateTime timestamp)
         {
+            var stateJason = JsonConvert.SerializeObject(state);
+
             throw new NotImplementedException();
         }
 
-        public Task UpdateState(FlowStateRecord stateRecord)
+        public Task UpdateState(Guid flowID, T state)
         {
             throw new NotImplementedException();
         }
