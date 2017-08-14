@@ -24,7 +24,7 @@ namespace Tapeti.Flow.SQL
         );
         go;
     */
-    public class SqlConnectionFlowRepository<T> : IFlowRepository<T>
+    public class SqlConnectionFlowRepository : IFlowRepository
     {
         private readonly string connectionString;
         private readonly int serviceId;
@@ -39,7 +39,7 @@ namespace Tapeti.Flow.SQL
         }
 
 
-        public async Task<List<KeyValuePair<Guid, T>>> GetStates()
+        public async Task<List<KeyValuePair<Guid, T>>> GetStates<T>()
         {
             using (var connection = await GetConnection())
             {
@@ -69,14 +69,14 @@ namespace Tapeti.Flow.SQL
 
         }
 
-        public Task CreateState(Guid flowID, T state, DateTime timestamp)
+        public Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
             var stateJason = JsonConvert.SerializeObject(state);
 
             throw new NotImplementedException();
         }
 
-        public Task UpdateState(Guid flowID, T state)
+        public Task UpdateState<T>(Guid flowID, T state)
         {
             throw new NotImplementedException();
         }
