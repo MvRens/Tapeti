@@ -1,4 +1,6 @@
-﻿namespace Tapeti.Default
+﻿using System;
+
+namespace Tapeti.Default
 {
     public class DevNullLogger : ILogger
     {
@@ -11,6 +13,10 @@
         }
 
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
+        {
+        }
+
+        public void HandlerException(Exception e)
         {
         }
     }
