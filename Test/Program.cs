@@ -20,6 +20,7 @@ namespace Test
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
+            container.Register<ILogger, Tapeti.Default.ConsoleLogger>();
 
             //container.Register<IFlowRepository>(() => new EF(serviceID));
 
