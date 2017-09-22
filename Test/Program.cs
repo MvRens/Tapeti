@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using SimpleInjector;
 using Tapeti;
 using Tapeti.DataAnnotations;
@@ -55,7 +56,7 @@ namespace Test
 
                 connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
-                container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.StartFlow);
+                container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
 
                 var emitter = container.GetInstance<MarcoEmitter>();
                 emitter.Run().Wait();

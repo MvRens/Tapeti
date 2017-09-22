@@ -29,14 +29,18 @@ namespace Test
 
 
         [Start]
-        public async Task<IYieldPoint> StartFlow()
+        public async Task<IYieldPoint> StartFlow(bool go)
         {
             Console.WriteLine("Starting stand-alone flow");
             await Task.Delay(1000);
 
-            return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
-                (new PoloConfirmationRequestMessage(),
-                HandlePoloConfirmationResponse);
+            if (go)
+                return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
+                    (new PoloConfirmationRequestMessage(),
+                    HandlePoloConfirmationResponse);
+
+            Console.WriteLine("Ending stand-alone flow prematurely");
+            return flowProvider.End();
         }
 
 
