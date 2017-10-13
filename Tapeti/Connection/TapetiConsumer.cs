@@ -129,6 +129,8 @@ namespace Tapeti.Connection
             if (message == null)
                 throw new ArgumentException("Empty message");
 
+            context.Message = message;
+
             var validMessageType = false;
 
             foreach (var binding in bindings)
