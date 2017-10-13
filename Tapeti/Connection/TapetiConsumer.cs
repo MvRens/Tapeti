@@ -16,18 +16,20 @@ namespace Tapeti.Connection
         private readonly string queueName;
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
+        private readonly IReadOnlyList<ICleanupMiddleware> cleanupMiddleware;
         private readonly List<IBinding> bindings;
 
         private readonly ILogger logger;
         private readonly IExceptionStrategy exceptionStrategy;
 
 
-        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware)
+        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<ICleanupMiddleware> cleanupMiddleware)
         {
             this.worker = worker;
             this.queueName = queueName;
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
+            this.cleanupMiddleware = cleanupMiddleware;
             this.bindings = bindings.ToList();
 
             logger = dependencyResolver.Resolve<ILogger>();
@@ -74,8 +76,7 @@ namespace Tapeti.Connection
                     }
                     try
                     {
-                        // Cleanup handlers
-                        //response = exceptionStrategy.HandleException(null, exception.SourceException);
+                        await RunCleanup(context, response);
                     }
                     catch (Exception eCleanup)
                     {
@@ -105,6 +106,21 @@ namespace Tapeti.Connection
                     }
                 }
             });
+        }
+
+        private async Task RunCleanup(MessageContext context, ConsumeResponse response)
+        {
+            foreach(var handler in cleanupMiddleware)
+            {
+                try
+                {
+                    await handler.Handle(context, response);
+                }
+                catch (Exception eCleanup)
+                {
+                    logger.HandlerException(eCleanup);
+                }
+            }
         }
 
         private async Task DispatchMesage(MessageContext context, byte[] body)

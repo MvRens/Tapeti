@@ -57,7 +57,7 @@ namespace Tapeti.Connection
 
             return taskQueue.Value.Add(async () =>
             {
-                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware));
+                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware, config.CleanupMiddleware));
             }).Unwrap();
         }
 

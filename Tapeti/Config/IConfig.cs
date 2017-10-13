@@ -9,6 +9,7 @@ namespace Tapeti.Config
     {
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+        IReadOnlyList<ICleanupMiddleware> CleanupMiddleware { get; }
         IReadOnlyList<IPublishMiddleware> PublishMiddleware { get; }
         IEnumerable<IQueue> Queues { get; }
 
