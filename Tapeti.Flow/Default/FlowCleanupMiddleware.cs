@@ -9,7 +9,7 @@ namespace Tapeti.Flow.Default
 {
     public class FlowCleanupMiddleware : ICleanupMiddleware
     {
-        public async Task Handle(IMessageContext context, ConsumeResponse response)
+        public async Task Handle(IMessageContext context, HandlingResult handlingResult)
         {
             object flowContextObj;
             if (!context.Items.TryGetValue(ContextItems.FlowContext, out flowContextObj))
@@ -18,7 +18,8 @@ namespace Tapeti.Flow.Default
 
             if (flowContext.FlowStateLock != null)
             {
-                if (response == ConsumeResponse.Nack)
+                if (handlingResult.ConsumeResponse == ConsumeResponse.Nack 
+                    || handlingResult.MessageAction == MessageAction.ErrorLog)
                 {
                     await flowContext.FlowStateLock.DeleteFlowState();
                 }

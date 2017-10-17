@@ -52,7 +52,34 @@ namespace Tapeti.Flow.Default
             };
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
-            await flowHandler.Execute(context, yieldPoint);
+            HandlingResultBuilder handlingResult = new HandlingResultBuilder
+            {
+                ConsumeResponse = ConsumeResponse.Nack,
+            };
+            try
+            {
+                await flowHandler.Execute(context, yieldPoint);
+                handlingResult.ConsumeResponse = ConsumeResponse.Ack;
+            }
+            finally
+            {
+                await RunCleanup(context, handlingResult.ToHandlingResult());
+            }
+        }
+
+        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
+        {
+            foreach (var handler in config.CleanupMiddleware)
+            {
+                try
+                {
+                    await handler.Handle(context, handlingResult);
+                }
+                catch (Exception eCleanup)
+                {
+                    logger.HandlerException(eCleanup);
+                }
+            }
         }
 
 

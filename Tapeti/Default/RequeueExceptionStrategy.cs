@@ -5,10 +5,9 @@ namespace Tapeti.Default
 {
     public class RequeueExceptionStrategy : IExceptionStrategy
     {
-        public ConsumeResponse HandleException(IMessageContext context, Exception exception)
+        public void HandleException(IExceptionStrategyContext context)
         {
-            // TODO log exception
-            return ConsumeResponse.Requeue;
+            context.HandlingResult.ConsumeResponse = ConsumeResponse.Requeue;
         }
     }
 }
