@@ -143,7 +143,7 @@ namespace Tapeti
             container.RegisterDefault<IMessageSerializer, JsonMessageSerializer>();
             container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
             container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
-            container.RegisterDefault<IExceptionStrategy, RequeueExceptionStrategy>();
+            container.RegisterDefault<IExceptionStrategy, NackExceptionStrategy>();
         }
 
 
