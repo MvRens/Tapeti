@@ -57,7 +57,6 @@ namespace Test
             return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
                     (new PoloConfirmationRequestMessage(),
                     HandlePoloConfirmationResponseEnd);
-
         }
 
 
