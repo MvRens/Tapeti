@@ -3,19 +3,19 @@
   <metadata>
     <id>X2Software.Tapeti.Flow</id>
     <version>$version$</version>
-    <title>$title$</title>
+    <title>Tapeti Flow</title>
     <authors>Menno van Lavieren, Mark van Renswoude</authors>
     <owners>Mark van Renswoude</owners>
-    <licenseUrl>https://git.x2software.net/pub/tapeti/raw/master/UNLICENSE</licenseUrl>
-    <projectUrl>https://git.x2software.net/pub/tapeti</projectUrl>
-    <iconUrl>https://git.x2software.net/pub/tapeti/raw/master/resources/icons/Tapeti.Flow.png</iconUrl>
+    <licenseUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/UNLICENSE</licenseUrl>
+    <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.Flow.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Flow extension for Tapeti</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti flow</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$depversion$]" />
-      <dependency id="X2Software.Tapeti.Annotations" version="[$depversion$]" />
+      <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="X2Software.Tapeti.Annotations" version="[$version$]" />
     </dependencies>
   </metadata>
 </package>
