@@ -25,20 +25,13 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public void Assign(FlowState value)
-        {
-            Metadata = value.Metadata.Clone();
-            Data = value.Data;
-            Continuations = value.Continuations.ToDictionary(kv => kv.Key, kv => kv.Value.Clone());
-        }
-
-
         public FlowState Clone()
         {
-            var result = new FlowState();
-            result.Assign(this);
-
-            return result;
+            return new FlowState {
+                metadata = metadata.Clone(),
+                Data = Data,
+                continuations = continuations?.ToDictionary(kv => kv.Key, kv => kv.Value.Clone())
+            };
         }
     }
 

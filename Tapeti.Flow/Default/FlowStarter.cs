@@ -10,11 +10,13 @@ namespace Tapeti.Flow.Default
     public class FlowStarter : IFlowStarter
     {
         private readonly IConfig config;
+        private readonly ILogger logger;
 
 
-        public FlowStarter(IConfig config)
+        public FlowStarter(IConfig config, ILogger logger)
         {
             this.config = config;
+            this.logger = logger;
         }
 
 
@@ -52,7 +54,32 @@ namespace Tapeti.Flow.Default
             };
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
-            await flowHandler.Execute(context, yieldPoint);
+
+            ConsumeResponse response = ConsumeResponse.Nack;
+            try
+            {
+                await flowHandler.Execute(context, yieldPoint);
+                response = ConsumeResponse.Ack;
+            }
+            finally
+            {
+                await RunCleanup(context, response);
+            }
+        }
+
+        private async Task RunCleanup(MessageContext context, ConsumeResponse response)
+        {
+            foreach (var handler in config.CleanupMiddleware)
+            {
+                try
+                {
+                    await handler.Handle(context, response);
+                }
+                catch (Exception eCleanup)
+                {
+                    logger.HandlerException(eCleanup);
+                }
+            }
         }
 
 

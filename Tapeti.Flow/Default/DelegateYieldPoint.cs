@@ -3,16 +3,13 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
-    internal class DelegateYieldPoint : IExecutableYieldPoint
+    internal class DelegateYieldPoint : IYieldPoint
     {
-        public bool StoreState { get; }
-
         private readonly Func<FlowContext, Task> onExecute;
 
 
-        public DelegateYieldPoint(bool storeState, Func<FlowContext, Task> onExecute)
+        public DelegateYieldPoint(Func<FlowContext, Task> onExecute)
         {
-            StoreState = storeState;
             this.onExecute = onExecute;
         }
 

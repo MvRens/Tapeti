@@ -16,7 +16,7 @@ namespace Tapeti.Flow.Default
                 return;
             var flowContext = (FlowContext)flowContextObj;
 
-            if (flowContext.FlowStateLock != null)
+            if (flowContext?.FlowStateLock != null)
             {
                 if (response == ConsumeResponse.Nack)
                 {

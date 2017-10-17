@@ -18,8 +18,8 @@ namespace Tapeti.Flow
             container.RegisterDefault<IFlowProvider, FlowProvider>();
             container.RegisterDefault<IFlowStarter, FlowStarter>();
             container.RegisterDefault<IFlowHandler, FlowProvider>();
-            container.RegisterDefault<IFlowRepository>(() => flowRepository ?? new NonPersistentFlowRepository());
-            container.RegisterDefault<IFlowStore, FlowStore>();
+            container.RegisterDefaultSingleton<IFlowRepository>(() => flowRepository ?? new NonPersistentFlowRepository());
+            container.RegisterDefaultSingleton<IFlowStore, FlowStore>();
         }
 
         public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
