@@ -13,13 +13,13 @@ namespace Tapeti.Flow.Default
         public Guid ContinuationID { get; set; }
         public ContinuationMetadata ContinuationMetadata { get; set; }
 
-        private bool stored;
+        private bool storeCalled;
+        private bool deleteCalled;
 
 
-        public async Task EnsureStored()
+        public async Task Store()
         {
-            if (stored)
-                return;
+            storeCalled = true;
 
             if (MessageContext == null) throw new ArgumentNullException(nameof(MessageContext));
             if (FlowState == null) throw new ArgumentNullException(nameof(FlowState));
@@ -27,8 +27,20 @@ namespace Tapeti.Flow.Default
 
             FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(MessageContext.Controller);
             await FlowStateLock.StoreFlowState(FlowState);
+        }
 
-            stored = true;
+        public async Task Delete()
+        {
+            deleteCalled = true;
+
+            if (FlowStateLock != null)
+                await FlowStateLock.DeleteFlowState();
+        }
+
+        public void EnsureStoreOrDeleteIsCalled()
+        {
+            if (!storeCalled && !deleteCalled)
+                throw new InvalidProgramException("Neither Store nor Delete are called for the state of the current flow. FlowID = " + FlowStateLock?.FlowID);
         }
 
         public void Dispose()

@@ -61,11 +61,10 @@
     <Compile Include="Default\FlowMessageMiddleware.cs" />
     <Compile Include="Default\FlowStarter.cs" />
     <Compile Include="Default\FlowState.cs" />
-    <Compile Include="Default\IExecutableYieldPoint.cs" />
     <Compile Include="Default\NonPersistentFlowRepository.cs" />
     <Compile Include="Default\DelegateYieldPoint.cs" />
     <Compile Include="ConfigExtensions.cs" />
-    <Compile Include="Default\StateYieldPoint.cs" />
+    <Compile Include="FlowHelpers\LockCollection.cs" />
     <Compile Include="FlowHelpers\MethodSerializer.cs" />
     <Compile Include="FlowMiddleware.cs" />
     <Compile Include="Default\FlowStore.cs" />

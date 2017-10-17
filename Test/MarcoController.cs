@@ -19,6 +19,7 @@ namespace Test
         // Public properties are automatically stored and retrieved while in a flow
         public Guid StateTestGuid { get; set; }
 
+        public int Phase;
 
         public MarcoController(IPublisher publisher, IFlowProvider flowProvider, Visualizer visualizer)
         {
@@ -31,15 +32,17 @@ namespace Test
         [Start]
         public async Task<IYieldPoint> StartFlow(bool go)
         {
-            Console.WriteLine("Starting stand-alone flow");
-            await Task.Delay(1000);
+            Console.WriteLine("Phase = " + Phase + " Starting stand-alone flow");
+            await Task.Delay(10);
+
+            Phase = 1;
 
             if (go)
                 return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
                     (new PoloConfirmationRequestMessage(),
                     HandlePoloConfirmationResponse);
 
-            Console.WriteLine("Ending stand-alone flow prematurely");
+            Console.WriteLine("Phase = " + Phase + " Ending stand-alone flow prematurely");
             return flowProvider.End();
         }
 
@@ -47,7 +50,21 @@ namespace Test
         [Continuation]
         public IYieldPoint HandlePoloConfirmationResponse(PoloConfirmationResponseMessage msg)
         {
-            Console.WriteLine("Ending stand-alone flow");
+            Console.WriteLine("Phase = " + Phase + " Handling the first response and sending the second...");
+
+            Phase = 2;
+
+            return flowProvider.YieldWithRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>
+                    (new PoloConfirmationRequestMessage(),
+                    HandlePoloConfirmationResponseEnd);
+
+        }
+
+
+        [Continuation]
+        public IYieldPoint HandlePoloConfirmationResponseEnd(PoloConfirmationResponseMessage msg)
+        {
+            Console.WriteLine("Phase = " + Phase + " Handling the second response and Ending stand-alone flow");
             return flowProvider.End();
         }
 

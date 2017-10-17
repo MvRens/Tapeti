@@ -7,6 +7,7 @@ using Tapeti.Flow;
 using Tapeti.Flow.SQL;
 using Tapeti.Helpers;
 using Tapeti.SimpleInjector;
+using System.Threading;
 
 namespace Test
 {
@@ -36,6 +37,11 @@ namespace Test
                 Params = new TapetiAppSettingsConnectionParams()
             })
             {
+                var flowStore = container.GetInstance<IFlowStore>();
+                var flowStore2 = container.GetInstance<IFlowStore>();
+
+                Console.WriteLine("IFlowHandler is singleton = " + (flowStore == flowStore2));
+
                 connection.Connected += (sender, e) => {
                     Console.WriteLine("Event Connected");
                 };
@@ -57,6 +63,8 @@ namespace Test
                 connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
                 container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
+
+                Thread.Sleep(1000);
 
                 var emitter = container.GetInstance<MarcoEmitter>();
                 emitter.Run().Wait();
