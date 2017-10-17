@@ -13,7 +13,7 @@ Builds are automatically run using AppVeyor, with the resulting packages being p
 
 
 Latest build
-[![Build status](https://ci.appveyor.com/api/projects/status/p5w9yr4xlhvoy02i?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti)
+[![Build status](https://ci.appveyor.com/api/projects/status/cyuo0vm7admy0d9x?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti)
 
 Master build
-[![Build status](https://ci.appveyor.com/api/projects/status/p5w9yr4xlhvoy02i/branch/master?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/cyuo0vm7admy0d9x/branch/master?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti/branch/master)
