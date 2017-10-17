@@ -1,0 +1,40 @@
+image: Visual Studio 2015
+
+install:
+  - choco install gitversion.portable -pre -y
+
+before_build:
+  - nuget restore
+  - ps: gitversion /l console /output buildserver /updateAssemblyInfo
+
+after_build:
+  - cmd: ECHO nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: nuget pack Tapeti.Annotations\Tapeti.Annotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.Annotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: nuget pack Tapeti.DataAnnotations\Tapeti.DataAnnotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.DataAnnotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: nuget pack Tapeti.Flow\Tapeti.Flow.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
+
+assembly_info:
+  patch: false
+
+build:
+  project: Tapeti.sln
+
+platform:
+  - Any CPU
+
+configuration:
+  - Release
+
+deploy:
+  provider: NuGet
+  api_key:
+    secure: wEch4shvYGZUNRW0z/Rm8jdKR95lVnzS0QncQg6a0wH4k/Bt6N/B5bs6AidVcyUD
+  skip_symbols: false
+  artifact: /.*\.nupkg/
