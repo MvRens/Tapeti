@@ -44,7 +44,7 @@ namespace Tapeti.Connection
             {
                 ExceptionDispatchInfo exception = null;
                 MessageContext context = null;
-                ConsumeResponse response = ConsumeResponse.Nack;
+                HandlingResult handlingResult = null;
                 try
                 {
                     try
@@ -59,7 +59,11 @@ namespace Tapeti.Connection
 
                         await DispatchMesage(context, body);
 
-                        response = ConsumeResponse.Ack;
+                        handlingResult = new HandlingResult
+                        {
+                            ConsumeResponse = ConsumeResponse.Ack,
+                            MessageAction = MessageAction.None
+                        };
                     }
                     catch (Exception eDispatch)
                     {
@@ -67,7 +71,11 @@ namespace Tapeti.Connection
                         logger.HandlerException(eDispatch);
                         try
                         {
-                            response = exceptionStrategy.HandleException(null, exception.SourceException);
+                            var exceptionStrategyContext = new ExceptionStrategyContext(context, exception.SourceException);
+
+                            exceptionStrategy.HandleException(exceptionStrategyContext);
+
+                            handlingResult = exceptionStrategyContext.HandlingResult.ToHandlingResult();
                         }
                         catch (Exception eStrategy)
                         {
@@ -76,7 +84,15 @@ namespace Tapeti.Connection
                     }
                     try
                     {
-                        await RunCleanup(context, response);
+                        if (handlingResult == null)
+                        {
+                            handlingResult = new HandlingResult
+                            {
+                                ConsumeResponse = ConsumeResponse.Nack,
+                                MessageAction = MessageAction.None
+                            };
+                        }
+                        await RunCleanup(context, handlingResult);
                     }
                     catch (Exception eCleanup)
                     {
@@ -87,7 +103,15 @@ namespace Tapeti.Connection
                 {
                     try
                     {
-                        await worker.Respond(deliveryTag, response);
+                        if (handlingResult == null)
+                        {
+                            handlingResult = new HandlingResult
+                            {
+                                ConsumeResponse = ConsumeResponse.Nack,
+                                MessageAction = MessageAction.None
+                            };
+                        }
+                        await worker.Respond(deliveryTag, handlingResult.ConsumeResponse);
                     }
                     catch (Exception eRespond)
                     {
@@ -108,13 +132,13 @@ namespace Tapeti.Connection
             });
         }
 
-        private async Task RunCleanup(MessageContext context, ConsumeResponse response)
+        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
         {
             foreach(var handler in cleanupMiddleware)
             {
                 try
                 {
-                    await handler.Handle(context, response);
+                    await handler.Handle(context, handlingResult);
                 }
                 catch (Exception eCleanup)
                 {
