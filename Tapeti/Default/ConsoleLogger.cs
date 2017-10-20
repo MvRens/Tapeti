@@ -1,4 +1,6 @@
-﻿namespace Tapeti.Default
+﻿using System;
+
+namespace Tapeti.Default
 {
     public class ConsoleLogger : ILogger
     {
@@ -15,6 +17,11 @@
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
         {
             throw new System.NotImplementedException();
+        }
+
+        public void HandlerException(Exception e)
+        {
+            Console.WriteLine(e.ToString());
         }
     }
 }

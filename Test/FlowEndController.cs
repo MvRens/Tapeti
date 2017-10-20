@@ -1,6 +1,7 @@
 ﻿using System;
 using Tapeti.Annotations;
 using Tapeti.Flow;
+using Tapeti.Flow.Annotations;
 
 namespace Test
 {
@@ -17,7 +18,25 @@ namespace Test
 
         public IYieldPoint StartFlow(PingMessage message)
         {
-            Console.WriteLine("PingMessage received, call flowProvider.End()");
+            Console.WriteLine("PingMessage received, calling flowProvider.End() directly");
+
+            if (DateTime.Now < new DateTime(2000, 1, 1))
+            {
+                //never true
+                return flowProvider
+                    .YieldWithRequestSync<PingConfirmationRequestMessage, PingConfirmationResponseMessage>
+                    (new PingConfirmationRequestMessage() { StoredInState = "Ping:" },
+                        HandlePingConfirmationResponse);
+            }
+
+            return Finish();
+        }
+
+
+        [Continuation]
+        public IYieldPoint HandlePingConfirmationResponse(PingConfirmationResponseMessage msg)
+        {
+            Console.WriteLine("Ending ping flow: " + msg.Answer);
             return Finish();
         }
 
@@ -33,5 +52,26 @@ namespace Test
 
         }
 
+        [Request(Response = typeof(PingConfirmationResponseMessage))]
+        public class PingConfirmationRequestMessage
+        {
+            public string StoredInState { get; set; }
+        }
+
+
+        public class PingConfirmationResponseMessage
+        {
+            public string Answer { get; set; }
+        }
+
+        public PingConfirmationResponseMessage PingConfirmation(PingConfirmationRequestMessage message)
+        {
+            Console.WriteLine(">> receive Ping (returning pong)");
+
+            return new PingConfirmationResponseMessage
+            {
+                Answer = message.StoredInState + " Pong!"
+            };
+        }
     }
 }

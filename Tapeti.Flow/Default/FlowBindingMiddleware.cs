@@ -87,7 +87,7 @@ namespace Tapeti.Flow.Default
         private static Task HandleParallelResponse(IMessageContext context)
         {
             var flowHandler = context.DependencyResolver.Resolve<IFlowHandler>();
-            return flowHandler.Execute(context, new StateYieldPoint(true));
+            return flowHandler.Execute(context, new DelegateYieldPoint((a) => Task.CompletedTask));
         }
 
 

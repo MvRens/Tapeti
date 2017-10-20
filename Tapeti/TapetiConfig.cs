@@ -26,6 +26,7 @@ namespace Tapeti
 
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
+        private readonly List<ICleanupMiddleware> cleanupMiddleware = new List<ICleanupMiddleware>();
         private readonly List<IPublishMiddleware> publishMiddleware = new List<IPublishMiddleware>();
 
         private readonly IDependencyResolver dependencyResolver;
@@ -62,7 +63,7 @@ namespace Tapeti
 
             queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
-            var config = new Config(dependencyResolver, messageMiddleware, publishMiddleware, queues);
+            var config = new Config(dependencyResolver, messageMiddleware, cleanupMiddleware, publishMiddleware, queues);
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
 
             return config;
@@ -79,6 +80,13 @@ namespace Tapeti
         public TapetiConfig Use(IMessageMiddleware handler)
         {
             messageMiddleware.Add(handler);
+            return this;
+        }
+
+
+        public TapetiConfig Use(ICleanupMiddleware handler)
+        {
+            cleanupMiddleware.Add(handler);
             return this;
         }
 
@@ -108,6 +116,8 @@ namespace Tapeti
                         Use((IBindingMiddleware)middleware);
                     else if (middleware is IMessageMiddleware)
                         Use((IMessageMiddleware)middleware);
+                    else if (middleware is ICleanupMiddleware)
+                        Use((ICleanupMiddleware)middleware);
                     else if (middleware is IPublishMiddleware)
                         Use((IPublishMiddleware)middleware);
                     else
@@ -133,7 +143,7 @@ namespace Tapeti
             container.RegisterDefault<IMessageSerializer, JsonMessageSerializer>();
             container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
             container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
-            container.RegisterDefault<IExceptionStrategy, RequeueExceptionStrategy>();
+            container.RegisterDefault<IExceptionStrategy, NackExceptionStrategy>();
         }
 
 
@@ -345,16 +355,18 @@ namespace Tapeti
         {
             public IDependencyResolver DependencyResolver { get; }
             public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+            public IReadOnlyList<ICleanupMiddleware> CleanupMiddleware { get; }
             public IReadOnlyList<IPublishMiddleware> PublishMiddleware { get; }
             public IEnumerable<IQueue> Queues { get; }
 
             private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
 
 
-            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<IPublishMiddleware> publishMiddleware, IEnumerable<IQueue> queues)
+            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<ICleanupMiddleware> cleanupMiddleware, IReadOnlyList<IPublishMiddleware> publishMiddleware, IEnumerable<IQueue> queues)
             {
                 DependencyResolver = dependencyResolver;
                 MessageMiddleware = messageMiddleware;
+                CleanupMiddleware = cleanupMiddleware;
                 PublishMiddleware = publishMiddleware;
                 Queues = queues.ToList();
 

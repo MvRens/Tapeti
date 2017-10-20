@@ -39,8 +39,6 @@ namespace Tapeti.Flow.Default
                 return null;
 
             var flowStateLock = await flowStore.LockFlowState(flowID.Value);
-            if (flowStateLock == null)
-                return null;
 
             var flowState = await flowStateLock.GetFlowState();
             if (flowState == null)
