@@ -53,6 +53,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\IExceptionStrategyContext.cs" />
+    <Compile Include="Config\ICleanupMiddleware.cs" />
     <Compile Include="Config\IPublishContext.cs" />
     <Compile Include="Config\IMessageFilterMiddleware.cs" />
     <Compile Include="Config\IPublishMiddleware.cs" />
@@ -63,6 +65,9 @@
     <Compile Include="Connection\TapetiWorker.cs" />
     <Compile Include="Default\ConsoleLogger.cs" />
     <Compile Include="Default\DevNullLogger.cs" />
+    <Compile Include="Default\ExceptionStrategyContext.cs" />
+    <Compile Include="Default\NackExceptionStrategy.cs" />
+    <Compile Include="HandlingResult.cs" />
     <Compile Include="Default\JsonMessageSerializer.cs" />
     <Compile Include="Default\MessageContext.cs" />
     <Compile Include="Default\PublishResultBinding.cs" />
@@ -83,6 +88,7 @@
     <Compile Include="Config\IConfig.cs" />
     <Compile Include="MessageController.cs" />
     <Compile Include="Config\IBindingMiddleware.cs" />
+    <Compile Include="MessageFutureAction.cs" />
     <Compile Include="TapetiAppSettingsConnectionParams.cs" />
     <Compile Include="TapetiConnectionParams.cs" />
     <Compile Include="TapetiConfig.cs" />

@@ -5,19 +5,19 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
-    public class NonPersistentFlowRepository<T> : IFlowRepository<T>
+    public class NonPersistentFlowRepository : IFlowRepository
     {
-        Task<List<KeyValuePair<Guid, T>>> IFlowRepository<T>.GetStates()
+        Task<List<KeyValuePair<Guid, T>>> IFlowRepository.GetStates<T>()
         {
             return Task.FromResult(new List<KeyValuePair<Guid, T>>());
         }
 
-        public Task CreateState(Guid flowID, T state, DateTime timestamp)
+        public Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
             return Task.CompletedTask;
         }
 
-        public Task UpdateState(Guid flowID, T state)
+        public Task UpdateState<T>(Guid flowID, T state)
         {
             return Task.CompletedTask;
         }

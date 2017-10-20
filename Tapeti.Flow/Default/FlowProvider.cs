@@ -26,13 +26,13 @@ namespace Tapeti.Flow.Default
         public IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task<IYieldPoint>> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
-            return new DelegateYieldPoint(true, context => SendRequest(context, message, responseHandlerInfo));
+            return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
         public IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
-            return new DelegateYieldPoint(true, context => SendRequest(context, message, responseHandlerInfo));
+            return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
@@ -42,18 +42,23 @@ namespace Tapeti.Flow.Default
 
         public IYieldPoint EndWithResponse<TResponse>(TResponse message)
         {
-            return new DelegateYieldPoint(false, context => SendResponse(context, message));
+            return new DelegateYieldPoint(context => SendResponse(context, message));
         }
 
         public IYieldPoint End()
         {
-            return new DelegateYieldPoint(false, EndFlow);
+            return new DelegateYieldPoint(EndFlow);
         }
 
 
         private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
             string convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
+            if (context.FlowState == null)
+            {
+                await CreateNewFlowState(context);
+            }
+
             var continuationID = Guid.NewGuid();
 
             context.FlowState.Continuations.Add(continuationID,
@@ -70,14 +75,18 @@ namespace Tapeti.Flow.Default
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
-            await context.EnsureStored();
+            await context.Store();
+
             await publisher.Publish(message, properties);
         }
 
 
         private async Task SendResponse(FlowContext context, object message)
         {
-            var reply = context.FlowState.Metadata.Reply;
+            var reply = context.FlowState == null
+                ? GetReply(context.MessageContext)
+                : context.FlowState.Metadata.Reply;
+
             if (reply == null)
                 throw new YieldPointException("No response is required");
 
@@ -92,19 +101,21 @@ namespace Tapeti.Flow.Default
                 properties.CorrelationId = reply.CorrelationId;
 
             // TODO disallow if replyto is not specified?
-            if (context.FlowState.Metadata.Reply.ReplyTo != null)
+            if (reply.ReplyTo != null)
                 await publisher.PublishDirect(message, reply.ReplyTo, properties);
             else
                 await publisher.Publish(message, properties);
+
+            await context.Delete();
         }
 
 
-        private static Task EndFlow(FlowContext context)
+        private static async Task EndFlow(FlowContext context)
         {
-            if (context.FlowState.Metadata.Reply != null)
-                throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
+            await context.Delete();
 
-            return Task.CompletedTask;
+            if (context.FlowState != null && context.FlowState.Metadata.Reply != null)
+                throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
         }
 
 
@@ -147,11 +158,31 @@ namespace Tapeti.Flow.Default
             };
         }
 
+        private async Task CreateNewFlowState(FlowContext flowContext)
+        {
+            var flowStore = flowContext.MessageContext.DependencyResolver.Resolve<IFlowStore>();
+
+            var flowID = Guid.NewGuid();
+            flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
+
+            if (flowContext.FlowStateLock == null)
+                throw new InvalidOperationException("Unable to lock a new flow");
+
+            flowContext.FlowState = new FlowState
+            {
+                Metadata = new FlowMetadata
+                {
+                    Reply = GetReply(flowContext.MessageContext)
+                }
+            };
+        }
 
         public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
         {
-            var executableYieldPoint = yieldPoint as IExecutableYieldPoint;
-            var storeState = executableYieldPoint?.StoreState ?? false;
+            var executableYieldPoint = yieldPoint as DelegateYieldPoint;
+
+            if (executableYieldPoint == null)
+                throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Binding.Method.Name}");
 
             FlowContext flowContext;
             object flowContextItem;
@@ -160,27 +191,10 @@ namespace Tapeti.Flow.Default
             {
                 flowContext = new FlowContext
                 {
-                    MessageContext = context,
-                    FlowState = new FlowState()
+                    MessageContext = context
                 };
 
-                if (storeState)
-                {
-                    // Initiate the flow
-                    var flowStore = context.DependencyResolver.Resolve<IFlowStore>();
-
-                    var flowID = Guid.NewGuid();
-                    flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
-
-                    if (flowContext.FlowStateLock == null)
-                        throw new InvalidOperationException("Unable to lock a new flow");
-
-                    flowContext.FlowState = await flowContext.FlowStateLock.GetFlowState();
-                    if (flowContext.FlowState == null)
-                        throw new InvalidOperationException("Unable to get state for new flow");
-
-                    flowContext.FlowState.Metadata.Reply = GetReply(context);
-                }
+                context.Items.Add(ContextItems.FlowContext, flowContext);
             }
             else
                 flowContext = (FlowContext)flowContextItem;
@@ -193,17 +207,15 @@ namespace Tapeti.Flow.Default
             }
             catch (YieldPointException e)
             {
-                var controllerName = flowContext.MessageContext.Controller.GetType().FullName;
-                var methodName = flowContext.MessageContext.Binding.Method.Name;
-
-                throw new YieldPointException($"{e.Message} in controller {controllerName}, method {methodName}", e);
+                // Useful for debugging
+                e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
+                e.Data["Tapeti.Controller.Method"] = context.Binding.Method.Name;
+                throw;
             }
 
-            if (storeState)
-                await flowContext.EnsureStored();
-            else if (flowContext.FlowStateLock != null)
-                await flowContext.FlowStateLock.DeleteFlowState();
+            flowContext.EnsureStoreOrDeleteIsCalled();
         }
+
 
 
         private class ParallelRequestBuilder : IFlowParallelRequestBuilder
@@ -275,7 +287,7 @@ namespace Tapeti.Flow.Default
                 if (convergeMethod?.Method == null)
                     throw new ArgumentNullException(nameof(convergeMethod));
 
-                return new DelegateYieldPoint(true, context =>
+                return new DelegateYieldPoint(context =>
                 {
                     if (convergeMethod.Method.DeclaringType != context.MessageContext.Controller.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");

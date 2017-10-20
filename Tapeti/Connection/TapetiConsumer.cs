@@ -16,18 +16,23 @@ namespace Tapeti.Connection
         private readonly string queueName;
         private readonly IDependencyResolver dependencyResolver;
         private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
+        private readonly IReadOnlyList<ICleanupMiddleware> cleanupMiddleware;
         private readonly List<IBinding> bindings;
+
+        private readonly ILogger logger;
         private readonly IExceptionStrategy exceptionStrategy;
 
 
-        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware)
+        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<ICleanupMiddleware> cleanupMiddleware)
         {
             this.worker = worker;
             this.queueName = queueName;
             this.dependencyResolver = dependencyResolver;
             this.messageMiddleware = messageMiddleware;
+            this.cleanupMiddleware = cleanupMiddleware;
             this.bindings = bindings.ToList();
 
+            logger = dependencyResolver.Resolve<ILogger>();
             exceptionStrategy = dependencyResolver.Resolve<IExceptionStrategy>();
         }
 
@@ -35,59 +40,138 @@ namespace Tapeti.Connection
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
             IBasicProperties properties, byte[] body)
         {
-            ExceptionDispatchInfo exception = null;
-            try
+            Task.Run(async () =>
             {
-                var message = dependencyResolver.Resolve<IMessageSerializer>().Deserialize(body, properties);
-                if (message == null)
-                    throw new ArgumentException("Empty message");
-
-                var validMessageType = false;
-
-                using (var context = new MessageContext
-                {
-                    DependencyResolver = dependencyResolver,
-                    Queue = queueName,
-                    RoutingKey = routingKey,
-                    Message = message,
-                    Properties = properties
-                })
+                ExceptionDispatchInfo exception = null;
+                MessageContext context = null;
+                HandlingResult handlingResult = null;
+                try
                 {
                     try
                     {
-                        foreach (var binding in bindings)
+                        context = new MessageContext
                         {
-                            if (binding.Accept(context, message))
-                            {
-                                InvokeUsingBinding(context, binding, message);
+                            DependencyResolver = dependencyResolver,
+                            Queue = queueName,
+                            RoutingKey = routingKey,
+                            Properties = properties
+                        };
 
-                                validMessageType = true;
-                            }
-                        }
+                        await DispatchMesage(context, body);
 
-                        if (!validMessageType)
-                            throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
-
-                        worker.Respond(deliveryTag, ConsumeResponse.Ack);
+                        handlingResult = new HandlingResult
+                        {
+                            ConsumeResponse = ConsumeResponse.Ack,
+                            MessageAction = MessageAction.None
+                        };
                     }
-                    catch (Exception e)
+                    catch (Exception eDispatch)
                     {
-                        exception = ExceptionDispatchInfo.Capture(UnwrapException(e));
-                        worker.Respond(deliveryTag, exceptionStrategy.HandleException(context, exception.SourceException));
+                        exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
+                        logger.HandlerException(eDispatch);
+                        try
+                        {
+                            var exceptionStrategyContext = new ExceptionStrategyContext(context, exception.SourceException);
+
+                            exceptionStrategy.HandleException(exceptionStrategyContext);
+
+                            handlingResult = exceptionStrategyContext.HandlingResult.ToHandlingResult();
+                        }
+                        catch (Exception eStrategy)
+                        {
+                            logger.HandlerException(eStrategy);
+                        }
+                    }
+                    try
+                    {
+                        if (handlingResult == null)
+                        {
+                            handlingResult = new HandlingResult
+                            {
+                                ConsumeResponse = ConsumeResponse.Nack,
+                                MessageAction = MessageAction.None
+                            };
+                        }
+                        await RunCleanup(context, handlingResult);
+                    }
+                    catch (Exception eCleanup)
+                    {
+                        logger.HandlerException(eCleanup);
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                exception = ExceptionDispatchInfo.Capture(UnwrapException(e));
-                worker.Respond(deliveryTag, exceptionStrategy.HandleException(null, exception.SourceException));
-            }
-
-            exception?.Throw();
+                finally
+                {
+                    try
+                    {
+                        if (handlingResult == null)
+                        {
+                            handlingResult = new HandlingResult
+                            {
+                                ConsumeResponse = ConsumeResponse.Nack,
+                                MessageAction = MessageAction.None
+                            };
+                        }
+                        await worker.Respond(deliveryTag, handlingResult.ConsumeResponse);
+                    }
+                    catch (Exception eRespond)
+                    {
+                        logger.HandlerException(eRespond);
+                    }
+                    try
+                    {
+                        if (context != null)
+                        {
+                            context.Dispose();
+                        }
+                    }
+                    catch (Exception eDispose)
+                    {
+                        logger.HandlerException(eDispose);
+                    }
+                }
+            });
         }
 
+        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
+        {
+            foreach(var handler in cleanupMiddleware)
+            {
+                try
+                {
+                    await handler.Handle(context, handlingResult);
+                }
+                catch (Exception eCleanup)
+                {
+                    logger.HandlerException(eCleanup);
+                }
+            }
+        }
 
-        private void InvokeUsingBinding(MessageContext context, IBinding binding, object message)
+        private async Task DispatchMesage(MessageContext context, byte[] body)
+        {
+            var message = dependencyResolver.Resolve<IMessageSerializer>().Deserialize(body, context.Properties);
+            if (message == null)
+                throw new ArgumentException("Empty message");
+
+            context.Message = message;
+
+            var validMessageType = false;
+
+            foreach (var binding in bindings)
+            {
+                if (binding.Accept(context, message))
+                {
+                    await InvokeUsingBinding(context, binding, message);
+
+                    validMessageType = true;
+                }
+            }
+
+            if (!validMessageType)
+                throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
+        }
+
+        private Task InvokeUsingBinding(MessageContext context, IBinding binding, object message)
         {
             context.Binding = binding;
 
@@ -136,9 +220,7 @@ namespace Tapeti.Connection
                 await binding.Invoke(c, message);
             });
 
-            firstCaller.Call(context)
-                .Wait();
-
+            return firstCaller.Call(context);
         }
 
         private static Exception UnwrapException(Exception exception)
