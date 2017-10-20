@@ -24,8 +24,6 @@ namespace Test
             container.Register<Visualizer>();
             container.Register<ILogger, Tapeti.Default.ConsoleLogger>();
 
-            //container.Register<IFlowRepository>(() => new EF(serviceID));
-
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .WithFlow()
                 .WithDataAnnotations()
