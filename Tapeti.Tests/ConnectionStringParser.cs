@@ -1,5 +1,4 @@
-﻿using System;
-using Tapeti;
+﻿using Tapeti;
 using Tapeti.Helpers;
 using Xunit;
 
@@ -164,10 +163,10 @@ namespace Tapet.Tests
             {
                 HostName = "messagebus.universe.local",
                 Port = 80,
-                VirtualHost= "/test",
+                VirtualHost = "/test",
                 Username = "myApplication",
                 Password = "1234",
-                PrefetchCount= 10
+                PrefetchCount = 10
             });
         }
 
