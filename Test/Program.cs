@@ -19,6 +19,7 @@ namespace Test
             // TODO logging
             // TODO uitzoeken of we consumers kunnen pauzeren (denk: SQL down) --> nee, EFDBContext Get Async maken en retryen? kan dat, of timeout dan Rabbit?
 
+
             var container = new Container();
             container.Register<MarcoEmitter>();
             container.Register<Visualizer>();
