@@ -1,4 +1,5 @@
-image: Visual Studio 2015
+image: Visual Studio 2017
+
 
 install:
   - choco install gitversion.portable -pre -y
@@ -36,5 +37,6 @@ deploy:
   provider: NuGet
   api_key:
     secure: pkaN6R8ocu0Q93uCK3DOCifgr1Q4tuH4ZJ4eiV9U5NmwE5qRM2xjUy4B9SkZCsWx
+
   skip_symbols: false
   artifact: /.*\.nupkg/
