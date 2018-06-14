@@ -17,4 +17,7 @@
       <dependency id="X2Software.Tapeti.Annotations" version="[$version$]" />
     </dependencies>
   </metadata>
+  <files>
+    <file src="bin\Release\**" target="lib" />
+  </files>
 </package>

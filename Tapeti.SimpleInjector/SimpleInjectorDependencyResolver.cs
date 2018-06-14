@@ -45,7 +45,7 @@ namespace Tapeti.SimpleInjector
         public void RegisterDefaultSingleton<TService>(TService instance) where TService : class
         {
             if (CanRegisterDefault<TService>())
-                container.RegisterSingleton(instance);
+                container.RegisterInstance(instance);
         }
 
         public void RegisterDefaultSingleton<TService>(Func<TService> factory) where TService : class
