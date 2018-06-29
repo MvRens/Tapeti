@@ -15,6 +15,7 @@
     <tags>rabbitmq tapeti dataannotations</tags>
     <dependencies>
       <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="System.ComponentModel.Annotations" version="4.5.0" />
     </dependencies>
   </metadata>
   <files>
