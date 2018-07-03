@@ -15,6 +15,10 @@
     <tags>rabbitmq tapeti simpleinjector</tags>
     <dependencies>
       <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="SimpleInjector" version="4.3.0" />
     </dependencies>
   </metadata>
+  <files>
+    <file src="bin\Release\**" target="lib" />
+  </files>
 </package>
