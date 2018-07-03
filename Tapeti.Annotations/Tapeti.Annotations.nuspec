@@ -14,4 +14,7 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti</tags>
   </metadata>
+  <files>
+    <file src="bin\Release\**" target="lib" />
+  </files>
 </package>
