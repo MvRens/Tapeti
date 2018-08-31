@@ -134,6 +134,7 @@ namespace Test
 
 
 
+        [DynamicQueue("custom.prefix")]
         public void Polo(PoloMessage message)
         {
             Console.WriteLine(">> Polo");
