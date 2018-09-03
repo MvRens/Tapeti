@@ -22,7 +22,7 @@ namespace Tapeti
     public class TapetiConfig
     {
         private readonly Dictionary<string, List<Binding>> staticRegistrations = new Dictionary<string, List<Binding>>();
-        private readonly Dictionary<Type, List<Binding>> dynamicRegistrations = new Dictionary<Type, List<Binding>>();
+        private readonly Dictionary<string, Dictionary<Type, List<Binding>>> dynamicRegistrations = new Dictionary<string, Dictionary<Type, List<Binding>>>();
 
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
@@ -49,19 +49,46 @@ namespace Tapeti
             var queues = new List<IQueue>();
             queues.AddRange(staticRegistrations.Select(qb => new Queue(new QueueInfo { Dynamic = false, Name = qb.Key }, qb.Value)));
 
-            // Group all bindings with the same index into queues, this will
-            // ensure each message type is unique on their queue
-            var dynamicBindings = new List<List<Binding>>();
-            foreach (var bindings in dynamicRegistrations.Values)
+
+            // We want to ensure each queue only has unique messages classes. This means we can requeue
+            // without the side-effect of calling other handlers for the same message class again as well.
+            //
+            // Since I had trouble deciphering this code after a year, here's an overview of how it achieves this grouping
+            // and how the bindingIndex is relevant:
+            // 
+            // dynamicRegistrations:
+            //   Key (prefix)
+            //     ""
+            //       Key (message class)    Value (list of bindings)
+            //       A                      binding1, binding2, binding3
+            //       B                      binding4
+            //     "prefix"
+            //       A                      binding5, binding6
+            //
+            // By combining all bindings with the same index, per prefix, the following queues will be registered:
+            //
+            // Prefix       Bindings
+            // ""           binding1 (message A), binding4 (message B)
+            // ""           binding2 (message A)
+            // ""           binding3 (message A)
+            // "prefix"     binding5 (message A)
+            // "prefix"     binding6 (message A)
+            //
+            foreach (var prefixGroup in dynamicRegistrations)
             {
-                while (dynamicBindings.Count < bindings.Count)
-                    dynamicBindings.Add(new List<Binding>());
+                var dynamicBindings = new List<List<Binding>>();
 
-                for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
-                    dynamicBindings[bindingIndex].Add(bindings[bindingIndex]);
+                foreach (var bindings in prefixGroup.Value.Values)
+                {
+                    while (dynamicBindings.Count < bindings.Count)
+                        dynamicBindings.Add(new List<Binding>());
+
+                    for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
+                        dynamicBindings[bindingIndex].Add(bindings[bindingIndex]);
+                }
+
+                queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(prefixGroup.Key) }, bl)));
             }
-
-            queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
             var config = new Config(dependencyResolver, messageMiddleware, cleanupMiddleware, publishMiddleware, queues);
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
@@ -317,10 +344,21 @@ namespace Tapeti
 
         protected void AddDynamicRegistration(IBindingContext context, Binding binding)
         {
-            if (dynamicRegistrations.ContainsKey(context.MessageClass))
-                dynamicRegistrations[context.MessageClass].Add(binding);
-            else
-                dynamicRegistrations.Add(context.MessageClass, new List<Binding> { binding });
+            var prefix = binding.QueueInfo.Name ?? "";
+
+            if (!dynamicRegistrations.TryGetValue(prefix, out Dictionary<Type, List<Binding>> prefixRegistrations))
+            {
+                prefixRegistrations = new Dictionary<Type, List<Binding>>();
+                dynamicRegistrations.Add(prefix, prefixRegistrations);
+            }
+
+            if (!prefixRegistrations.TryGetValue(context.MessageClass, out List<Binding> bindings))
+            {
+                bindings = new List<Binding>();
+                prefixRegistrations.Add(context.MessageClass, bindings);
+            }
+
+            bindings.Add(binding);
         }
 
 
@@ -333,12 +371,21 @@ namespace Tapeti
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on {member.Name}");
 
             if (dynamicQueueAttribute != null)
-                return new QueueInfo { Dynamic = true };
+                return new QueueInfo { Dynamic = true, Name = dynamicQueueAttribute.Prefix };
 
             if (durableQueueAttribute != null)
                 return new QueueInfo { Dynamic = false, Name = durableQueueAttribute.Name };
 
             return null;
+        }
+
+
+        protected string GetDynamicQueueName(string prefix)
+        {
+            if (String.IsNullOrEmpty(prefix))
+                return "";
+
+            return prefix + "." + Guid.NewGuid().ToString("N");
         }
 
 
