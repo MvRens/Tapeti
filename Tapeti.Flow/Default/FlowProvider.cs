@@ -56,11 +56,10 @@ namespace Tapeti.Flow.Default
         private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
             string convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
-            Debug.Assert(context.FlowState != null, "context.FlowState != null");
-
             if (context.FlowState == null)
             {
                 await CreateNewFlowState(context);
+                Debug.Assert(context.FlowState != null, "context.FlowState != null");
             }
 
             var continuationID = Guid.NewGuid();
