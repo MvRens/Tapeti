@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.Flow.SQL.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>SQL backing repository for the Tapeti Flow package</description>
+    <description>DEPRECATED: use Tapeti.Flow.SQL</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti sql</tags>
     <dependencies>

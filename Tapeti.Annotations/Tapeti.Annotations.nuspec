@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.Annotations.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Annotations for Tapeti</description>
+    <description>DEPRECATED: use Tapeti.Annotations</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti</tags>
   </metadata>
