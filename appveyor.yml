@@ -11,17 +11,17 @@ before_build:
 after_build:
   - cmd: ECHO nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.Annotations\Tapeti.Annotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.Annotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.Annotations.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.DataAnnotations\Tapeti.DataAnnotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.DataAnnotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.DataAnnotations.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.Flow\Tapeti.Flow.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.Serilog\Tapeti.Serilog.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "X2Software.Tapeti.Serilog.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: appveyor PushArtifact "Tapeti.Serilog.%GitVersion_NuGetVersion%.nupkg"
 
 assembly_info:
   patch: false
