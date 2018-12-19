@@ -5,7 +5,6 @@ using System.Runtime.ExceptionServices;
 using RabbitMQ.Client;
 using Tapeti.Config;
 using Tapeti.Default;
-using Tapeti.Helpers;
 using System.Threading.Tasks;
 
 namespace Tapeti.Connection
@@ -42,7 +41,6 @@ namespace Tapeti.Connection
         {
             Task.Run(async () =>
             {
-                ExceptionDispatchInfo exception = null;
                 MessageContext context = null;
                 HandlingResult handlingResult = null;
                 try
@@ -67,7 +65,7 @@ namespace Tapeti.Connection
                     }
                     catch (Exception eDispatch)
                     {
-                        exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
+                        var exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
                         logger.HandlerException(eDispatch);
                         try
                         {
@@ -119,10 +117,7 @@ namespace Tapeti.Connection
                     }
                     try
                     {
-                        if (context != null)
-                        {
-                            context.Dispose();
-                        }
+                        context?.Dispose();
                     }
                     catch (Exception eDispose)
                     {
@@ -178,25 +173,25 @@ namespace Tapeti.Connection
             RecursiveCaller firstCaller = null;
             RecursiveCaller currentCaller = null;
 
-            Action<Handler> addHandler = (Handler handle) =>
+            void AddHandler(Handler handle)
             {
                 var caller = new RecursiveCaller(handle);
                 if (currentCaller == null)
                     firstCaller = caller;
                 else
-                    currentCaller.next = caller;
+                    currentCaller.Next = caller;
                 currentCaller = caller;
-            };
+            }
 
             if (binding.MessageFilterMiddleware != null)
             {
                 foreach (var m in binding.MessageFilterMiddleware)
                 {
-                    addHandler(m.Handle);
+                    AddHandler(m.Handle);
                 }
             }
 
-            addHandler(async (c, next) =>
+            AddHandler(async (c, next) =>
             {
                 c.Controller = dependencyResolver.Resolve(binding.Controller);
                 await next();
@@ -204,18 +199,18 @@ namespace Tapeti.Connection
 
             foreach (var m in messageMiddleware)
             {
-                addHandler(m.Handle);
+                AddHandler(m.Handle);
             }
 
             if (binding.MessageMiddleware != null)
             {
                 foreach (var m in binding.MessageMiddleware)
                 {
-                    addHandler(m.Handle);
+                    AddHandler(m.Handle);
                 }
             }
 
-            addHandler(async (c, next) =>
+            AddHandler(async (c, next) =>
             {
                 await binding.Invoke(c, message);
             });
@@ -244,10 +239,11 @@ namespace Tapeti.Connection
 
     public class RecursiveCaller
     {
-        private Handler handle;
+        private readonly Handler handle;
         private MessageContext currentContext;
         private MessageContext nextContext;
-        public RecursiveCaller next;
+
+        public RecursiveCaller Next;
 
         public RecursiveCaller(Handler handle)
         {
@@ -263,9 +259,9 @@ namespace Tapeti.Connection
             {
                 currentContext = context;
 
-                context.UseNestedContext = next == null ? (Action<MessageContext>)null : UseNestedContext;
+                context.UseNestedContext = Next == null ? (Action<MessageContext>)null : UseNestedContext;
 
-                await handle(context, callNext);
+                await handle(context, CallNext);
             }
             finally
             {
@@ -273,18 +269,18 @@ namespace Tapeti.Connection
             }
         }
 
-        private async Task callNext()
+        private async Task CallNext()
         {
-            if (next == null)
+            if (Next == null)
                 return;
             if (nextContext != null)
             {
-                await next.Call(nextContext);
+                await Next.Call(nextContext);
             }else
             {
                 try
                 {
-                    await next.Call(currentContext);
+                    await Next.Call(currentContext);
                 }
                 finally
                 {

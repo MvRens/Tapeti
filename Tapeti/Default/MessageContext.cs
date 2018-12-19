@@ -21,7 +21,6 @@ namespace Tapeti.Default
 
         public IDictionary<string, object> Items { get; }
 
-        private readonly MessageContext outerContext;
         internal Action<MessageContext> UseNestedContext;
         internal Action<MessageContext> OnContextDisposed;
 
@@ -43,8 +42,6 @@ namespace Tapeti.Default
             Properties = outerContext.Properties;
 
             Items = new DeferingDictionary(outerContext.Items);
-
-            this.outerContext = outerContext;
         }
 
         public void Dispose()
@@ -71,8 +68,8 @@ namespace Tapeti.Default
 
         private class DeferingDictionary : IDictionary<string, object>
         {
-            private IDictionary<string, object> myState;
-            private IDictionary<string, object> deferee;
+            private readonly IDictionary<string, object> myState;
+            private readonly IDictionary<string, object> deferee;
 
             public DeferingDictionary(IDictionary<string, object> deferee)
             {
@@ -84,10 +81,7 @@ namespace Tapeti.Default
 
             object IDictionary<string, object>.this[string key]
             {
-                get
-                {
-                    return myState.ContainsKey(key) ? myState[key] : deferee[key];
-                }
+                get => myState.ContainsKey(key) ? myState[key] : deferee[key];
 
                 set
                 {
@@ -98,37 +92,10 @@ namespace Tapeti.Default
                 }
             }
 
-            int ICollection<KeyValuePair<string, object>>.Count
-            {
-                get
-                {
-                    return myState.Count + deferee.Count;
-                }
-            }
-
-            bool ICollection<KeyValuePair<string, object>>.IsReadOnly
-            {
-                get
-                {
-                    return false;
-                }
-            }
-
-            ICollection<string> IDictionary<string, object>.Keys
-            {
-                get
-                {
-                    return myState.Keys.Concat(deferee.Keys).ToList().AsReadOnly();
-                }
-            }
-
-            ICollection<object> IDictionary<string, object>.Values
-            {
-                get
-                {
-                    return myState.Values.Concat(deferee.Values).ToList().AsReadOnly();
-                }
-            }
+            int ICollection<KeyValuePair<string, object>>.Count => myState.Count + deferee.Count;
+            bool ICollection<KeyValuePair<string, object>>.IsReadOnly => false;
+            ICollection<string> IDictionary<string, object>.Keys => myState.Keys.Concat(deferee.Keys).ToList().AsReadOnly();
+            ICollection<object> IDictionary<string, object>.Values => myState.Values.Concat(deferee.Values).ToList().AsReadOnly();
 
             void ICollection<KeyValuePair<string, object>>.Add(KeyValuePair<string, object> item)
             {

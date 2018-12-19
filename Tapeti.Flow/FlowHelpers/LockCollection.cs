@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Tapeti.Flow.FlowHelpers
@@ -17,14 +15,14 @@ namespace Tapeti.Flow.FlowHelpers
 
         public Task<IDisposable> GetLock(T key)
         {
+            // ReSharper disable once InconsistentlySynchronizedField - by design
             LockItem nextLi = new LockItem(locks, key);
             try
             {
                 bool continueImmediately = false;
                 lock (locks)
                 {
-                    LockItem li;
-                    if (!locks.TryGetValue(key, out li))
+                    if (!locks.TryGetValue(key, out var li))
                     {
                         locks.Add(key, nextLi);
                         continueImmediately = true;
@@ -80,8 +78,7 @@ namespace Tapeti.Flow.FlowHelpers
             {
                 lock (locks)
                 {
-                    LockItem li;
-                    if (!locks.TryGetValue(key, out li))
+                    if (!locks.TryGetValue(key, out var li))
                         return;
 
                     if (li != this)

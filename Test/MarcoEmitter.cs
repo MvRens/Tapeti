@@ -1,18 +1,17 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Tapeti;
+﻿using System.Threading.Tasks;
 
 namespace Test
 {
     public class MarcoEmitter
     {
-        private readonly IPublisher publisher;
+        //private readonly IPublisher publisher;
 
 
-        public MarcoEmitter(IPublisher publisher)
+        /*public MarcoEmitter(IPublisher publisher)
         {
             this.publisher = publisher;
         }
+        */
 
 
         public async Task Run()
@@ -45,6 +44,7 @@ namespace Test
             {
                 await Task.Delay(1000);
             }
+            // ReSharper disable once FunctionNeverReturns
         }
     }
 }

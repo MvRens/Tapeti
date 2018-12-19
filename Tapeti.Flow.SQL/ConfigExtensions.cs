@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using Tapeti.Config;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Flow.SQL
 {
     public static class ConfigExtensions

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using RabbitMQ.Client;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Config
 {
     public interface IMessageContext : IDisposable

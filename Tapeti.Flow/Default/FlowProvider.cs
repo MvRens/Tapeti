@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
+using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Flow.Annotations;
 using Tapeti.Flow.FlowHelpers;
@@ -54,6 +56,8 @@ namespace Tapeti.Flow.Default
         private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
             string convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
+            Debug.Assert(context.FlowState != null, "context.FlowState != null");
+
             if (context.FlowState == null)
             {
                 await CreateNewFlowState(context);
@@ -114,7 +118,7 @@ namespace Tapeti.Flow.Default
         {
             await context.Delete();
 
-            if (context.FlowState != null && context.FlowState.Metadata.Reply != null)
+            if (context.FlowState?.Metadata.Reply != null)
                 throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
         }
 
@@ -179,15 +183,12 @@ namespace Tapeti.Flow.Default
 
         public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
         {
-            var executableYieldPoint = yieldPoint as DelegateYieldPoint;
-
-            if (executableYieldPoint == null)
+            if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Binding.Method.Name}");
 
             FlowContext flowContext;
-            object flowContextItem;
 
-            if (!context.Items.TryGetValue(ContextItems.FlowContext, out flowContextItem))
+            if (!context.Items.TryGetValue(ContextItems.FlowContext, out var flowContextItem))
             {
                 flowContext = new FlowContext
                 {
@@ -202,8 +203,7 @@ namespace Tapeti.Flow.Default
 
             try
             {
-                if (executableYieldPoint != null)
-                    await executableYieldPoint.Execute(flowContext);
+                await executableYieldPoint.Execute(flowContext);
             }
             catch (YieldPointException e)
             {

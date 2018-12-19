@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Tapeti.Config;
 
 namespace Tapeti.Flow.Default
@@ -11,8 +7,7 @@ namespace Tapeti.Flow.Default
     {
         public async Task Handle(IMessageContext context, HandlingResult handlingResult)
         {
-            object flowContextObj;
-            if (!context.Items.TryGetValue(ContextItems.FlowContext, out flowContextObj))
+            if (!context.Items.TryGetValue(ContextItems.FlowContext, out var flowContextObj))
                 return;
             var flowContext = (FlowContext)flowContextObj;
 

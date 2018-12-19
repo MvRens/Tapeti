@@ -45,12 +45,10 @@ namespace Tapeti.Default
 
         public object Deserialize(byte[] body, IBasicProperties properties)
         {
-            object typeName;
-
             if (properties.ContentType == null || !properties.ContentType.Equals(ContentType))
                 throw new ArgumentException($"content_type must be {ContentType}");
 
-            if (properties.Headers == null || !properties.Headers.TryGetValue(ClassTypeHeader, out typeName))
+            if (properties.Headers == null || !properties.Headers.TryGetValue(ClassTypeHeader, out var typeName))
                 throw new ArgumentException($"{ClassTypeHeader} header not present");
 
             var messageType = deserializedTypeNames.GetOrAdd(Encoding.UTF8.GetString((byte[])typeName), DeserializeTypeName);

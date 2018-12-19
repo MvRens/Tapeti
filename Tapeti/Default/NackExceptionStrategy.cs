@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Tapeti.Config;
+﻿using Tapeti.Config;
 
 namespace Tapeti.Default
 {

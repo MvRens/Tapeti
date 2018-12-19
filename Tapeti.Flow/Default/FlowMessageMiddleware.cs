@@ -25,9 +25,6 @@ namespace Tapeti.Flow.Default
                     await CallConvergeMethod(context,
                                              flowContext.ContinuationMetadata.ConvergeMethodName, 
                                              flowContext.ContinuationMetadata.ConvergeMethodSync);
-                else if (flowContext.FlowState.Continuations.Count > 0)
-                    // This is a parallel flow waiting for other continuations, always store the state
-                    await flowContext.Store();
             }
             else
                 await next();
