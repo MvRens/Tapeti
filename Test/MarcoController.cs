@@ -1,10 +1,11 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
-using Tapeti;
 using Tapeti.Annotations;
 using Tapeti.Flow;
 using Tapeti.Flow.Annotations;
+
+// ReSharper disable UnusedMember.Global
 
 namespace Test
 {
@@ -12,20 +13,20 @@ namespace Test
     [DynamicQueue]
     public class MarcoController
     {
-        private readonly IPublisher publisher;
+        //private readonly IPublisher publisher;
         private readonly IFlowProvider flowProvider;
-        private readonly Visualizer visualizer;
+        //private readonly Visualizer visualizer;
 
         // Public properties are automatically stored and retrieved while in a flow
         public Guid StateTestGuid { get; set; }
 
         public int Phase;
 
-        public MarcoController(IPublisher publisher, IFlowProvider flowProvider, Visualizer visualizer)
+        public MarcoController(/*IPublisher publisher, */IFlowProvider flowProvider/*, Visualizer visualizer*/)
         {
-            this.publisher = publisher;
+            //this.publisher = publisher;
             this.flowProvider = flowProvider;
-            this.visualizer = visualizer;
+            //this.visualizer = visualizer;
         }
 
 

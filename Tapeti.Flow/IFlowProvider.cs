@@ -3,6 +3,8 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Tapeti.Config;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Flow
 {
     public interface IFlowProvider

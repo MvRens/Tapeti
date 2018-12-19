@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Tapeti.Config;
 
 namespace Tapeti.Default
@@ -22,19 +18,8 @@ namespace Tapeti.Default
         private HandlingResultBuilder handlingResult;
         public HandlingResultBuilder HandlingResult
         {
-            get
-            {
-                if (handlingResult == null)
-                {
-                    handlingResult = new HandlingResultBuilder();
-                }
-                return handlingResult;
-            }
-
-            set
-            {
-                handlingResult = value;
-            }
+            get => handlingResult ?? (handlingResult = new HandlingResultBuilder());
+            set => handlingResult = value;
         }
     }
 }

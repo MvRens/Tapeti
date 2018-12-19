@@ -34,8 +34,7 @@ namespace Tapeti.Helpers
 
         public static bool IsTypeOrTaskOf(this Type type, Func<Type, bool> predicate, out bool isTaskOf)
         {
-            Type actualType;
-            return IsTypeOrTaskOf(type, predicate, out isTaskOf, out actualType);
+            return IsTypeOrTaskOf(type, predicate, out isTaskOf, out _);
         }
 
         public static bool IsTypeOrTaskOf(this Type type, Type compareTo, out bool isTaskOf)

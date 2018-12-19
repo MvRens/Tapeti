@@ -127,8 +127,7 @@ namespace Tapeti
 
         public TapetiConfig Use(ITapetiExtension extension)
         {
-            var container = dependencyResolver as IDependencyContainer;
-            if (container != null)
+            if (dependencyResolver is IDependencyContainer container)
                 extension.RegisterDefaults(container);
 
             var middlewareBundle = extension.GetMiddleware(dependencyResolver);
@@ -139,14 +138,14 @@ namespace Tapeti
                 foreach (var middleware in middlewareBundle)
                 {
                     // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
-                    if (middleware is IBindingMiddleware)
-                        Use((IBindingMiddleware)middleware);
-                    else if (middleware is IMessageMiddleware)
-                        Use((IMessageMiddleware)middleware);
-                    else if (middleware is ICleanupMiddleware)
-                        Use((ICleanupMiddleware)middleware);
-                    else if (middleware is IPublishMiddleware)
-                        Use((IPublishMiddleware)middleware);
+                    if (middleware is IBindingMiddleware bindingExtension)
+                        Use(bindingExtension);
+                    else if (middleware is IMessageMiddleware messageExtension)
+                        Use(messageExtension);
+                    else if (middleware is ICleanupMiddleware cleanupExtension)
+                        Use(cleanupExtension);
+                    else if (middleware is IPublishMiddleware publishExtension)
+                        Use(publishExtension);
                     else
                         throw new ArgumentException($"Unsupported middleware implementation: {(middleware == null ? "null" : middleware.GetType().Name)}");
                 }
@@ -181,7 +180,7 @@ namespace Tapeti
             (dependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
             foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && !(m as MethodInfo).IsSpecialName)
+                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
                 var context = new BindingContext(method);
@@ -423,8 +422,7 @@ namespace Tapeti
 
             public IBinding GetBinding(Delegate method)
             {
-                IBinding binding;
-                return bindingMethodLookup.TryGetValue(method.Method, out binding) ? binding : null;
+                return bindingMethodLookup.TryGetValue(method.Method, out var binding) ? binding : null;
             }
         }
 
@@ -465,7 +463,7 @@ namespace Tapeti
             private QueueInfo queueInfo;
             public QueueInfo QueueInfo
             {
-                get { return queueInfo; }
+                get => queueInfo;
                 set
                 {
                     QueueName = (value?.Dynamic).GetValueOrDefault() ? value?.Name : null;

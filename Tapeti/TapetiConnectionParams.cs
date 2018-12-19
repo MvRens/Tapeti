@@ -1,5 +1,7 @@
 ﻿using System;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti
 {
     public class TapetiConnectionParams

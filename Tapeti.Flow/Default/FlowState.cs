@@ -12,16 +12,16 @@ namespace Tapeti.Flow.Default
 
         public FlowMetadata Metadata
         {
-            get { return metadata ?? (metadata = new FlowMetadata()); }
-            set { metadata = value; }
+            get => metadata ?? (metadata = new FlowMetadata());
+            set => metadata = value;
         }
 
         public string Data { get; set; }
 
         public Dictionary<Guid, ContinuationMetadata> Continuations
         {
-            get { return continuations ?? (continuations = new Dictionary<Guid, ContinuationMetadata>()); }
-            set { continuations = value; }
+            get => continuations ?? (continuations = new Dictionary<Guid, ContinuationMetadata>());
+            set => continuations = value;
         }
 
 

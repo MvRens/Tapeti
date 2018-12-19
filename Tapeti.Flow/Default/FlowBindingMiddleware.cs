@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Flow.Annotations;
 using Tapeti.Helpers;
@@ -59,8 +60,7 @@ namespace Tapeti.Flow.Default
 
         private static void RegisterYieldPointResult(IBindingContext context)
         {
-            bool isTaskOf;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out isTaskOf))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var isTaskOf))
                 return;
 
             if (isTaskOf)
@@ -100,8 +100,7 @@ namespace Tapeti.Flow.Default
             if (request?.Response == null)
                 return;
 
-            bool isTaskOf;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t == request.Response || t == typeof(IYieldPoint), out isTaskOf))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t == request.Response || t == typeof(IYieldPoint), out _))
                 throw new ResponseExpectedException($"Response of class {request.Response.FullName} expected in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
         }
     }

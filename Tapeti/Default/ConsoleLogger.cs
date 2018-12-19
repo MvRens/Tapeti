@@ -6,17 +6,17 @@ namespace Tapeti.Default
     {
         public void Connect(TapetiConnectionParams connectionParams)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
         public void ConnectFailed(TapetiConnectionParams connectionParams)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
 
         public void HandlerException(Exception e)
