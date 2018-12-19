@@ -61,7 +61,8 @@ namespace Test
 
                 connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
-                container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
+                //container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
+                container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest);
 
                 Thread.Sleep(1000);
 

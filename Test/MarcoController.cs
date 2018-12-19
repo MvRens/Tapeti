@@ -68,16 +68,13 @@ namespace Test
         }
 
 
-        /**
-         * The Visualizer could've been injected through the constructor, which is
-         * the recommended way. Just testing the injection middleware here.
-         */
-        public async Task<IYieldPoint> Marco(MarcoMessage message, Visualizer myVisualizer)
+        [Start]
+        public IYieldPoint TestParallelRequest()
         {
             Console.WriteLine(">> Marco (yielding with request)");
 
-            await myVisualizer.VisualizeMarco();
             StateTestGuid = Guid.NewGuid();
+            Console.WriteLine($"Starting parallel request with StateTestGuid {StateTestGuid}");
 
             return flowProvider.YieldWithParallelRequest()
                 .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
@@ -113,7 +110,7 @@ namespace Test
         private IYieldPoint ContinuePoloConfirmation()
         {
             Console.WriteLine("> ConvergePoloConfirmation (ending flow)");
-            return flowProvider.EndWithResponse(new PoloMessage());
+            return flowProvider.End();
         }
 
 
