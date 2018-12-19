@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.DataAnnotations.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>DataAnnotations validation extension for Tapeti</description>
+    <description>DEPRECATED: use Tapeti.DataAnnotations</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti dataannotations</tags>
     <dependencies>
