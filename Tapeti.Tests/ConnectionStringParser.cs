@@ -1,8 +1,7 @@
-﻿using Tapeti;
-using Tapeti.Helpers;
+﻿using Tapeti.Helpers;
 using Xunit;
 
-namespace Tapet.Tests
+namespace Tapeti.Tests
 {
     // ReSharper disable InconsistentNaming
     public class ConnectionStringParserTest
@@ -119,9 +118,7 @@ namespace Tapet.Tests
         [Fact]
         public void OnlySemicolons()
         {
-            AssertConnectionString(";;;", new TapetiConnectionParams
-            {
-            });
+            AssertConnectionString(";;;", new TapetiConnectionParams());
         }
 
         [Fact]
@@ -184,7 +181,8 @@ namespace Tapet.Tests
             });
         }
 
-        private void AssertConnectionString(string connectionstring, TapetiConnectionParams expected)
+        // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
+        private static void AssertConnectionString(string connectionstring, TapetiConnectionParams expected)
         {
             var parsed = ConnectionStringParser.Parse(connectionstring);
 

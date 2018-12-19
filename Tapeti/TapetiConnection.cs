@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Connection;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti
 {
     public class TapetiConnection : IDisposable

@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Threading.Tasks;
 using SimpleInjector;
 using Tapeti;
 using Tapeti.DataAnnotations;
 using Tapeti.Flow;
-using Tapeti.Flow.SQL;
-using Tapeti.Helpers;
 using Tapeti.SimpleInjector;
 using System.Threading;
 
@@ -61,7 +58,8 @@ namespace Test
 
                 connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
-                container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
+                //container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true);
+                container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest);
 
                 Thread.Sleep(1000);
 

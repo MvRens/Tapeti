@@ -28,8 +28,7 @@ namespace Tapeti.Flow.Default
             if (context.Properties.CorrelationId == null)
                 return null;
 
-            Guid continuationID;
-            if (!Guid.TryParse(context.Properties.CorrelationId, out continuationID))
+            if (!Guid.TryParse(context.Properties.CorrelationId, out var continuationID))
                 return null;
 
             var flowStore = context.DependencyResolver.Resolve<IFlowStore>();
@@ -44,8 +43,6 @@ namespace Tapeti.Flow.Default
             if (flowState == null)
                 return null;
 
-            ContinuationMetadata continuation;
-
             var flowContext = new FlowContext
             {
                 MessageContext = context,
@@ -54,7 +51,7 @@ namespace Tapeti.Flow.Default
                 FlowState = flowState,
 
                 ContinuationID = continuationID,
-                ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out continuation) ? continuation : null
+                ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out var continuation) ? continuation : null
             };
 
             // IDisposable items in the IMessageContext are automatically disposed

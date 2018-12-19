@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq.Expressions;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
@@ -18,15 +18,14 @@ namespace Tapeti.Default
                 return;
 
 
-            bool isTaskOf;
-            Type actualType;
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out isTaskOf, out actualType))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out var isTaskOf, out var actualType))
                 return;
 
 
             if (isTaskOf)
             {
-                var handler = GetType().GetMethod("PublishGenericTaskResult", BindingFlags.NonPublic | BindingFlags.Static).MakeGenericMethod(actualType);
+                var handler = GetType().GetMethod("PublishGenericTaskResult", BindingFlags.NonPublic | BindingFlags.Static)?.MakeGenericMethod(actualType);
+                Debug.Assert(handler != null, nameof(handler) + " != null");
 
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
@@ -53,14 +52,6 @@ namespace Tapeti.Default
                 return publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties);
 
             return publisher.Publish(message, properties);
-        }
-
-
-        private static async Task PublishGenericTaskResult<T>(IMessageContext messageContext, object value) where T : class
-        {
-            var message = await (Task<T>)value;
-            if (message != null)
-                await Reply(message, messageContext);
         }
     }
 }

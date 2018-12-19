@@ -15,18 +15,16 @@ namespace Tapeti.Helpers
                 return;
             }
 
-            Action handleNext = null;
-
-            handleNext = () =>
+            void HandleNext()
             {
                 handlerIndex--;
                 if (handlerIndex >= 0)
-                    handle(middleware[handlerIndex], handleNext);
+                    handle(middleware[handlerIndex], HandleNext);
                 else
                     lastHandler();
-            };
+            }
 
-            handle(middleware[handlerIndex], handleNext);
+            handle(middleware[handlerIndex], HandleNext);
         }
 
 
@@ -39,18 +37,16 @@ namespace Tapeti.Helpers
                 return;
             }
 
-            Func<Task> handleNext = null;
-
-            handleNext = async () =>
+            async Task HandleNext()
             {
                 handlerIndex--;
                 if (handlerIndex >= 0)
-                    await handle(middleware[handlerIndex], handleNext);
+                    await handle(middleware[handlerIndex], HandleNext);
                 else
                     await lastHandler();
-            };
+            }
 
-            await handle(middleware[handlerIndex], handleNext);
+            await handle(middleware[handlerIndex], HandleNext);
         }
     }
 }

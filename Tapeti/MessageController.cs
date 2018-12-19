@@ -1,5 +1,7 @@
 ﻿using Tapeti.Annotations;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti
 {
     /// <summary>

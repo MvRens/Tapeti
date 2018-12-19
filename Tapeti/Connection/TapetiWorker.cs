@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
@@ -70,7 +69,7 @@ namespace Tapeti.Connection
 
                 if (queue.Dynamic)
                 {
-                    var dynamicQueue = channel.QueueDeclare();
+                    var dynamicQueue = channel.QueueDeclare(queue.Name);
                     (queue as IDynamicQueue)?.SetName(dynamicQueue.QueueName);
 
                     foreach (var binding in queue.Bindings)

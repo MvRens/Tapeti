@@ -22,7 +22,7 @@ namespace Tapeti
     public class TapetiConfig
     {
         private readonly Dictionary<string, List<Binding>> staticRegistrations = new Dictionary<string, List<Binding>>();
-        private readonly Dictionary<Type, List<Binding>> dynamicRegistrations = new Dictionary<Type, List<Binding>>();
+        private readonly Dictionary<string, Dictionary<Type, List<Binding>>> dynamicRegistrations = new Dictionary<string, Dictionary<Type, List<Binding>>>();
 
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
@@ -49,19 +49,46 @@ namespace Tapeti
             var queues = new List<IQueue>();
             queues.AddRange(staticRegistrations.Select(qb => new Queue(new QueueInfo { Dynamic = false, Name = qb.Key }, qb.Value)));
 
-            // Group all bindings with the same index into queues, this will
-            // ensure each message type is unique on their queue
-            var dynamicBindings = new List<List<Binding>>();
-            foreach (var bindings in dynamicRegistrations.Values)
+
+            // We want to ensure each queue only has unique messages classes. This means we can requeue
+            // without the side-effect of calling other handlers for the same message class again as well.
+            //
+            // Since I had trouble deciphering this code after a year, here's an overview of how it achieves this grouping
+            // and how the bindingIndex is relevant:
+            // 
+            // dynamicRegistrations:
+            //   Key (prefix)
+            //     ""
+            //       Key (message class)    Value (list of bindings)
+            //       A                      binding1, binding2, binding3
+            //       B                      binding4
+            //     "prefix"
+            //       A                      binding5, binding6
+            //
+            // By combining all bindings with the same index, per prefix, the following queues will be registered:
+            //
+            // Prefix       Bindings
+            // ""           binding1 (message A), binding4 (message B)
+            // ""           binding2 (message A)
+            // ""           binding3 (message A)
+            // "prefix"     binding5 (message A)
+            // "prefix"     binding6 (message A)
+            //
+            foreach (var prefixGroup in dynamicRegistrations)
             {
-                while (dynamicBindings.Count < bindings.Count)
-                    dynamicBindings.Add(new List<Binding>());
+                var dynamicBindings = new List<List<Binding>>();
 
-                for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
-                    dynamicBindings[bindingIndex].Add(bindings[bindingIndex]);
+                foreach (var bindings in prefixGroup.Value.Values)
+                {
+                    while (dynamicBindings.Count < bindings.Count)
+                        dynamicBindings.Add(new List<Binding>());
+
+                    for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
+                        dynamicBindings[bindingIndex].Add(bindings[bindingIndex]);
+                }
+
+                queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(prefixGroup.Key) }, bl)));
             }
-
-            queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true }, bl)));
 
             var config = new Config(dependencyResolver, messageMiddleware, cleanupMiddleware, publishMiddleware, queues);
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
@@ -100,8 +127,7 @@ namespace Tapeti
 
         public TapetiConfig Use(ITapetiExtension extension)
         {
-            var container = dependencyResolver as IDependencyContainer;
-            if (container != null)
+            if (dependencyResolver is IDependencyContainer container)
                 extension.RegisterDefaults(container);
 
             var middlewareBundle = extension.GetMiddleware(dependencyResolver);
@@ -112,14 +138,14 @@ namespace Tapeti
                 foreach (var middleware in middlewareBundle)
                 {
                     // ReSharper disable once CanBeReplacedWithTryCastAndCheckForNull
-                    if (middleware is IBindingMiddleware)
-                        Use((IBindingMiddleware)middleware);
-                    else if (middleware is IMessageMiddleware)
-                        Use((IMessageMiddleware)middleware);
-                    else if (middleware is ICleanupMiddleware)
-                        Use((ICleanupMiddleware)middleware);
-                    else if (middleware is IPublishMiddleware)
-                        Use((IPublishMiddleware)middleware);
+                    if (middleware is IBindingMiddleware bindingExtension)
+                        Use(bindingExtension);
+                    else if (middleware is IMessageMiddleware messageExtension)
+                        Use(messageExtension);
+                    else if (middleware is ICleanupMiddleware cleanupExtension)
+                        Use(cleanupExtension);
+                    else if (middleware is IPublishMiddleware publishExtension)
+                        Use(publishExtension);
                     else
                         throw new ArgumentException($"Unsupported middleware implementation: {(middleware == null ? "null" : middleware.GetType().Name)}");
                 }
@@ -154,7 +180,7 @@ namespace Tapeti
             (dependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
             foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && !(m as MethodInfo).IsSpecialName)
+                .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
                 var context = new BindingContext(method);
@@ -317,10 +343,21 @@ namespace Tapeti
 
         protected void AddDynamicRegistration(IBindingContext context, Binding binding)
         {
-            if (dynamicRegistrations.ContainsKey(context.MessageClass))
-                dynamicRegistrations[context.MessageClass].Add(binding);
-            else
-                dynamicRegistrations.Add(context.MessageClass, new List<Binding> { binding });
+            var prefix = binding.QueueInfo.Name ?? "";
+
+            if (!dynamicRegistrations.TryGetValue(prefix, out Dictionary<Type, List<Binding>> prefixRegistrations))
+            {
+                prefixRegistrations = new Dictionary<Type, List<Binding>>();
+                dynamicRegistrations.Add(prefix, prefixRegistrations);
+            }
+
+            if (!prefixRegistrations.TryGetValue(context.MessageClass, out List<Binding> bindings))
+            {
+                bindings = new List<Binding>();
+                prefixRegistrations.Add(context.MessageClass, bindings);
+            }
+
+            bindings.Add(binding);
         }
 
 
@@ -333,12 +370,21 @@ namespace Tapeti
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on {member.Name}");
 
             if (dynamicQueueAttribute != null)
-                return new QueueInfo { Dynamic = true };
+                return new QueueInfo { Dynamic = true, Name = dynamicQueueAttribute.Prefix };
 
             if (durableQueueAttribute != null)
                 return new QueueInfo { Dynamic = false, Name = durableQueueAttribute.Name };
 
             return null;
+        }
+
+
+        protected string GetDynamicQueueName(string prefix)
+        {
+            if (String.IsNullOrEmpty(prefix))
+                return "";
+
+            return prefix + "." + Guid.NewGuid().ToString("N");
         }
 
 
@@ -376,8 +422,7 @@ namespace Tapeti
 
             public IBinding GetBinding(Delegate method)
             {
-                IBinding binding;
-                return bindingMethodLookup.TryGetValue(method.Method, out binding) ? binding : null;
+                return bindingMethodLookup.TryGetValue(method.Method, out var binding) ? binding : null;
             }
         }
 
@@ -418,7 +463,7 @@ namespace Tapeti
             private QueueInfo queueInfo;
             public QueueInfo QueueInfo
             {
-                get { return queueInfo; }
+                get => queueInfo;
                 set
                 {
                     QueueName = (value?.Dynamic).GetValueOrDefault() ? value?.Name : null;

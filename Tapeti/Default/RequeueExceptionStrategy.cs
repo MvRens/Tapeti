@@ -1,5 +1,6 @@
-﻿using System;
-using Tapeti.Config;
+﻿using Tapeti.Config;
+
+// ReSharper disable UnusedMember.Global
 
 namespace Tapeti.Default
 {

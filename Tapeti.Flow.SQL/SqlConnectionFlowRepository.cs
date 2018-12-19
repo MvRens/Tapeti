@@ -69,7 +69,7 @@ namespace Tapeti.Flow.SQL
 
         public Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
-            var stateJason = JsonConvert.SerializeObject(state);
+            //var stateJson = JsonConvert.SerializeObject(state);
 
             throw new NotImplementedException();
         }
