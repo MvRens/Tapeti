@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti.Flow.SQL</id>
+    <id>Tapeti.Flow.SQL</id>
     <version>$version$</version>
     <title>Tapeti Flow SQL</title>
     <authors>Mark van Renswoude</authors>
@@ -14,8 +14,8 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti sql</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$version$]" />
-      <dependency id="X2Software.Tapeti.Flow" version="[$version$]" />
+      <dependency id="Tapeti" version="[$version$]" />
+      <dependency id="Tapeti.Flow" version="[$version$]" />
       <dependency id="System.Data.SqlClient" version="4.5.0" />
     </dependencies>
   </metadata>

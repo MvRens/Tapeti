@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti.Serilog</id>
+    <id>Tapeti.Serilog</id>
     <version>$version$</version>
     <title>Tapeti Serilog</title>
     <authors>Hans Mulder</authors>
@@ -14,7 +14,7 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti simpleinjector serilog</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="Tapeti" version="[$version$]" />
       <dependency id="Serilog" version="2.7.1" />
     </dependencies>
   </metadata>
