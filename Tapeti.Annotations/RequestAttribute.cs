@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Tapeti.Flow.Annotations
+namespace Tapeti.Annotations
 {
     [AttributeUsage(AttributeTargets.Class)]
     public class RequestAttribute : Attribute

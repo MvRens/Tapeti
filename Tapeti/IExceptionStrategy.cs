@@ -1,5 +1,4 @@
-﻿using System;
-using Tapeti.Config;
+﻿using Tapeti.Config;
 
 namespace Tapeti
 {

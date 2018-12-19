@@ -1,6 +1,8 @@
 ﻿using System;
 using ISeriLogger = Serilog.ILogger;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Serilog
 {
     public class TapetiSeriLogger: ILogger

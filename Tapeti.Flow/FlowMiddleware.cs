@@ -6,7 +6,7 @@ namespace Tapeti.Flow
 {
     public class FlowMiddleware : ITapetiExtension
     {
-        private IFlowRepository flowRepository;
+        private readonly IFlowRepository flowRepository;
 
         public FlowMiddleware(IFlowRepository flowRepository)
         {
@@ -18,7 +18,7 @@ namespace Tapeti.Flow
             container.RegisterDefault<IFlowProvider, FlowProvider>();
             container.RegisterDefault<IFlowStarter, FlowStarter>();
             container.RegisterDefault<IFlowHandler, FlowProvider>();
-            container.RegisterDefaultSingleton<IFlowRepository>(() => flowRepository ?? new NonPersistentFlowRepository());
+            container.RegisterDefaultSingleton(() => flowRepository ?? new NonPersistentFlowRepository());
             container.RegisterDefaultSingleton<IFlowStore, FlowStore>();
         }
 

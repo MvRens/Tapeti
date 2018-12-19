@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 
 namespace Tapeti.Helpers
 {
     public class ConnectionStringParser
     {
-        readonly TapetiConnectionParams result = new TapetiConnectionParams();
+        private readonly TapetiConnectionParams result = new TapetiConnectionParams();
 
-        readonly string connectionstring;
-        int pos = -1;
-        char current = '\0';
+        private readonly string connectionstring;
+        private int pos = -1;
+        private char current = '\0';
 
         public static TapetiConnectionParams Parse(string connectionstring)
         {
@@ -33,15 +29,11 @@ namespace Tapeti.Helpers
         {
             var key = ParseKey();
 
-            if (current == '=')
-            {
-                var value = ParseValue();
-                SetValue(key, value);
-            }
-            else
-            {
-                EnableKey(key);
-            }
+            if (current != '=')
+                return;
+
+            var value = ParseValue();
+            SetValue(key, value);
         }
 
         private string ParseKey()
@@ -110,11 +102,6 @@ namespace Tapeti.Helpers
             pos = connectionstring.Length;
             current = '\0';
             return false;
-        }
-
-        private void EnableKey(string key)
-        {
-
         }
 
         private void SetValue(string key, string value)

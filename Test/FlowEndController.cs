@@ -3,6 +3,8 @@ using Tapeti.Annotations;
 using Tapeti.Flow;
 using Tapeti.Flow.Annotations;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Test
 {
     [MessageController]

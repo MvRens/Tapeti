@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {
@@ -34,26 +30,14 @@ namespace Tapeti
         private HandlingResult data = Default;
 
         public ConsumeResponse ConsumeResponse {
-            get
-            {
-                return data.ConsumeResponse;
-            }
-            set
-            {
-                GetWritableData().ConsumeResponse = value;
-            }
+            get => data.ConsumeResponse;
+            set => GetWritableData().ConsumeResponse = value;
         }
 
         public MessageAction MessageAction
         {
-            get
-            {
-                return data.MessageAction;
-            }
-            set
-            {
-                GetWritableData().MessageAction = value;
-            }
+            get => data.MessageAction;
+            set => GetWritableData().MessageAction = value;
         }
 
         public HandlingResult ToHandlingResult()

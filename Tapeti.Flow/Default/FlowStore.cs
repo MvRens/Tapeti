@@ -1,9 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Flow.FlowHelpers;
 
@@ -11,13 +9,13 @@ namespace Tapeti.Flow.Default
 {
     public class FlowStore : IFlowStore
     {
-        private readonly ConcurrentDictionary<Guid, FlowState> FlowStates = new ConcurrentDictionary<Guid, FlowState>();
-        private readonly ConcurrentDictionary<Guid, Guid> ContinuationLookup = new ConcurrentDictionary<Guid, Guid>();
-        private readonly LockCollection<Guid> Locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
+        private readonly ConcurrentDictionary<Guid, FlowState> flowStates = new ConcurrentDictionary<Guid, FlowState>();
+        private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
+        private readonly LockCollection<Guid> locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
 
         private readonly IFlowRepository repository;
 
-        private volatile bool InUse = false;
+        private volatile bool inUse;
 
         public FlowStore(IFlowRepository repository) 
         {
@@ -27,36 +25,35 @@ namespace Tapeti.Flow.Default
 
         public async Task Load()
         {
-            if (InUse)
+            if (inUse)
                 throw new InvalidOperationException("Can only load the saved state once.");
 
-            InUse = true;
+            inUse = true;
 
-            FlowStates.Clear();
-            ContinuationLookup.Clear();
+            flowStates.Clear();
+            continuationLookup.Clear();
 
             foreach (var flowStateRecord in await repository.GetStates<FlowState>())
             {
-                FlowStates.TryAdd(flowStateRecord.Key, flowStateRecord.Value);
+                flowStates.TryAdd(flowStateRecord.Key, flowStateRecord.Value);
 
                 foreach (var continuation in flowStateRecord.Value.Continuations)
-                    ContinuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
+                    continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
             }
         }
 
 
         public Task<Guid?> FindFlowID(Guid continuationID)
         {
-            Guid result;
-            return Task.FromResult(ContinuationLookup.TryGetValue(continuationID, out result) ? result : (Guid?)null);
+            return Task.FromResult(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
         }
 
 
         public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
-            InUse = true;
+            inUse = true;
 
-            var flowStatelock = new FlowStateLock(this, flowID, await Locks.GetLock(flowID));
+            var flowStatelock = new FlowStateLock(this, flowID, await locks.GetLock(flowID));
             return flowStatelock;
         }
 
@@ -74,7 +71,7 @@ namespace Tapeti.Flow.Default
                 this.flowID = flowID;
                 this.flowLock = flowLock;
 
-                owner.FlowStates.TryGetValue(flowID, out flowState);
+                owner.flowStates.TryGetValue(flowID, out flowState);
             }
 
             public void Dispose()
@@ -106,20 +103,17 @@ namespace Tapeti.Flow.Default
                 if (flowState != null)
                 {
                     foreach (var removedContinuation in flowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
-                    {
-                        Guid removedValue;
-                        owner.ContinuationLookup.TryRemove(removedContinuation, out removedValue);
-                    }
+                        owner.continuationLookup.TryRemove(removedContinuation, out _);
                 }
 
                 foreach (var addedContinuation in newFlowState.Continuations.Where(c => flowState == null || !flowState.Continuations.ContainsKey(c.Key)))
                 {
-                    owner.ContinuationLookup.TryAdd(addedContinuation.Key, flowID);
+                    owner.continuationLookup.TryAdd(addedContinuation.Key, flowID);
                 }
 
                 var isNew = flowState == null;
                 flowState = newFlowState;
-                owner.FlowStates[flowID] = newFlowState;
+                owner.flowStates[flowID] = newFlowState;
 
                 // Storing the flowstate in the underlying repository
                 if (isNew)
@@ -141,13 +135,9 @@ namespace Tapeti.Flow.Default
                 if (flowState != null)
                 {
                     foreach (var removedContinuation in flowState.Continuations.Keys)
-                    {
-                        Guid removedValue;
-                        owner.ContinuationLookup.TryRemove(removedContinuation, out removedValue);
-                    }
+                        owner.continuationLookup.TryRemove(removedContinuation, out _);
 
-                    FlowState removedFlow;
-                    owner.FlowStates.TryRemove(flowID, out removedFlow);
+                    owner.flowStates.TryRemove(flowID, out _);
 
                     if (flowState != null)
                     {

@@ -1,5 +1,7 @@
 ﻿using System;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti
 {
     // This interface is deliberately specific and typed to allow for structured logging (e.g. Serilog)
