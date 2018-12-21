@@ -120,9 +120,10 @@ namespace Test
          * This will automatically include the correlationId in the response and
          * use the replyTo header of the request if provided.
          */
-        public PoloConfirmationResponseMessage PoloConfirmation(PoloConfirmationRequestMessage message)
+        public async Task<PoloConfirmationResponseMessage> PoloConfirmation(PoloConfirmationRequestMessage message)
         {
             Console.WriteLine(">> PoloConfirmation (returning confirmation)");
+            await Task.Delay(100);
 
             return new PoloConfirmationResponseMessage
             {
