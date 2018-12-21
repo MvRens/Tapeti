@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti.Flow</id>
+    <id>Tapeti.Flow</id>
     <version>$version$</version>
     <title>Tapeti Flow</title>
     <authors>Menno van Lavieren, Mark van Renswoude</authors>
@@ -14,8 +14,8 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti flow</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$version$]" />
-      <dependency id="X2Software.Tapeti.Annotations" version="[$version$]" />
+      <dependency id="Tapeti" version="[$version$]" />
+      <dependency id="Tapeti.Annotations" version="[$version$]" />
     </dependencies>
   </metadata>
   <files>

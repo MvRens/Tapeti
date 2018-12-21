@@ -7,9 +7,9 @@ namespace Tapeti.Flow.SQL
 {
     public static class ConfigExtensions
     {
-        public static TapetiConfig WithFlowSqlRepository(this TapetiConfig config, string connectionString, int serviceId, string schema = "dbo")
+        public static TapetiConfig WithFlowSqlRepository(this TapetiConfig config, string connectionString, string tableName = "Flow")
         {
-            config.Use(new FlowSqlRepositoryBundle(connectionString, serviceId, schema));
+            config.Use(new FlowSqlRepositoryBundle(connectionString, tableName));
             return config;
         }
     }
@@ -18,21 +18,19 @@ namespace Tapeti.Flow.SQL
     internal class FlowSqlRepositoryBundle : ITapetiExtension
     {
         private readonly string connectionString;
-        private readonly string schema;
-        private readonly int serviceId;
+        private readonly string tableName;
 
 
-        public FlowSqlRepositoryBundle(string connectionString, int serviceId, string schema)
+        public FlowSqlRepositoryBundle(string connectionString, string tableName)
         {
             this.connectionString = connectionString;
-            this.serviceId = serviceId;
-            this.schema = schema;
+            this.tableName = tableName;
         }
 
 
         public void RegisterDefaults(IDependencyContainer container)
         {
-            container.RegisterDefault<IFlowRepository>(() => new SqlConnectionFlowRepository(connectionString, serviceId, schema));
+            container.RegisterDefaultSingleton<IFlowRepository>(() => new SqlConnectionFlowRepository(connectionString, tableName));
         }
 
 

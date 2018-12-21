@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti</id>
+    <id>Tapeti</id>
     <version>$version$</version>
     <title>Tapeti</title>
     <authors>Mark van Renswoude</authors>
@@ -14,7 +14,7 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti.Annotations" version="[$version$]" />
+      <dependency id="Tapeti.Annotations" version="[$version$]" />
       <dependency id="Newtonsoft.Json" version="11.0.2"/>
       <dependency id="RabbitMQ.Client" version="5.0.1"/>
       <dependency id="System.Configuration.ConfigurationManager" version="4.5.0"/>
