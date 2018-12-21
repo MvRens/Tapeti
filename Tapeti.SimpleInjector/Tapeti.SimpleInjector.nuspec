@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti.SimpleInjector</id>
+    <id>Tapeti.SimpleInjector</id>
     <version>$version$</version>
     <title>Tapeti SimpleInjector</title>
     <authors>Mark van Renswoude</authors>
@@ -14,7 +14,7 @@
     <copyright></copyright>
     <tags>rabbitmq tapeti simpleinjector</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="Tapeti" version="[$version$]" />
       <dependency id="SimpleInjector" version="4.3.0" />
     </dependencies>
   </metadata>

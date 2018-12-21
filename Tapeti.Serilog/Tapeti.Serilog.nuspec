@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <package >
   <metadata>
-    <id>X2Software.Tapeti.Serilog</id>
+    <id>Tapeti.Serilog</id>
     <version>$version$</version>
     <title>Tapeti Serilog</title>
     <authors>Hans Mulder</authors>
     <owners>Hans Mulder</owners>
     <licenseUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/UNLICENSE</licenseUrl>
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.SimpleInjector.png</iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.Serilog.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>DEPRECATED: use Tapeti.Serilog</description>
     <copyright></copyright>
-    <tags>rabbitmq tapeti simpleinjector serilog</tags>
+    <tags>rabbitmq tapeti serilog</tags>
     <dependencies>
-      <dependency id="X2Software.Tapeti" version="[$version$]" />
+      <dependency id="Tapeti" version="[$version$]" />
       <dependency id="Serilog" version="2.7.1" />
     </dependencies>
   </metadata>
