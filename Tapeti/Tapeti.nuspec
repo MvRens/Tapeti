@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>DEPRECATED: use Tapeti (the one without X2Software prefix)</description>
+    <description>Controller-based framework for RabbitMQ microservice architectures</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti</tags>
     <dependencies>

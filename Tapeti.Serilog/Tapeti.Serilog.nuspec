@@ -10,7 +10,7 @@
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.Serilog.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>DEPRECATED: use Tapeti.Serilog</description>
+    <description>Serilog integration package for Tapeti</description>
     <copyright></copyright>
     <tags>rabbitmq tapeti serilog</tags>
     <dependencies>
