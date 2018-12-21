@@ -38,6 +38,16 @@ namespace Tapeti.Default
         }
 
 
+
+        // ReSharper disable once UnusedMember.Local - used implicitly above
+        private static async Task PublishGenericTaskResult<T>(IMessageContext messageContext, object value) where T : class
+        {
+            var message = await (Task<T>)value;
+            if (message != null)
+                await Reply(message, messageContext);
+        }
+
+
         private static Task Reply(object message, IMessageContext messageContext)
         {
             var publisher = (IInternalPublisher)messageContext.DependencyResolver.Resolve<IPublisher>();
