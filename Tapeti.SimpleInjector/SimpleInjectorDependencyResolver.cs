@@ -7,10 +7,14 @@ namespace Tapeti.SimpleInjector
     public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
+        private readonly Lifestyle defaultsLifestyle;
+        private readonly Lifestyle controllersLifestyle;
 
-        public SimpleInjectorDependencyResolver(Container container)
+        public SimpleInjectorDependencyResolver(Container container, Lifestyle defaultsLifestyle = null, Lifestyle controllersLifestyle = null)
         {
             this.container = container;
+            this.defaultsLifestyle = defaultsLifestyle;
+            this.controllersLifestyle = controllersLifestyle;
         }
 
         public T Resolve<T>() where T : class
@@ -26,13 +30,23 @@ namespace Tapeti.SimpleInjector
 
         public void RegisterDefault<TService, TImplementation>() where TService : class where TImplementation : class, TService
         {
-            if (CanRegisterDefault<TService>())
+            if (!CanRegisterDefault<TService>()) 
+                return;
+
+            if (defaultsLifestyle != null)
+                container.Register<TService, TImplementation>(defaultsLifestyle);
+            else
                 container.Register<TService, TImplementation>();
         }
 
         public void RegisterDefault<TService>(Func<TService> factory) where TService : class
         {
-            if (CanRegisterDefault<TService>())
+            if (!CanRegisterDefault<TService>())
+                return;
+
+            if (defaultsLifestyle != null)
+                container.Register(factory, defaultsLifestyle);
+            else
                 container.Register(factory);
         }
 
@@ -56,7 +70,10 @@ namespace Tapeti.SimpleInjector
 
         public void RegisterController(Type type)
         {
-            container.Register(type);
+            if (controllersLifestyle != null)                
+                container.Register(type, type, controllersLifestyle);
+            else
+                container.Register(type);
         }
 
 
