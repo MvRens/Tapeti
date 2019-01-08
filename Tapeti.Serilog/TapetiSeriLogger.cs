@@ -1,8 +1,6 @@
 ﻿using System;
 using ISeriLogger = Serilog.ILogger;
 
-// ReSharper disable UnusedMember.Global
-
 namespace Tapeti.Serilog
 {
     public class TapetiSeriLogger: ILogger
@@ -16,26 +14,31 @@ namespace Tapeti.Serilog
 
         public void Connect(TapetiConnectionParams connectionParams)
         {
-            // method not yet used in Tapeti
-            seriLogger.Information("Trying to connected to " + connectionParams.HostName);
+            seriLogger.Information("Tapeti: trying to connect to {host}:{port}/{virtualHost}", 
+                connectionParams.HostName,
+                connectionParams.Port,
+                connectionParams.VirtualHost);
         }
 
-        public void ConnectFailed(TapetiConnectionParams connectionParams)
+        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
         {
-            // method not yet used in Tapeti
-            seriLogger.Error("Could not connect to " + connectionParams.HostName);
-
+            seriLogger.Error(exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}", 
+                connectionParams.HostName,
+                connectionParams.Port,
+                connectionParams.VirtualHost);
         }
 
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
         {
-            // method not yet used in Tapeti
-            seriLogger.Information("Succesfull connected to " + connectionParams.HostName);
+            seriLogger.Information("Tapeti: successfully connected to {host}:{port}/{virtualHost}", 
+                connectionParams.HostName,
+                connectionParams.Port,
+                connectionParams.VirtualHost);
         }
         
         public void HandlerException(Exception e)
         {
-            seriLogger.Error(e, "Exception handled by Tapeti");
+            seriLogger.Error(e, "Tapeti: exception in message handler");
         }
     }
 }

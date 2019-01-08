@@ -6,17 +6,17 @@ namespace Tapeti.Default
     {
         public void Connect(TapetiConnectionParams connectionParams)
         {
-            throw new NotImplementedException();
+            Console.WriteLine($"[Tapeti] Connecting to {connectionParams.HostName}:{connectionParams.Port}{connectionParams.VirtualHost}");
         }
 
-        public void ConnectFailed(TapetiConnectionParams connectionParams)
+        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
         {
-            throw new NotImplementedException();
+            Console.WriteLine($"[Tapeti] Connection failed: {exception}");
         }
 
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
         {
-            throw new NotImplementedException();
+            Console.WriteLine($"[Tapeti] Connected");
         }
 
         public void HandlerException(Exception e)

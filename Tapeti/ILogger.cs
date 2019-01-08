@@ -9,7 +9,7 @@ namespace Tapeti
     public interface ILogger
     {
         void Connect(TapetiConnectionParams connectionParams);
-        void ConnectFailed(TapetiConnectionParams connectionParams);
+        void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception);
         void ConnectSuccess(TapetiConnectionParams connectionParams);
         void HandlerException(Exception e);
     }
