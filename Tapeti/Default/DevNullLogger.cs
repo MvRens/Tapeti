@@ -8,7 +8,7 @@ namespace Tapeti.Default
         {
         }
 
-        public void ConnectFailed(TapetiConnectionParams connectionParams)
+        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
         {
         }
 

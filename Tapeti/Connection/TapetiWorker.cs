@@ -16,6 +16,7 @@ namespace Tapeti.Connection
         private const int PublishMaxConnectAttempts = 3;
 
         private readonly IConfig config;
+        private readonly ILogger logger;
         public TapetiConnectionParams ConnectionParams { get; set; }
         public IConnectionEventListener ConnectionEventListener { get; set; }
 
@@ -31,6 +32,7 @@ namespace Tapeti.Connection
         {
             this.config = config;
 
+            logger = config.DependencyResolver.Resolve<ILogger>();
             messageSerializer = config.DependencyResolver.Resolve<IMessageSerializer>();
             routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
             exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
@@ -201,6 +203,8 @@ namespace Tapeti.Connection
             {
                 try
                 {
+                    logger.Connect(ConnectionParams);
+
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
 
@@ -212,10 +216,14 @@ namespace Tapeti.Connection
                     channelInstance.ModelShutdown += (sender, e) => ConnectionEventListener?.Disconnected();
 
                     ConnectionEventListener?.Connected();
+                    logger.ConnectSuccess(ConnectionParams);
+
                     break;
                 }
-                catch (BrokerUnreachableException)
+                catch (BrokerUnreachableException e)
                 {
+                    logger.ConnectFailed(ConnectionParams, e);
+
                     attempts++;
                     if (maxAttempts.HasValue && attempts > maxAttempts.Value)
                         throw;
