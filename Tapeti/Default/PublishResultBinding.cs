@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client.Framing;
+using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Helpers;
 
@@ -18,8 +19,19 @@ namespace Tapeti.Default
                 return;
 
 
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out var isTaskOf, out var actualType))
+            var hasClassResult = context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t.IsClass, out var isTaskOf, out var actualType);
+            
+            var request = context.MessageClass?.GetCustomAttribute<RequestAttribute>();
+            var expectedClassResult = request?.Response;
+
+            // Verify the return type matches with the Request attribute of the message class. This is a backwards incompatible change in
+            // Tapeti 1.2: if you just want to publish another message as a result of the incoming message, explicitly call IPublisher.Publish.
+            if (!hasClassResult && expectedClassResult != null || hasClassResult && expectedClassResult != actualType)
+               throw new ArgumentException($"Message handler must return type {expectedClassResult?.FullName ?? "void"} in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}, found: {actualType?.FullName ?? "void"}");
+
+            if (!hasClassResult)
                 return;
+
 
 
             if (isTaskOf)
@@ -27,14 +39,10 @@ namespace Tapeti.Default
                 var handler = GetType().GetMethod("PublishGenericTaskResult", BindingFlags.NonPublic | BindingFlags.Static)?.MakeGenericMethod(actualType);
                 Debug.Assert(handler != null, nameof(handler) + " != null");
 
-                context.Result.SetHandler(async (messageContext, value) =>
-                {
-                    await (Task)handler.Invoke(null, new[] { messageContext, value });
-                });
+                context.Result.SetHandler(async (messageContext, value) => { await (Task) handler.Invoke(null, new[] {messageContext, value }); });
             }
             else
-                context.Result.SetHandler((messageContext, value) => 
-                    value == null ? null : Reply(value, messageContext));
+                context.Result.SetHandler((messageContext, value) => Reply(value, messageContext));
         }
 
 
@@ -43,13 +51,15 @@ namespace Tapeti.Default
         private static async Task PublishGenericTaskResult<T>(IMessageContext messageContext, object value) where T : class
         {
             var message = await (Task<T>)value;
-            if (message != null)
-                await Reply(message, messageContext);
+            await Reply(message, messageContext);
         }
 
 
         private static Task Reply(object message, IMessageContext messageContext)
         {
+            if (message == null)
+                throw new ArgumentException("Return value of a request message handler must not be null");
+
             var publisher = (IInternalPublisher)messageContext.DependencyResolver.Resolve<IPublisher>();
             var properties = new BasicProperties();
 
