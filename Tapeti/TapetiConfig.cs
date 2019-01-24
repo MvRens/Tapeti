@@ -8,6 +8,7 @@ using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Helpers;
 
+// ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {
@@ -30,6 +31,8 @@ namespace Tapeti
         private readonly List<IPublishMiddleware> publishMiddleware = new List<IPublishMiddleware>();
 
         private readonly IDependencyResolver dependencyResolver;
+
+        private bool usePublisherConfirms = true;
 
 
         public TapetiConfig(IDependencyResolver dependencyResolver)
@@ -90,7 +93,16 @@ namespace Tapeti
                 queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(prefixGroup.Key) }, bl)));
             }
 
-            var config = new Config(dependencyResolver, messageMiddleware, cleanupMiddleware, publishMiddleware, queues);
+            var config = new Config(queues)
+            {
+                DependencyResolver = dependencyResolver, 
+                MessageMiddleware = messageMiddleware, 
+                CleanupMiddleware = cleanupMiddleware, 
+                PublishMiddleware = publishMiddleware,
+
+                UsePublisherConfirms = usePublisherConfirms
+            };
+
             (dependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<IConfig>(config);
 
             return config;
@@ -154,11 +166,34 @@ namespace Tapeti
             return this;
         }
 
+        
+        /// <summary>
+        /// WARNING: disabling publisher confirms means there is no guarantee that a Publish succeeds,
+        /// and disables Tapeti.Flow from verifying if a request/response can be routed. This may
+        /// result in never-ending flows. Only disable if you can accept those consequences.
+        /// </summary>
+        public TapetiConfig DisablePublisherConfirms()
+        {
+            usePublisherConfirms = false;
+            return this;
+        }
+
+
+        /// <summary>
+        /// WARNING: disabling publisher confirms means there is no guarantee that a Publish succeeds,
+        /// and disables Tapeti.Flow from verifying if a request/response can be routed. This may
+        /// result in never-ending flows. Only disable if you accept those consequences.
+        /// </summary>
+        public TapetiConfig SetPublisherConfirms(bool enabled)
+        {
+            usePublisherConfirms = enabled;
+            return this;
+        }
+
 
         public void RegisterDefaults()
         {
-            var container = dependencyResolver as IDependencyContainer;
-            if (container == null)
+            if (!(dependencyResolver is IDependencyContainer container))
                 return;
 
             if (ConsoleHelper.IsAvailable())
@@ -399,21 +434,19 @@ namespace Tapeti
 
         protected class Config : IConfig
         {
-            public IDependencyResolver DependencyResolver { get; }
-            public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
-            public IReadOnlyList<ICleanupMiddleware> CleanupMiddleware { get; }
-            public IReadOnlyList<IPublishMiddleware> PublishMiddleware { get; }
+            public bool UsePublisherConfirms { get; set; }
+
+            public IDependencyResolver DependencyResolver { get; set; }
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; set; }
+            public IReadOnlyList<ICleanupMiddleware> CleanupMiddleware { get; set; }
+            public IReadOnlyList<IPublishMiddleware> PublishMiddleware { get; set; }
             public IEnumerable<IQueue> Queues { get; }
 
             private readonly Dictionary<MethodInfo, IBinding> bindingMethodLookup;
 
 
-            public Config(IDependencyResolver dependencyResolver, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<ICleanupMiddleware> cleanupMiddleware, IReadOnlyList<IPublishMiddleware> publishMiddleware, IEnumerable<IQueue> queues)
+            public Config(IEnumerable<IQueue> queues)
             {
-                DependencyResolver = dependencyResolver;
-                MessageMiddleware = messageMiddleware;
-                CleanupMiddleware = cleanupMiddleware;
-                PublishMiddleware = publishMiddleware;
                 Queues = queues.ToList();
 
                 bindingMethodLookup = Queues.SelectMany(q => q.Bindings).ToDictionary(b => b.Method, b => b);

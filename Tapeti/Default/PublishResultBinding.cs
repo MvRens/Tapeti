@@ -69,9 +69,9 @@ namespace Tapeti.Default
                 properties.CorrelationId = messageContext.Properties.CorrelationId;
 
             if (messageContext.Properties.IsReplyToPresent())
-                return publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties);
+                return publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties, true);
 
-            return publisher.Publish(message, properties);
+            return publisher.Publish(message, properties, false);
         }
     }
 }

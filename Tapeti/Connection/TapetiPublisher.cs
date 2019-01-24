@@ -17,19 +17,19 @@ namespace Tapeti.Connection
 
         public Task Publish(object message)
         {
-            return workerFactory().Publish(message, null);
+            return workerFactory().Publish(message, null, false);
         }
 
 
-        public Task Publish(object message, IBasicProperties properties)
+        public Task Publish(object message, IBasicProperties properties, bool mandatory)
         {
-            return workerFactory().Publish(message, properties);
+            return workerFactory().Publish(message, properties, mandatory);
         }
 
 
-        public Task PublishDirect(object message, string queueName, IBasicProperties properties)
+        public Task PublishDirect(object message, string queueName, IBasicProperties properties, bool mandatory)
         {
-            return workerFactory().PublishDirect(message, queueName, properties);
+            return workerFactory().PublishDirect(message, queueName, properties, mandatory);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace Tapeti
 
     public interface IInternalPublisher : IPublisher
     {
-        Task Publish(object message, IBasicProperties properties);
-        Task PublishDirect(object message, string queueName, IBasicProperties properties);
+        Task Publish(object message, IBasicProperties properties, bool mandatory);
+        Task PublishDirect(object message, string queueName, IBasicProperties properties, bool mandatory);
     }
 }

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using RabbitMQ.Client.Framing;
 using Tapeti.Config;
+using Tapeti.Exceptions;
 using Tapeti.Helpers;
 using Tapeti.Tasks;
 
@@ -13,6 +15,7 @@ namespace Tapeti.Connection
     public class TapetiWorker
     {
         private const int ReconnectDelay = 5000;
+        private const int MandatoryReturnTimeout = 30000;
         private const int PublishMaxConnectAttempts = 3;
 
         private readonly IConfig config;
@@ -24,8 +27,11 @@ namespace Tapeti.Connection
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly IExchangeStrategy exchangeStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
+
+        // These fields are for use in the taskQueue only!
         private RabbitMQ.Client.IConnection connection;
         private IModel channelInstance;
+        private TaskCompletionSource<int> publishResultTaskSource;
 
 
         public TapetiWorker(IConfig config)
@@ -39,15 +45,15 @@ namespace Tapeti.Connection
         }
 
 
-        public Task Publish(object message, IBasicProperties properties)
+        public Task Publish(object message, IBasicProperties properties, bool mandatory)
         {
-            return Publish(message, properties, exchangeStrategy.GetExchange(message.GetType()), routingKeyStrategy.GetRoutingKey(message.GetType()));
+            return Publish(message, properties, exchangeStrategy.GetExchange(message.GetType()), routingKeyStrategy.GetRoutingKey(message.GetType()), mandatory);
         }
 
 
-        public Task PublishDirect(object message, string queueName, IBasicProperties properties)
+        public Task PublishDirect(object message, string queueName, IBasicProperties properties, bool mandatory)
         {
-            return Publish(message, properties, "", queueName);
+            return Publish(message, properties, "", queueName, mandatory);
         }
 
 
@@ -147,7 +153,7 @@ namespace Tapeti.Connection
         }
 
 
-        private Task Publish(object message, IBasicProperties properties, string exchange, string routingKey)
+        private Task Publish(object message, IBasicProperties properties, string exchange, string routingKey, bool mandatory)
         {
             var context = new PublishContext
             {
@@ -172,8 +178,39 @@ namespace Tapeti.Connection
                 () => taskQueue.Value.Add(async () =>
                 {
                     var body = messageSerializer.Serialize(context.Message, context.Properties);
-                    (await GetChannel(PublishMaxConnectAttempts)).BasicPublish(context.Exchange, context.RoutingKey, false,
-                        context.Properties, body);
+                    Task<int> publishResultTask = null;
+
+                    if (config.UsePublisherConfirms)
+                    {
+                        publishResultTaskSource = new TaskCompletionSource<int>();
+                        publishResultTask = publishResultTaskSource.Task;
+                    }
+                    else
+                        mandatory = false;
+
+                    (await GetChannel(PublishMaxConnectAttempts)).BasicPublish(context.Exchange, context.RoutingKey, mandatory, context.Properties, body);
+
+                    if (publishResultTask != null)
+                    {
+                        var timerCancellationSource = new CancellationTokenSource();
+
+                        if (await Task.WhenAny(publishResultTask, Task.Delay(MandatoryReturnTimeout, timerCancellationSource.Token)) == publishResultTask)
+                        {
+                            timerCancellationSource.Cancel();
+
+                            var replyCode = publishResultTask.Result;
+
+                            // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                            // at the time of writing...
+                            if (replyCode == 312)
+                                throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} does not have a route");
+
+                            if (replyCode > 0)
+                                throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} could not be delivery, reply code {replyCode}");
+                        }
+                        else
+                            throw new TimeoutException($"Timeout while waiting for basic.return for message with class {context.Message?.GetType().FullName ?? "null"} and Id {context.Properties.MessageId}");
+                    }
                 }).Unwrap());
             // ReSharper restore ImplicitlyCapturedClosure
         }
@@ -207,13 +244,25 @@ namespace Tapeti.Connection
 
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
+                    channelInstance.ConfirmSelect();
 
                     if (ConnectionParams.PrefetchCount > 0)
                         channelInstance.BasicQos(0, ConnectionParams.PrefetchCount, false);
 
                     ((IRecoverable)connection).Recovery += (sender, e) => ConnectionEventListener?.Reconnected();
 
-                    channelInstance.ModelShutdown += (sender, e) => ConnectionEventListener?.Disconnected();
+                    channelInstance.ModelShutdown += (sender, eventArgs) => ConnectionEventListener?.Disconnected();
+                    channelInstance.BasicReturn += (sender, eventArgs) =>
+                    {
+                        publishResultTaskSource?.SetResult(eventArgs.ReplyCode);
+                        publishResultTaskSource = null;
+                    };
+
+                    channelInstance.BasicAcks += (sender, eventArgs) =>
+                    {
+                        publishResultTaskSource?.SetResult(0);
+                        publishResultTaskSource = null;
+                    };
 
                     ConnectionEventListener?.Connected();
                     logger.ConnectSuccess(ConnectionParams);
