@@ -14,7 +14,7 @@ namespace Tapeti
         public TapetiConnectionParams Params { get; set; }
 
         private readonly Lazy<TapetiWorker> worker;
-
+        private TapetiSubscriber subscriber;
 
         public TapetiConnection(IConfig config)
         {
@@ -36,8 +36,11 @@ namespace Tapeti
 
         public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
-            var subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
-            await subscriber.BindQueues();
+            if (subscriber == null)
+            {
+                subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
+                await subscriber.BindQueues();
+            }
 
             if (startConsuming)
                 await subscriber.Resume();
@@ -46,9 +49,9 @@ namespace Tapeti
         }
 
 
-        public ISubscriber SubscribeSync()
+        public ISubscriber SubscribeSync(bool startConsuming = true)
         {
-            return Subscribe().Result;
+            return Subscribe(startConsuming).Result;
         }
 
 
@@ -97,17 +100,23 @@ namespace Tapeti
 
         protected virtual void OnConnected(EventArgs e)
         {
-            Connected?.Invoke(this, e);
+            Task.Run(() => Connected?.Invoke(this, e));
         }
 
         protected virtual void OnReconnected(EventArgs e)
         {
-            Reconnected?.Invoke(this, e);
+            Task.Run(() =>
+            {
+                subscriber?.RebindQueues().ContinueWith((t) =>
+                {
+                    Reconnected?.Invoke(this, e);
+                });
+            });
         }
 
         protected virtual void OnDisconnected(EventArgs e)
         {
-            Disconnected?.Invoke(this, e);
+            Task.Run(() => Disconnected?.Invoke(this, e));
         }
     }
 }

@@ -62,18 +62,18 @@ namespace Tapeti.Connection
             if (string.IsNullOrEmpty(queueName))
                 throw new ArgumentNullException(nameof(queueName));
 
-            return taskQueue.Value.Add(async () =>
+            return taskQueue.Value.Add(() =>
             {
-                (await GetChannel()).BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware, config.CleanupMiddleware));
-            }).Unwrap();
+                GetChannel().BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware, config.CleanupMiddleware));
+            });
         }
 
 
         public Task Subscribe(IQueue queue)
         {
-            return taskQueue.Value.Add(async () =>
+            return taskQueue.Value.Add(() =>
             {
-                var channel = await GetChannel();
+                var channel = GetChannel();
 
                 if (queue.Dynamic)
                 {
@@ -101,30 +101,30 @@ namespace Tapeti.Connection
                         (binding as IBuildBinding)?.SetQueueName(queue.Name);
                     }
                 }
-            }).Unwrap();
+            });
         }
 
 
         public Task Respond(ulong deliveryTag, ConsumeResponse response)
         {
-            return taskQueue.Value.Add(async () =>
+            return taskQueue.Value.Add(() =>
             {
                 switch (response)
                 {
                     case ConsumeResponse.Ack:
-                        (await GetChannel()).BasicAck(deliveryTag, false);
+                        GetChannel().BasicAck(deliveryTag, false);
                         break;
 
                     case ConsumeResponse.Nack:
-                        (await GetChannel()).BasicNack(deliveryTag, false, false);
+                        GetChannel().BasicNack(deliveryTag, false, false);
                         break;
 
                     case ConsumeResponse.Requeue:
-                        (await GetChannel()).BasicNack(deliveryTag, false, true);
+                        GetChannel().BasicNack(deliveryTag, false, true);
                         break;
                 }
 
-            }).Unwrap();
+            });
         }
 
 
@@ -175,7 +175,7 @@ namespace Tapeti.Connection
             return MiddlewareHelper.GoAsync(
                 config.PublishMiddleware,
                 async (handler, next) => await handler.Handle(context, next),
-                () => taskQueue.Value.Add(async () =>
+                () => taskQueue.Value.Add(() =>
                 {
                     var body = messageSerializer.Serialize(context.Message, context.Properties);
                     Task<int> publishResultTask = null;
@@ -188,30 +188,25 @@ namespace Tapeti.Connection
                     else
                         mandatory = false;
 
-                    (await GetChannel(PublishMaxConnectAttempts)).BasicPublish(context.Exchange, context.RoutingKey, mandatory, context.Properties, body);
+                    GetChannel(PublishMaxConnectAttempts).BasicPublish(context.Exchange, context.RoutingKey, mandatory, context.Properties, body);
 
-                    if (publishResultTask != null)
-                    {
-                        var timerCancellationSource = new CancellationTokenSource();
+                    if (publishResultTask == null)
+                        return;
 
-                        if (await Task.WhenAny(publishResultTask, Task.Delay(MandatoryReturnTimeout, timerCancellationSource.Token)) == publishResultTask)
-                        {
-                            timerCancellationSource.Cancel();
+                    if (!publishResultTask.Wait(MandatoryReturnTimeout))
+                        throw new TimeoutException($"Timeout while waiting for basic.return for message with class {context.Message?.GetType().FullName ?? "null"} and Id {context.Properties.MessageId}");
 
-                            var replyCode = publishResultTask.Result;
 
-                            // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
-                            // at the time of writing...
-                            if (replyCode == 312)
-                                throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} does not have a route");
+                    var replyCode = publishResultTask.Result;
 
-                            if (replyCode > 0)
-                                throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} could not be delivery, reply code {replyCode}");
-                        }
-                        else
-                            throw new TimeoutException($"Timeout while waiting for basic.return for message with class {context.Message?.GetType().FullName ?? "null"} and Id {context.Properties.MessageId}");
-                    }
-                }).Unwrap());
+                    // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                    // at the time of writing...
+                    if (replyCode == 312)
+                        throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} does not have a route");
+
+                    if (replyCode > 0)
+                        throw new NoRouteException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} could not be delivery, reply code {replyCode}");
+                }));
             // ReSharper restore ImplicitlyCapturedClosure
         }
 
@@ -219,7 +214,7 @@ namespace Tapeti.Connection
         /// Only call this from a task in the taskQueue to ensure IModel is only used 
         /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
         /// </remarks>
-        private async Task<IModel> GetChannel(int? maxAttempts = null)
+        private IModel GetChannel(int? maxAttempts = null)
         {
             if (channelInstance != null)
                 return channelInstance;
@@ -233,6 +228,7 @@ namespace Tapeti.Connection
                 UserName = ConnectionParams.Username,
                 Password = ConnectionParams.Password,
                 AutomaticRecoveryEnabled = true, // The created connection is an IRecoverable
+                TopologyRecoveryEnabled = false, // We'll manually redeclare all queues in the Reconnect event to update the internal state for dynamic queues
                 RequestedHeartbeat = 30
             };
 
@@ -277,7 +273,7 @@ namespace Tapeti.Connection
                     if (maxAttempts.HasValue && attempts > maxAttempts.Value)
                         throw;
 
-                    await Task.Delay(ReconnectDelay);
+                    Thread.Sleep(ReconnectDelay);
                 }
             }
 
