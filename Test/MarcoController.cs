@@ -80,12 +80,16 @@ namespace Test
             return flowProvider.YieldWithParallelRequest()
                 .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
                 {
-                    StoredInState = StateTestGuid
+                    StoredInState = StateTestGuid,
+                    EnumValue = TestEnum.Value1,
+
                 }, HandlePoloConfirmationResponse1)
 
                 .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
                 {
-                    StoredInState = StateTestGuid
+                    StoredInState = StateTestGuid,
+                    EnumValue = TestEnum.Value2,
+                    OptionalEnumValue = TestEnum.Value1
                 }, HandlePoloConfirmationResponse2)
 
                 .YieldSync(ContinuePoloConfirmation);
@@ -127,7 +131,9 @@ namespace Test
 
             return new PoloConfirmationResponseMessage
             {
-                ShouldMatchState = message.StoredInState
+                ShouldMatchState = message.StoredInState,
+                EnumValue = message.EnumValue,
+                OptionalEnumValue = message.OptionalEnumValue
             };
         }
 
@@ -138,6 +144,13 @@ namespace Test
         {
             Console.WriteLine(">> Polo");
         }
+    }
+
+
+    public enum TestEnum
+    {
+        Value1,
+        Value2
     }
 
 
@@ -157,6 +170,9 @@ namespace Test
     {
         [Required]
         public Guid StoredInState { get; set; }
+
+        public TestEnum EnumValue;
+        public TestEnum? OptionalEnumValue;
     }
 
 
@@ -164,5 +180,8 @@ namespace Test
     {
         [Required]
         public Guid ShouldMatchState { get; set; }
+
+        public TestEnum EnumValue;
+        public TestEnum? OptionalEnumValue;
     }
 }

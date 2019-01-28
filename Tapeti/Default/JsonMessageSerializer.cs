@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using RabbitMQ.Client;
 
 namespace Tapeti.Default
@@ -25,7 +24,7 @@ namespace Tapeti.Default
                 NullValueHandling = NullValueHandling.Ignore
             };
 
-            serializerSettings.Converters.Add(new StringEnumConverter());
+            serializerSettings.Converters.Add(new FallbackStringEnumConverter());            
         }
 
 
@@ -52,7 +51,7 @@ namespace Tapeti.Default
                 throw new ArgumentException($"{ClassTypeHeader} header not present");
 
             var messageType = deserializedTypeNames.GetOrAdd(Encoding.UTF8.GetString((byte[])typeName), DeserializeTypeName);
-            return JsonConvert.DeserializeObject(Encoding.UTF8.GetString(body), messageType);
+            return JsonConvert.DeserializeObject(Encoding.UTF8.GetString(body), messageType, serializerSettings);
         }
 
 
