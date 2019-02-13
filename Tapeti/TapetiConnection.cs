@@ -8,6 +8,8 @@ using Tapeti.Connection;
 
 namespace Tapeti
 {
+    public delegate void DisconnectedEventHandler(object sender, DisconnectedEventArgs e);
+
     public class TapetiConnection : IDisposable
     {
         private readonly IConfig config;
@@ -29,10 +31,9 @@ namespace Tapeti
         }
 
         public event EventHandler Connected;
-
-        public event EventHandler Disconnected;
-
+        public event DisconnectedEventHandler Disconnected;
         public event EventHandler Reconnected;
+
 
         public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
@@ -87,9 +88,9 @@ namespace Tapeti
                 owner.OnConnected(new EventArgs());
             }
 
-            public void Disconnected()
+            public void Disconnected(DisconnectedEventArgs e)
             {
-                owner.OnDisconnected(new EventArgs());
+                owner.OnDisconnected(e);
             }
 
             public void Reconnected()
@@ -114,7 +115,7 @@ namespace Tapeti
             });
         }
 
-        protected virtual void OnDisconnected(EventArgs e)
+        protected virtual void OnDisconnected(DisconnectedEventArgs e)
         {
             Task.Run(() => Disconnected?.Invoke(this, e));
         }

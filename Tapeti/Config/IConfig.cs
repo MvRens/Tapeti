@@ -30,6 +30,7 @@ namespace Tapeti.Config
 
     public interface IDynamicQueue : IQueue
     {
+        string GetDeclareQueueName();
         void SetName(string name);
     }
 

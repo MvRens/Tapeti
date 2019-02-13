@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using RabbitMQ.Client.Framing;
 using Tapeti.Config;
@@ -16,7 +18,7 @@ namespace Tapeti.Connection
     {
         private const int ReconnectDelay = 5000;
         private const int MandatoryReturnTimeout = 30000;
-        private const int PublishMaxConnectAttempts = 3;
+        private const int MinimumConnectedReconnectDelay = 1000;
 
         private readonly IConfig config;
         private readonly ILogger logger;
@@ -28,10 +30,30 @@ namespace Tapeti.Connection
         private readonly IExchangeStrategy exchangeStrategy;
         private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
 
+        
         // These fields are for use in the taskQueue only!
         private RabbitMQ.Client.IConnection connection;
+        private bool isReconnect;
         private IModel channelInstance;
-        private TaskCompletionSource<int> publishResultTaskSource;
+        private ulong lastDeliveryTag;
+        private DateTime connectedDateTime;
+        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new Dictionary<ulong, ConfirmMessageInfo>();
+        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new Dictionary<string, ReturnInfo>();
+
+
+        private class ConfirmMessageInfo
+        {
+            public string ReturnKey;
+            public TaskCompletionSource<int> CompletionSource;
+        }
+
+
+        private class ReturnInfo
+        {
+            public uint RefCount;
+            public int FirstReplyCode;
+        }
+
 
 
         public TapetiWorker(IConfig config)
@@ -64,7 +86,7 @@ namespace Tapeti.Connection
 
             return taskQueue.Value.Add(() =>
             {
-                GetChannel().BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware, config.CleanupMiddleware));
+                WithRetryableChannel(channel => channel.BasicConsume(queueName, false, new TapetiConsumer(this, queueName, config.DependencyResolver, bindings, config.MessageMiddleware, config.CleanupMiddleware)));
             });
         }
 
@@ -73,34 +95,38 @@ namespace Tapeti.Connection
         {
             return taskQueue.Value.Add(() =>
             {
-                var channel = GetChannel();
-
-                if (queue.Dynamic)
+                WithRetryableChannel(channel => 
                 {
-                    var dynamicQueue = channel.QueueDeclare(queue.Name);
-                    (queue as IDynamicQueue)?.SetName(dynamicQueue.QueueName);
-
-                    foreach (var binding in queue.Bindings)
+                    if (queue.Dynamic)
                     {
-                        if (binding.QueueBindingMode == QueueBindingMode.RoutingKey)
+                        if (!(queue is IDynamicQueue dynamicQueue))
+                            throw new NullReferenceException("Queue with Dynamic = true must implement IDynamicQueue");
+
+                        var declaredQueue = channel.QueueDeclare(dynamicQueue.GetDeclareQueueName());
+                        dynamicQueue.SetName(declaredQueue.QueueName);
+
+                        foreach (var binding in queue.Bindings)
                         {
-                            var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
-                            var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
+                            if (binding.QueueBindingMode == QueueBindingMode.RoutingKey)
+                            {
+                                var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
+                                var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
 
-                            channel.QueueBind(dynamicQueue.QueueName, exchange, routingKey);
+                                channel.QueueBind(declaredQueue.QueueName, exchange, routingKey);
+                            }
+
+                            (binding as IBuildBinding)?.SetQueueName(declaredQueue.QueueName);
                         }
-
-                        (binding as IBuildBinding)?.SetQueueName(dynamicQueue.QueueName);
                     }
-                }
-                else
-                {
-                    channel.QueueDeclarePassive(queue.Name);
-                    foreach (var binding in queue.Bindings)
+                    else
                     {
-                        (binding as IBuildBinding)?.SetQueueName(queue.Name);
+                        channel.QueueDeclarePassive(queue.Name);
+                        foreach (var binding in queue.Bindings)
+                        {
+                            (binding as IBuildBinding)?.SetQueueName(queue.Name);
+                        }
                     }
-                }
+                });
             });
         }
 
@@ -109,6 +135,8 @@ namespace Tapeti.Connection
         {
             return taskQueue.Value.Add(() =>
             {
+                // No need for a retryable channel here, if the connection is lost we can't
+                // use the deliveryTag anymore.
                 switch (response)
                 {
                     case ConsumeResponse.Ack:
@@ -122,6 +150,9 @@ namespace Tapeti.Connection
                     case ConsumeResponse.Requeue:
                         GetChannel().BasicNack(deliveryTag, false, true);
                         break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(response), response, null);
                 }
 
             });
@@ -175,27 +206,48 @@ namespace Tapeti.Connection
             return MiddlewareHelper.GoAsync(
                 config.PublishMiddleware,
                 async (handler, next) => await handler.Handle(context, next),
-                () => taskQueue.Value.Add(() =>
+                () => taskQueue.Value.Add(async () =>
                 {
                     var body = messageSerializer.Serialize(context.Message, context.Properties);
+
                     Task<int> publishResultTask = null;
-
-                    if (config.UsePublisherConfirms)
+                    var messageInfo = new ConfirmMessageInfo
                     {
-                        publishResultTaskSource = new TaskCompletionSource<int>();
-                        publishResultTask = publishResultTaskSource.Task;
-                    }
-                    else
-                        mandatory = false;
+                        ReturnKey = GetReturnKey(context.Exchange, context.RoutingKey),
+                        CompletionSource = new TaskCompletionSource<int>()
+                    };
 
-                    GetChannel(PublishMaxConnectAttempts).BasicPublish(context.Exchange, context.RoutingKey, mandatory, context.Properties, body);
+
+                    WithRetryableChannel(channel =>
+                    {
+                        // The delivery tag is lost after a reconnect, register under the new tag
+                        if (config.UsePublisherConfirms)
+                        {
+                            lastDeliveryTag++;
+
+                            confirmMessages.Add(lastDeliveryTag, messageInfo);
+                            publishResultTask = messageInfo.CompletionSource.Task;
+                        }
+                        else
+                            mandatory = false;
+
+                        channel.BasicPublish(context.Exchange, context.RoutingKey, mandatory, context.Properties, body);
+                    });
+
 
                     if (publishResultTask == null)
                         return;
 
-                    if (!publishResultTask.Wait(MandatoryReturnTimeout))
+                    var delayCancellationTokenSource = new CancellationTokenSource();
+                    var signalledTask = await Task.WhenAny(publishResultTask, Task.Delay(MandatoryReturnTimeout, delayCancellationTokenSource.Token));
+
+                    if (signalledTask != publishResultTask)
                         throw new TimeoutException($"Timeout while waiting for basic.return for message with class {context.Message?.GetType().FullName ?? "null"} and Id {context.Properties.MessageId}");
 
+                    delayCancellationTokenSource.Cancel();
+
+                    if (publishResultTask.IsCanceled)
+                        throw new NackException($"Mandatory message with class {context.Message?.GetType().FullName ?? "null"} was nacked");
 
                     var replyCode = publishResultTask.Result;
 
@@ -210,16 +262,43 @@ namespace Tapeti.Connection
             // ReSharper restore ImplicitlyCapturedClosure
         }
 
+
         /// <remarks>
         /// Only call this from a task in the taskQueue to ensure IModel is only used 
         /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
         /// </remarks>
-        private IModel GetChannel(int? maxAttempts = null)
+        private void WithRetryableChannel(Action<IModel> operation)
         {
-            if (channelInstance != null)
+            while (true)
+            {
+                try
+                {
+                    operation(GetChannel());
+                    break;
+                }
+                catch (AlreadyClosedException e)
+                {
+                    // TODO log?                    
+                }
+            }
+        }
+
+
+        /// <remarks>
+        /// Only call this from a task in the taskQueue to ensure IModel is only used 
+        /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
+        /// </remarks>
+        private IModel GetChannel()
+        {
+            if (channelInstance != null && channelInstance.IsOpen)
                 return channelInstance;
 
-            var attempts = 0;
+            // If the Disconnect quickly follows the Connect (when an error occurs that is reported back by RabbitMQ
+            // not related to the connection), wait for a bit to avoid spamming the connection
+            if ((DateTime.UtcNow - connectedDateTime).TotalMilliseconds <= MinimumConnectedReconnectDelay)
+                Thread.Sleep(ReconnectDelay);
+
+
             var connectionFactory = new ConnectionFactory
             {
                 HostName = ConnectionParams.HostName,
@@ -227,8 +306,8 @@ namespace Tapeti.Connection
                 VirtualHost = ConnectionParams.VirtualHost,
                 UserName = ConnectionParams.Username,
                 Password = ConnectionParams.Password,
-                AutomaticRecoveryEnabled = true, // The created connection is an IRecoverable
-                TopologyRecoveryEnabled = false, // We'll manually redeclare all queues in the Reconnect event to update the internal state for dynamic queues
+                AutomaticRecoveryEnabled = false,
+                TopologyRecoveryEnabled = false,
                 RequestedHeartbeat = 30
             };
 
@@ -240,44 +319,142 @@ namespace Tapeti.Connection
 
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
-                    channelInstance.ConfirmSelect();
+
+                    if (channelInstance == null)
+                        throw new BrokerUnreachableException(null);
+
+                    if (config.UsePublisherConfirms)
+                    {
+                        lastDeliveryTag = 0;
+                        confirmMessages.Clear();
+                        channelInstance.ConfirmSelect();
+                    }
 
                     if (ConnectionParams.PrefetchCount > 0)
                         channelInstance.BasicQos(0, ConnectionParams.PrefetchCount, false);
 
-                    ((IRecoverable)connection).Recovery += (sender, e) => ConnectionEventListener?.Reconnected();
-
-                    channelInstance.ModelShutdown += (sender, eventArgs) => ConnectionEventListener?.Disconnected();
-                    channelInstance.BasicReturn += (sender, eventArgs) =>
+                    channelInstance.ModelShutdown += (sender, e) =>
                     {
-                        publishResultTaskSource?.SetResult(eventArgs.ReplyCode);
-                        publishResultTaskSource = null;
+                        ConnectionEventListener?.Disconnected(new DisconnectedEventArgs
+                        {
+                            ReplyCode = e.ReplyCode,
+                            ReplyText = e.ReplyText
+                        });
+
+                        channelInstance = null;
                     };
 
-                    channelInstance.BasicAcks += (sender, eventArgs) =>
-                    {
-                        publishResultTaskSource?.SetResult(0);
-                        publishResultTaskSource = null;
-                    };
+                    channelInstance.BasicReturn += HandleBasicReturn;
+                    channelInstance.BasicAcks += HandleBasicAck;
+                    channelInstance.BasicNacks += HandleBasicNack;
 
-                    ConnectionEventListener?.Connected();
+                    connectedDateTime = DateTime.UtcNow;
+
+                    if (isReconnect)
+                        ConnectionEventListener?.Reconnected();
+                    else
+                        ConnectionEventListener?.Connected();
+
                     logger.ConnectSuccess(ConnectionParams);
+                    isReconnect = true;
 
                     break;
                 }
                 catch (BrokerUnreachableException e)
                 {
                     logger.ConnectFailed(ConnectionParams, e);
-
-                    attempts++;
-                    if (maxAttempts.HasValue && attempts > maxAttempts.Value)
-                        throw;
-
                     Thread.Sleep(ReconnectDelay);
                 }
             }
 
             return channelInstance;
+        }
+
+
+        private void HandleBasicReturn(object sender, BasicReturnEventArgs e)        
+        {
+            /*
+             * "If the message is also published as mandatory, the basic.return is sent to the client before basic.ack."
+             * - https://www.rabbitmq.com/confirms.html
+             *
+             * Because there is no delivery tag included in the basic.return message. This solution is modeled after
+             * user OhJeez' answer on StackOverflow:
+             *
+             * "Since all messages with the same routing key are routed the same way. I assumed that once I get a
+             *  basic.return about a specific routing key, all messages with this routing key can be considered undelivered"
+             * https://stackoverflow.com/questions/21336659/how-to-tell-which-amqp-message-was-not-routed-from-basic-return-response
+             */
+            var key = GetReturnKey(e.Exchange, e.RoutingKey);
+
+            if (!returnRoutingKeys.TryGetValue(key, out var returnInfo))
+            {
+                returnInfo = new ReturnInfo
+                {
+                    RefCount = 0,
+                    FirstReplyCode = e.ReplyCode
+                };
+
+                returnRoutingKeys.Add(key, returnInfo);
+            }
+
+            returnInfo.RefCount++;
+        }
+
+
+        private void HandleBasicAck(object sender, BasicAckEventArgs e)
+        {
+            foreach (var deliveryTag in GetDeliveryTags(e))
+            {
+                if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo)) 
+                    continue;
+
+                if (returnRoutingKeys.TryGetValue(messageInfo.ReturnKey, out var returnInfo))
+                {
+                    messageInfo.CompletionSource.SetResult(returnInfo.FirstReplyCode);
+
+                    returnInfo.RefCount--;
+                    if (returnInfo.RefCount == 0)
+                        returnRoutingKeys.Remove(messageInfo.ReturnKey);
+                }
+
+                messageInfo.CompletionSource.SetResult(0);
+                confirmMessages.Remove(deliveryTag);
+            }
+        }
+
+
+        private void HandleBasicNack(object sender, BasicNackEventArgs e)
+        {
+            foreach (var deliveryTag in GetDeliveryTags(e))
+            {
+                if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo)) 
+                    continue;
+
+                messageInfo.CompletionSource.SetCanceled();
+                confirmMessages.Remove(e.DeliveryTag);
+            }
+        }
+
+
+        private IEnumerable<ulong> GetDeliveryTags(BasicAckEventArgs e)
+        {
+            return e.Multiple
+                ? confirmMessages.Keys.Where(tag => tag <= e.DeliveryTag).ToArray()
+                : new[] { e.DeliveryTag };
+        }
+
+
+        private IEnumerable<ulong> GetDeliveryTags(BasicNackEventArgs e)
+        {
+            return e.Multiple
+                ? confirmMessages.Keys.Where(tag => tag <= e.DeliveryTag).ToArray()
+                : new[] { e.DeliveryTag };
+        }
+
+
+        private static string GetReturnKey(string exchange, string routingKey)
+        {
+            return exchange + ':' + routingKey;
         }
 
 
