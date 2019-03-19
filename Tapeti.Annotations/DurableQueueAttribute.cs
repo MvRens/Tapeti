@@ -2,6 +2,7 @@
 
 namespace Tapeti.Annotations
 {
+    /// <inheritdoc />
     /// <summary>
     /// Binds to an existing durable queue to receive messages. Can be used
     /// on an entire MessageController class or on individual methods.
@@ -17,6 +18,8 @@ namespace Tapeti.Annotations
         public string Name { get; set; }
 
 
+        /// <inheritdoc />
+        /// <param name="name">The name of the durable queue</param>
         public DurableQueueAttribute(string name)
         {
             Name = name;
