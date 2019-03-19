@@ -80,7 +80,7 @@ namespace Tapeti.Flow.Default
 
             await context.Store();
 
-            await publisher.Publish(message, properties);
+            await publisher.Publish(message, properties, true);
         }
 
 
@@ -105,9 +105,9 @@ namespace Tapeti.Flow.Default
 
             // TODO disallow if replyto is not specified?
             if (reply.ReplyTo != null)
-                await publisher.PublishDirect(message, reply.ReplyTo, properties);
+                await publisher.PublishDirect(message, reply.ReplyTo, properties, true);
             else
-                await publisher.Publish(message, properties);
+                await publisher.Publish(message, properties, true);
 
             await context.Delete();
         }

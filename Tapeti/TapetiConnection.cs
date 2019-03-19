@@ -8,13 +8,15 @@ using Tapeti.Connection;
 
 namespace Tapeti
 {
+    public delegate void DisconnectedEventHandler(object sender, DisconnectedEventArgs e);
+
     public class TapetiConnection : IDisposable
     {
         private readonly IConfig config;
         public TapetiConnectionParams Params { get; set; }
 
         private readonly Lazy<TapetiWorker> worker;
-
+        private TapetiSubscriber subscriber;
 
         public TapetiConnection(IConfig config)
         {
@@ -29,15 +31,17 @@ namespace Tapeti
         }
 
         public event EventHandler Connected;
-
-        public event EventHandler Disconnected;
-
+        public event DisconnectedEventHandler Disconnected;
         public event EventHandler Reconnected;
+
 
         public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
-            var subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
-            await subscriber.BindQueues();
+            if (subscriber == null)
+            {
+                subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
+                await subscriber.BindQueues();
+            }
 
             if (startConsuming)
                 await subscriber.Resume();
@@ -46,9 +50,9 @@ namespace Tapeti
         }
 
 
-        public ISubscriber SubscribeSync()
+        public ISubscriber SubscribeSync(bool startConsuming = true)
         {
-            return Subscribe().Result;
+            return Subscribe(startConsuming).Result;
         }
 
 
@@ -84,9 +88,9 @@ namespace Tapeti
                 owner.OnConnected(new EventArgs());
             }
 
-            public void Disconnected()
+            public void Disconnected(DisconnectedEventArgs e)
             {
-                owner.OnDisconnected(new EventArgs());
+                owner.OnDisconnected(e);
             }
 
             public void Reconnected()
@@ -97,17 +101,23 @@ namespace Tapeti
 
         protected virtual void OnConnected(EventArgs e)
         {
-            Connected?.Invoke(this, e);
+            Task.Run(() => Connected?.Invoke(this, e));
         }
 
         protected virtual void OnReconnected(EventArgs e)
         {
-            Reconnected?.Invoke(this, e);
+            Task.Run(() =>
+            {
+                subscriber?.RebindQueues().ContinueWith((t) =>
+                {
+                    Reconnected?.Invoke(this, e);
+                });
+            });
         }
 
-        protected virtual void OnDisconnected(EventArgs e)
+        protected virtual void OnDisconnected(DisconnectedEventArgs e)
         {
-            Disconnected?.Invoke(this, e);
+            Task.Run(() => Disconnected?.Invoke(this, e));
         }
     }
 }

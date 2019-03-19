@@ -16,7 +16,7 @@ namespace Tapeti.Default
 
         public void ConnectSuccess(TapetiConnectionParams connectionParams)
         {
-            Console.WriteLine($"[Tapeti] Connected");
+            Console.WriteLine("[Tapeti] Connected");
         }
 
         public void HandlerException(Exception e)

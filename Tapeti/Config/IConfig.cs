@@ -7,6 +7,8 @@ namespace Tapeti.Config
 {
     public interface IConfig
     {
+        bool UsePublisherConfirms { get; }
+
         IDependencyResolver DependencyResolver { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
         IReadOnlyList<ICleanupMiddleware> CleanupMiddleware { get; }
@@ -28,6 +30,7 @@ namespace Tapeti.Config
 
     public interface IDynamicQueue : IQueue
     {
+        string GetDeclareQueueName();
         void SetName(string name);
     }
 

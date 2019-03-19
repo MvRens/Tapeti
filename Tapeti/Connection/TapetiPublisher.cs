@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
+using Tapeti.Annotations;
 
 namespace Tapeti.Connection
 {
@@ -17,19 +19,25 @@ namespace Tapeti.Connection
 
         public Task Publish(object message)
         {
-            return workerFactory().Publish(message, null);
+            return workerFactory().Publish(message, null, IsMandatory(message));
         }
 
 
-        public Task Publish(object message, IBasicProperties properties)
+        public Task Publish(object message, IBasicProperties properties, bool mandatory)
         {
-            return workerFactory().Publish(message, properties);
+            return workerFactory().Publish(message, properties, mandatory);
         }
 
 
-        public Task PublishDirect(object message, string queueName, IBasicProperties properties)
+        public Task PublishDirect(object message, string queueName, IBasicProperties properties, bool mandatory)
         {
-            return workerFactory().PublishDirect(message, queueName, properties);
+            return workerFactory().PublishDirect(message, queueName, properties, mandatory);
+        }
+
+
+        private static bool IsMandatory(object message)
+        {
+            return message.GetType().GetCustomAttribute<MandatoryAttribute>() != null;
         }
     }
 }

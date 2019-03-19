@@ -26,6 +26,12 @@ namespace Tapeti.Connection
         }
 
 
+        public Task RebindQueues()
+        {
+            return BindQueues();
+        }
+
+
         public Task Resume()
         {
             if (consuming)

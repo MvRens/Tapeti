@@ -27,7 +27,7 @@ namespace Tapeti.Tasks
         }
 
 
-        public Task<T> Add<T>(Func<T> func)
+        public Task Add(Func<Task> func)
         {
             lock (previousTaskLock)
             {
@@ -36,7 +36,11 @@ namespace Tapeti.Tasks
                     , singleThreadScheduler.Value);
 
                 previousTask = task;
-                return task;
+
+                // 'task' completes at the moment a Task is returned (for example, an await is encountered),
+                // this is used to chain the next. We return the unwrapped Task however, so that the caller
+                // awaits until the full task chain has completed.
+                return task.Unwrap();
             }
         }
 
