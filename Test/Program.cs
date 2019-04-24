@@ -1,13 +1,21 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using SimpleInjector;
 using Tapeti;
 using Tapeti.DataAnnotations;
 using Tapeti.Flow;
 using Tapeti.SimpleInjector;
 using System.Threading;
+using Tapeti.Annotations;
 
 namespace Test
 {
+    public interface IDummy
+    {
+        [DynamicQueue("test1")]
+        void HandleMessage(PoloConfirmationResponseMessage msg);
+    }
+
     internal class Program
     {
         private static void Main()
@@ -25,6 +33,7 @@ namespace Test
                     .WithFlow()
                     .WithDataAnnotations()
                     .RegisterAllControllers()
+                    .RegisterController(typeof(IDummy))
                     //.DisablePublisherConfirms() -> you probably never want to do this if you're using Flow or want requeues when a publish fails
                     .Build();
 

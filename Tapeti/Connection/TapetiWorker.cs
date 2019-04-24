@@ -109,6 +109,9 @@ namespace Tapeti.Connection
                         {
                             if (binding.QueueBindingMode == QueueBindingMode.RoutingKey)
                             {
+                                if (binding.MessageClass == null)
+                                    throw new NullReferenceException("Binding with QueueBindingMode = RoutingKey must have a MessageClass");
+
                                 var routingKey = routingKeyStrategy.GetRoutingKey(binding.MessageClass);
                                 var exchange = exchangeStrategy.GetExchange(binding.MessageClass);
 
