@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Tapeti.Flow.SQL\Tapeti.Flow.SQL.csproj" />
     <ProjectReference Include="..\Tapeti.Flow\Tapeti.Flow.csproj" />
     <ProjectReference Include="..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
+    <ProjectReference Include="..\Tapeti.Transient\Tapeti.Transient.csproj" />
     <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
   </ItemGroup>
 

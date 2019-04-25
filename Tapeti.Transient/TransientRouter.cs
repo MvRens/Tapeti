@@ -9,18 +9,16 @@ namespace Tapeti.Transient
 {
     public class TransientRouter
     {
-        private readonly TimeSpan defaultTimeout;
+        private readonly int defaultTimeoutMs;
 
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new ConcurrentDictionary<Guid, TaskCompletionSource<object>>();
 
-        private readonly IInternalPublisher internalPublisher;
 
         public string TransientResponseQueueName { get; set; }
 
-        public TransientRouter(IInternalPublisher internalPublisher, TimeSpan defaultTimeout)
+        public TransientRouter(TimeSpan defaultTimeout)
         {
-            this.internalPublisher = internalPublisher;
-            this.defaultTimeout = defaultTimeout;
+            defaultTimeoutMs = (int)defaultTimeout.TotalMilliseconds;
         }
 
         public void GenericHandleResponse(object response, IMessageContext context)
@@ -35,7 +33,7 @@ namespace Tapeti.Transient
                 tcs.SetResult(response);
         }
 
-        public async Task<object> RequestResponse(object request)
+        public async Task<object> RequestResponse(IPublisher publisher, object request)
         {
             var correlation = Guid.NewGuid();
             var tcs = map.GetOrAdd(correlation, c => new TaskCompletionSource<object>());
@@ -49,7 +47,7 @@ namespace Tapeti.Transient
                     Persistent = false
                 };
 
-                await internalPublisher.Publish(request, properties, false);
+                await ((IInternalPublisher)publisher).Publish(request, properties, false);
             }
             catch (Exception)
             {
@@ -60,7 +58,7 @@ namespace Tapeti.Transient
                 throw;
             }
 
-            using (new Timer(TimeoutResponse, tcs, defaultTimeout, TimeSpan.MaxValue))
+            using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
             {
                 return await tcs.Task;
             }
@@ -68,7 +66,7 @@ namespace Tapeti.Transient
 
         private void TimeoutResponse(object tcs)
         {
-            ((TaskCompletionSource<object>)tcs).SetException(new TimeoutException("Transient RequestResponse timed out at " + defaultTimeout));
+            ((TaskCompletionSource<object>)tcs).SetException(new TimeoutException("Transient RequestResponse timed out at (ms) " + defaultTimeoutMs));
         }
     }
 }

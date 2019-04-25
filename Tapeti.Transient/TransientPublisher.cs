@@ -8,15 +8,17 @@ namespace Tapeti.Transient
     public class TransientPublisher : ITransientPublisher
     {
         private readonly TransientRouter router;
+        private readonly IPublisher publisher;
 
-        public TransientPublisher(TransientRouter router)
+        public TransientPublisher(TransientRouter router, IPublisher publisher)
         {
             this.router = router;
+            this.publisher = publisher;
         }
 
         public async Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request)
         {
-            return (TResponse)(await router.RequestResponse(request));
+            return (TResponse)(await router.RequestResponse(publisher, request));
         }
     }
 }

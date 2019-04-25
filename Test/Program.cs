@@ -7,21 +7,16 @@ using Tapeti.Flow;
 using Tapeti.SimpleInjector;
 using System.Threading;
 using Tapeti.Annotations;
+using Tapeti.Transient;
 
 namespace Test
 {
-    public interface IDummy
-    {
-        [DynamicQueue("test1")]
-        void HandleMessage(PoloConfirmationResponseMessage msg);
-    }
-
     internal class Program
     {
         private static void Main()
         {
             // TODO logging
-            try
+            //try
             {
                 var container = new Container();
                 container.Register<MarcoEmitter>();
@@ -32,8 +27,8 @@ namespace Test
                     //.WithFlowSqlRepository("Server=localhost;Database=TapetiTest;Integrated Security=true")
                     .WithFlow()
                     .WithDataAnnotations()
+                    .WithTransient(TimeSpan.FromSeconds(30))
                     .RegisterAllControllers()
-                    .RegisterController(typeof(IDummy))
                     //.DisablePublisherConfirms() -> you probably never want to do this if you're using Flow or want requeues when a publish fails
                     .Build();
 
@@ -59,23 +54,32 @@ namespace Test
 
                     Console.WriteLine("Done!");
 
-                    connection.GetPublisher().Publish(new FlowEndController.PingMessage());
+                    var response = container.GetInstance<ITransientPublisher>()
+                        .RequestResponse<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(
+                            new PoloConfirmationRequestMessage
+                            {
+                                StoredInState = new Guid("309088d8-9906-4ef3-bc64-56976538d3ab")
+                            }).Result;
+
+                    Console.WriteLine(response.ShouldMatchState);
+
+                    //connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
                     //container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true).Wait();
-                    container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest).Wait();
+                    //container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest).Wait();
 
                     Thread.Sleep(1000);
 
-                    var emitter = container.GetInstance<MarcoEmitter>();
-                    emitter.Run().Wait();
+                    //var emitter = container.GetInstance<MarcoEmitter>();
+                    //emitter.Run().Wait();
 
 
                 }
             }
-            catch (Exception e)
+            //catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
-                Console.ReadKey();
+            //    Console.WriteLine(e.ToString());
+            //    Console.ReadKey();
             }
         }
     }

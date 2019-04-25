@@ -7,17 +7,17 @@ namespace Tapeti.Transient
     public class TransientMiddleware : ITapetiExtension, ITapetiExtentionBinding
     {
         private string dynamicQueuePrefix;
-        private TimeSpan defaultTimeout;
+        private readonly TransientRouter router;
 
         public TransientMiddleware(TimeSpan defaultTimeout, string dynamicQueuePrefix)
         {
             this.dynamicQueuePrefix = dynamicQueuePrefix;
-            this.defaultTimeout = defaultTimeout;
+            this.router = new TransientRouter(defaultTimeout);
         }
 
         public void RegisterDefaults(IDependencyContainer container)
         {
-            container.RegisterDefaultSingleton(() => new TransientRouter(container.Resolve<IInternalPublisher>(), defaultTimeout));
+            container.RegisterDefaultSingleton(router);
             container.RegisterDefault<ITransientPublisher, TransientPublisher>();
         }
 
@@ -28,7 +28,7 @@ namespace Tapeti.Transient
 
         public IEnumerable<ICustomBinding> GetBindings(IDependencyResolver dependencyResolver)
         {
-            yield return new TransientGenericBinding(dependencyResolver.Resolve<TransientRouter>(), dynamicQueuePrefix);
+            yield return new TransientGenericBinding(router, dynamicQueuePrefix);
         }
     }
 }

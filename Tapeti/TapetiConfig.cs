@@ -24,7 +24,9 @@ namespace Tapeti
     {
         private readonly Dictionary<string, List<IBinding>> staticRegistrations = new Dictionary<string, List<IBinding>>();
         private readonly Dictionary<string, Dictionary<Type, List<IBinding>>> dynamicRegistrations = new Dictionary<string, Dictionary<Type, List<IBinding>>>();
+        private readonly List<IBindingQueueInfo> uniqueRegistrations = new List<IBindingQueueInfo>();
 
+        private readonly List<ICustomBinding> customBindings = new List<ICustomBinding>();
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
         private readonly List<ICleanupMiddleware> cleanupMiddleware = new List<ICleanupMiddleware>();
@@ -47,6 +49,8 @@ namespace Tapeti
 
         public IConfig Build()
         {
+            RegisterCustomBindings();
+
             RegisterDefaults();
 
             var queues = new List<IQueue>();
@@ -92,6 +96,9 @@ namespace Tapeti
 
                 queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(prefixGroup.Key) }, bl)));
             }
+
+            queues.AddRange(uniqueRegistrations.Select(b => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(b.QueueInfo.Name) }, new []{b})));
+
 
             var config = new Config(queues)
             {
@@ -144,7 +151,8 @@ namespace Tapeti
 
             var middlewareBundle = extension.GetMiddleware(dependencyResolver);
 
-            (extension as ITapetiExtentionBinding)?.GetBindings(dependencyResolver);
+            if (extension is ITapetiExtentionBinding extentionBindings)
+                customBindings.AddRange(extentionBindings.GetBindings(dependencyResolver));
 
             // ReSharper disable once InvertIf
             if (middlewareBundle != null)
@@ -244,9 +252,9 @@ namespace Tapeti
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
-                    AddDynamicRegistration(context, handlerInfo);
+                    AddDynamicRegistration(handlerInfo);
                 else
-                    AddStaticRegistration(context, handlerInfo);
+                    AddStaticRegistration(handlerInfo);
             }
 
             return this;
@@ -267,6 +275,27 @@ namespace Tapeti
             return RegisterAllControllers(Assembly.GetEntryAssembly());
         }
 
+        private void RegisterCustomBindings()
+        {
+            foreach (var customBinding in customBindings)
+            {
+                // TODO Do we need to configure additional middleware, or does this only get confused if there is no MessageClass
+
+                var binding = new CustomBinding(customBinding);
+                if (binding.QueueInfo.Dynamic == false)
+                {
+                    AddStaticRegistration(binding);
+                }
+                else if (binding.MessageClass != null)
+                {
+                    AddDynamicRegistration(binding);
+                }
+                else
+                {
+                    AddUniqueRegistration(binding);
+                }
+            }
+        }
 
         protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
         {
@@ -362,7 +391,7 @@ namespace Tapeti
         }
 
 
-        protected void AddStaticRegistration(IBindingContext context, IBindingQueueInfo binding)
+        protected void AddStaticRegistration(IBindingQueueInfo binding)
         {
             if (staticRegistrations.ContainsKey(binding.QueueInfo.Name))
             {
@@ -379,7 +408,7 @@ namespace Tapeti
         }
 
 
-        protected void AddDynamicRegistration(IBindingContext context, IBindingQueueInfo binding)
+        protected void AddDynamicRegistration(IBindingQueueInfo binding)
         {
             var prefix = binding.QueueInfo.Name ?? "";
 
@@ -389,15 +418,19 @@ namespace Tapeti
                 dynamicRegistrations.Add(prefix, prefixRegistrations);
             }
 
-            if (!prefixRegistrations.TryGetValue(context.MessageClass, out List<IBinding> bindings))
+            if (!prefixRegistrations.TryGetValue(binding.MessageClass, out List<IBinding> bindings))
             {
                 bindings = new List<IBinding>();
-                prefixRegistrations.Add(context.MessageClass, bindings);
+                prefixRegistrations.Add(binding.MessageClass, bindings);
             }
 
             bindings.Add(binding);
         }
 
+        protected void AddUniqueRegistration(IBindingQueueInfo binding)
+        {
+            uniqueRegistrations.Add(binding);
+        }
 
         protected QueueInfo GetQueueInfo(MemberInfo member)
         {
