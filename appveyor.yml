@@ -20,6 +20,8 @@ after_build:
   - cmd: appveyor PushArtifact "Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.Flow.SQL\Tapeti.Flow.SQL.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: appveyor PushArtifact "Tapeti.Flow.SQL.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: nuget pack Tapeti.Flow\Tapeti.Transient.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.Transient.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
   - cmd: nuget pack Tapeti.Serilog\Tapeti.Serilog.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
