@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Flow.FlowHelpers;
@@ -16,6 +17,7 @@ namespace Tapeti.Flow.Default
         private readonly IFlowRepository repository;
 
         private volatile bool inUse;
+        private volatile bool loaded;
 
         public FlowStore(IFlowRepository repository) 
         {
@@ -40,17 +42,25 @@ namespace Tapeti.Flow.Default
                 foreach (var continuation in flowStateRecord.Value.Continuations)
                     continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
             }
+
+            loaded = true;
         }
 
 
         public Task<Guid?> FindFlowID(Guid continuationID)
         {
+            if (!loaded)
+                throw new InvalidOperationException("Flow store is not yet loaded.");
+
             return Task.FromResult(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
         }
 
 
         public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
+            if (!loaded && Debugger.IsAttached)
+                throw new InvalidOperationException("Flow store should be loaded before storing flows.");
+
             inUse = true;
 
             var flowStatelock = new FlowStateLock(this, flowID, await locks.GetLock(flowID));
