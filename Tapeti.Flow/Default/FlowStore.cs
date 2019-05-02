@@ -58,7 +58,7 @@ namespace Tapeti.Flow.Default
 
         public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
-            if (!loaded && Debugger.IsAttached)
+            if (!loaded)
                 throw new InvalidOperationException("Flow store should be loaded before storing flows.");
 
             inUse = true;
