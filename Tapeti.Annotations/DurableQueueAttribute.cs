@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 namespace Tapeti.Annotations
 {
@@ -13,6 +14,7 @@ namespace Tapeti.Annotations
     /// for deploy-time management of durable queues (shameless plug intended).
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+    [MeansImplicitUse]
     public class DurableQueueAttribute : Attribute
     {
         public string Name { get; set; }
