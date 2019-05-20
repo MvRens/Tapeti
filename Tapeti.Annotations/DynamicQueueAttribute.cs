@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 namespace Tapeti.Annotations
 {
@@ -8,6 +9,7 @@ namespace Tapeti.Annotations
     /// on an entire MessageController class or on individual methods.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+    [MeansImplicitUse]
     public class DynamicQueueAttribute : Attribute
     {
         public string Prefix { get; set; }

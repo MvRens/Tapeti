@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 namespace Tapeti.Annotations
 {
@@ -8,6 +9,7 @@ namespace Tapeti.Annotations
     /// when using the RegisterAllControllers method. It is not required when manually registering a controller.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
+    [MeansImplicitUse]
     public class MessageControllerAttribute : Attribute
     {
     }
