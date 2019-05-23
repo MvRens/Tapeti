@@ -40,7 +40,7 @@ namespace Tapeti.Connection
         private DateTime connectedDateTime;
 
         // These fields must be locked, since the callbacks for BasicAck/BasicReturn can run in a different thread
-        private readonly object confirmLock = new Object();
+        private readonly object confirmLock = new object();
         private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new Dictionary<ulong, ConfirmMessageInfo>();
         private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new Dictionary<string, ReturnInfo>();
 
