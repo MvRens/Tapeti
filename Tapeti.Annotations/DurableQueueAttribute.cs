@@ -14,9 +14,12 @@ namespace Tapeti.Annotations
     /// for deploy-time management of durable queues (shameless plug intended).
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-    [MeansImplicitUse]
+    [MeansImplicitUse(ImplicitUseTargetFlags.WithMembers)]
     public class DurableQueueAttribute : Attribute
     {
+        /// <summary>
+        /// Specifies the name of the durable queue (must already be declared).
+        /// </summary>
         public string Name { get; set; }
 
 

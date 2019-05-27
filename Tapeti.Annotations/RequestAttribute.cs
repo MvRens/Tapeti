@@ -13,6 +13,9 @@ namespace Tapeti.Annotations
     [AttributeUsage(AttributeTargets.Class)]
     public class RequestAttribute : Attribute
     {
+        /// <summary>
+        /// The type of the message class which must be returned as the response.
+        /// </summary>
         public Type Response { get; set; }
     }
 }
