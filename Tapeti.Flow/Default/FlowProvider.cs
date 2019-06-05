@@ -105,9 +105,9 @@ namespace Tapeti.Flow.Default
 
             // TODO disallow if replyto is not specified?
             if (reply.ReplyTo != null)
-                await publisher.PublishDirect(message, reply.ReplyTo, properties, true);
+                await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory);
             else
-                await publisher.Publish(message, properties, true);
+                await publisher.Publish(message, properties, reply.Mandatory);
 
             await context.Delete();
         }
@@ -129,8 +129,8 @@ namespace Tapeti.Flow.Default
                 throw new ArgumentException("responseHandler must be a registered message handler", nameof(responseHandler));
 
             var requestAttribute = request.GetType().GetCustomAttribute<RequestAttribute>();
-            if (requestAttribute?.Response != null && requestAttribute.Response != binding.MessageClass)
-                throw new ArgumentException($"responseHandler must accept message of type {binding.MessageClass}", nameof(responseHandler));
+            if (requestAttribute?.Response != null && !binding.Accept(requestAttribute.Response))
+                throw new ArgumentException($"responseHandler must accept message of type {requestAttribute.Response}", nameof(responseHandler));
 
             var continuationAttribute = binding.Method.GetCustomAttribute<ContinuationAttribute>();
             if (continuationAttribute == null)
@@ -157,7 +157,8 @@ namespace Tapeti.Flow.Default
             {
                 CorrelationId = context.Properties.CorrelationId,
                 ReplyTo = context.Properties.ReplyTo,
-                ResponseTypeName = requestAttribute.Response.FullName
+                ResponseTypeName = requestAttribute.Response.FullName,
+                Mandatory = context.Properties.Persistent
             };
         }
 

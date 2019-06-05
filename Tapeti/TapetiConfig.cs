@@ -22,9 +22,11 @@ namespace Tapeti
 
     public class TapetiConfig
     {
-        private readonly Dictionary<string, List<Binding>> staticRegistrations = new Dictionary<string, List<Binding>>();
-        private readonly Dictionary<string, Dictionary<Type, List<Binding>>> dynamicRegistrations = new Dictionary<string, Dictionary<Type, List<Binding>>>();
+        private readonly Dictionary<string, List<IBinding>> staticRegistrations = new Dictionary<string, List<IBinding>>();
+        private readonly Dictionary<string, Dictionary<Type, List<IBinding>>> dynamicRegistrations = new Dictionary<string, Dictionary<Type, List<IBinding>>>();
+        private readonly List<IBindingQueueInfo> uniqueRegistrations = new List<IBindingQueueInfo>();
 
+        private readonly List<ICustomBinding> customBindings = new List<ICustomBinding>();
         private readonly List<IBindingMiddleware> bindingMiddleware = new List<IBindingMiddleware>();
         private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
         private readonly List<ICleanupMiddleware> cleanupMiddleware = new List<ICleanupMiddleware>();
@@ -47,6 +49,8 @@ namespace Tapeti
 
         public IConfig Build()
         {
+            RegisterCustomBindings();
+
             RegisterDefaults();
 
             var queues = new List<IQueue>();
@@ -79,12 +83,12 @@ namespace Tapeti
             //
             foreach (var prefixGroup in dynamicRegistrations)
             {
-                var dynamicBindings = new List<List<Binding>>();
+                var dynamicBindings = new List<List<IBinding>>();
 
                 foreach (var bindings in prefixGroup.Value.Values)
                 {
                     while (dynamicBindings.Count < bindings.Count)
-                        dynamicBindings.Add(new List<Binding>());
+                        dynamicBindings.Add(new List<IBinding>());
 
                     for (var bindingIndex = 0; bindingIndex < bindings.Count; bindingIndex++)
                         dynamicBindings[bindingIndex].Add(bindings[bindingIndex]);
@@ -92,6 +96,9 @@ namespace Tapeti
 
                 queues.AddRange(dynamicBindings.Select(bl => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(prefixGroup.Key) }, bl)));
             }
+
+            queues.AddRange(uniqueRegistrations.Select(b => new Queue(new QueueInfo { Dynamic = true, Name = GetDynamicQueueName(b.QueueInfo.Name) }, new []{b})));
+
 
             var config = new Config(queues)
             {
@@ -143,6 +150,9 @@ namespace Tapeti
                 extension.RegisterDefaults(container);
 
             var middlewareBundle = extension.GetMiddleware(dependencyResolver);
+
+            if (extension is ITapetiExtentionBinding extentionBindings)
+                customBindings.AddRange(extentionBindings.GetBindings(dependencyResolver));
 
             // ReSharper disable once InvertIf
             if (middlewareBundle != null)
@@ -212,7 +222,8 @@ namespace Tapeti
         {
             var controllerQueueInfo = GetQueueInfo(controller);
 
-            (dependencyResolver as IDependencyContainer)?.RegisterController(controller);
+            if (!controller.IsInterface)
+                (dependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
             foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
@@ -241,9 +252,9 @@ namespace Tapeti
                 };
 
                 if (methodQueueInfo.Dynamic.GetValueOrDefault())
-                    AddDynamicRegistration(context, handlerInfo);
+                    AddDynamicRegistration(handlerInfo);
                 else
-                    AddStaticRegistration(context, handlerInfo);
+                    AddStaticRegistration(handlerInfo);
             }
 
             return this;
@@ -264,6 +275,27 @@ namespace Tapeti
             return RegisterAllControllers(Assembly.GetEntryAssembly());
         }
 
+        private void RegisterCustomBindings()
+        {
+            foreach (var customBinding in customBindings)
+            {
+                // TODO Do we need to configure additional middleware, or does this only get confused if there is no MessageClass
+
+                var binding = new CustomBinding(customBinding);
+                if (binding.QueueInfo.Dynamic == false)
+                {
+                    AddStaticRegistration(binding);
+                }
+                else if (binding.MessageClass != null)
+                {
+                    AddDynamicRegistration(binding);
+                }
+                else
+                {
+                    AddUniqueRegistration(binding);
+                }
+            }
+        }
 
         protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
         {
@@ -359,7 +391,7 @@ namespace Tapeti
         }
 
 
-        protected void AddStaticRegistration(IBindingContext context, Binding binding)
+        protected void AddStaticRegistration(IBindingQueueInfo binding)
         {
             if (staticRegistrations.ContainsKey(binding.QueueInfo.Name))
             {
@@ -372,29 +404,33 @@ namespace Tapeti
                 existing.Add(binding);
             }
             else
-                staticRegistrations.Add(binding.QueueInfo.Name, new List<Binding> { binding });
+                staticRegistrations.Add(binding.QueueInfo.Name, new List<IBinding> { binding });
         }
 
 
-        protected void AddDynamicRegistration(IBindingContext context, Binding binding)
+        protected void AddDynamicRegistration(IBindingQueueInfo binding)
         {
             var prefix = binding.QueueInfo.Name ?? "";
 
-            if (!dynamicRegistrations.TryGetValue(prefix, out Dictionary<Type, List<Binding>> prefixRegistrations))
+            if (!dynamicRegistrations.TryGetValue(prefix, out Dictionary<Type, List<IBinding>> prefixRegistrations))
             {
-                prefixRegistrations = new Dictionary<Type, List<Binding>>();
+                prefixRegistrations = new Dictionary<Type, List<IBinding>>();
                 dynamicRegistrations.Add(prefix, prefixRegistrations);
             }
 
-            if (!prefixRegistrations.TryGetValue(context.MessageClass, out List<Binding> bindings))
+            if (!prefixRegistrations.TryGetValue(binding.MessageClass, out List<IBinding> bindings))
             {
-                bindings = new List<Binding>();
-                prefixRegistrations.Add(context.MessageClass, bindings);
+                bindings = new List<IBinding>();
+                prefixRegistrations.Add(binding.MessageClass, bindings);
             }
 
             bindings.Add(binding);
         }
 
+        protected void AddUniqueRegistration(IBindingQueueInfo binding)
+        {
+            uniqueRegistrations.Add(binding);
+        }
 
         protected QueueInfo GetQueueInfo(MemberInfo member)
         {
@@ -491,8 +527,12 @@ namespace Tapeti
             }
         }
 
+        protected interface IBindingQueueInfo : IBuildBinding
+        {
+            QueueInfo QueueInfo { get; }
+        }
 
-        protected class Binding : IBuildBinding
+        protected class Binding : IBindingQueueInfo
         {
             public Type Controller { get; set; }
             public MethodInfo Method { get; set; }
@@ -523,6 +563,11 @@ namespace Tapeti
             }
 
 
+            public bool Accept(Type messageClass)
+            {
+                return MessageClass.IsAssignableFrom(messageClass);
+            }
+
             public bool Accept(IMessageContext context, object message)
             {
                 return message.GetType() == MessageClass;
@@ -535,6 +580,69 @@ namespace Tapeti
             }
         }
 
+
+        protected class CustomBinding : IBindingQueueInfo
+        {
+            private readonly ICustomBinding inner;
+
+            public CustomBinding(ICustomBinding inner)
+            {
+                this.inner = inner;
+
+                // Copy all variables to make them guaranteed readonly.
+                Controller = inner.Controller;
+                Method = inner.Method;
+                QueueBindingMode = inner.QueueBindingMode;
+                MessageClass = inner.MessageClass;
+
+                QueueInfo = inner.StaticQueueName != null
+                    ? new QueueInfo()
+                    {
+                        Dynamic = false,
+                        Name = inner.StaticQueueName
+                    }
+                    : new QueueInfo()
+                    {
+                        Dynamic = true,
+                        Name = inner.DynamicQueuePrefix
+                    };
+
+                // Custom bindings cannot have other middleware messing with the binding.
+                MessageFilterMiddleware = new IMessageFilterMiddleware[0];
+                MessageMiddleware = new IMessageMiddleware[0];
+            }
+
+            public Type Controller { get; }
+            public MethodInfo Method { get; }
+            public string QueueName { get; private set; }
+            public QueueBindingMode QueueBindingMode { get; set; }
+            public IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; }
+            public IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
+
+            public bool Accept(Type messageClass)
+            {
+                return inner.Accept(messageClass);
+            }
+
+            public bool Accept(IMessageContext context, object message)
+            {
+                return inner.Accept(context, message);
+            }
+
+            public Task Invoke(IMessageContext context, object message)
+            {
+                return inner.Invoke(context, message);
+            }
+
+            public void SetQueueName(string queueName)
+            {
+                QueueName = queueName;
+                inner.SetQueueName(queueName);
+            }
+
+            public Type MessageClass { get; }
+            public QueueInfo QueueInfo { get; }
+        }
 
         internal interface IBindingParameterAccess
         {

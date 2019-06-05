@@ -9,7 +9,7 @@ namespace Tapeti.Annotations
     /// when using the RegisterAllControllers method. It is not required when manually registering a controller.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
-    [MeansImplicitUse]
+    [MeansImplicitUse(ImplicitUseTargetFlags.WithMembers)]
     public class MessageControllerAttribute : Attribute
     {
     }

@@ -46,6 +46,7 @@ namespace Tapeti.Config
         IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; }
         IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
 
+        bool Accept(Type messageClass);
         bool Accept(IMessageContext context, object message);
         Task Invoke(IMessageContext context, object message);
     }

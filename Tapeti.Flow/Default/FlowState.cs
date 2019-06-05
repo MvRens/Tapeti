@@ -57,6 +57,8 @@ namespace Tapeti.Flow.Default
         public string CorrelationId { get; set; }
         public string ResponseTypeName { get; set; }
 
+        public bool Mandatory { get; set; }
+
 
         public ReplyMetadata Clone()
         {
@@ -64,7 +66,8 @@ namespace Tapeti.Flow.Default
             {
                 ReplyTo = ReplyTo,
                 CorrelationId = CorrelationId,
-                ResponseTypeName = ResponseTypeName
+                ResponseTypeName = ResponseTypeName,
+                Mandatory = Mandatory
             };
         }
     }
