@@ -21,7 +21,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Tests", "Tapeti.Test
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Serilog", "Tapeti.Serilog\Tapeti.Serilog.csproj", "{43AA5DF3-49D5-4795-A290-D6511502B564}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Transient", "Tapeti.Transient\Tapeti.Transient.csproj", "{A6355E63-19AB-47EA-91FA-49B5E9B41F88}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Transient", "Tapeti.Transient\Tapeti.Transient.csproj", "{A6355E63-19AB-47EA-91FA-49B5E9B41F88}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.DataAnnotations.Extensions", "Tapeti.DataAnnotations.Extensions\Tapeti.DataAnnotations.Extensions.csproj", "{1AAA5A2C-EAA8-4C49-96A6-673EA1EEE831}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +71,10 @@ Global
 		{A6355E63-19AB-47EA-91FA-49B5E9B41F88}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6355E63-19AB-47EA-91FA-49B5E9B41F88}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6355E63-19AB-47EA-91FA-49B5E9B41F88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AAA5A2C-EAA8-4C49-96A6-673EA1EEE831}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AAA5A2C-EAA8-4C49-96A6-673EA1EEE831}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AAA5A2C-EAA8-4C49-96A6-673EA1EEE831}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AAA5A2C-EAA8-4C49-96A6-673EA1EEE831}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
