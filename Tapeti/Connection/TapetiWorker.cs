@@ -34,6 +34,7 @@ namespace Tapeti.Connection
         
         // These fields are for use in the taskQueue only!
         private RabbitMQ.Client.IConnection connection;
+        private bool isClosing;
         private bool isReconnect;
         private IModel channelInstance;
         private ulong lastDeliveryTag;
@@ -173,6 +174,8 @@ namespace Tapeti.Connection
 
             return taskQueue.Value.Add(() =>
             {
+                isClosing = true;
+
                 if (channelInstance != null)
                 {
                     channelInstance.Dispose();
@@ -371,6 +374,9 @@ namespace Tapeti.Connection
                         });
 
                         channelInstance = null;
+
+                        if (!isClosing)
+                            taskQueue.Value.Add(() => WithRetryableChannel(channel => { }));
                     };
 
                     channelInstance.BasicReturn += HandleBasicReturn;
