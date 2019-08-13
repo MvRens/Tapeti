@@ -4,14 +4,20 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    public class DependencyResolverBinding : IBindingMiddleware
+    /// <inheritdoc />
+    /// <summary>
+    /// Attempts to resolve any unhandled parameters to Controller methods using the IoC container.
+    /// This middleware is included by default in the standard TapetiConfig.
+    /// </summary>
+    public class DependencyResolverBinding : IControllerBindingMiddleware
     {
-        public void Handle(IBindingContext context, Action next)
+        /// <inheritdoc />
+        public void Handle(IControllerBindingContext context, Action next)
         {
             next();
 
             foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType.IsClass))
-                parameter.SetBinding(messageContext => messageContext.DependencyResolver.Resolve(parameter.Info.ParameterType));
+                parameter.SetBinding(messageContext => messageContext.Config.DependencyResolver.Resolve(parameter.Info.ParameterType));
         }
     }
 }

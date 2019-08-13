@@ -6,7 +6,7 @@ namespace Tapeti.Flow.Default
 {
     internal class FlowContext : IDisposable
     {
-        public IMessageContext MessageContext { get; set; }
+        public IControllerMessageContext MessageContext { get; set; }
         public IFlowStateLock FlowStateLock { get; set; }
         public FlowState FlowState { get; set; }
 

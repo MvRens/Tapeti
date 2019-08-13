@@ -2,7 +2,7 @@
 using Tapeti.Default;
 using Xunit;
 
-namespace Tapeti.Tests
+namespace Tapeti.Tests.Default
 {
     // ReSharper disable InconsistentNaming
     public class TypeNameRoutingKeyStrategyTests

@@ -9,11 +9,11 @@ namespace Tapeti.Flow.Default
 {
     public class FlowStarter : IFlowStarter
     {
-        private readonly IConfig config;
+        private readonly ITapetiConfig config;
         private readonly ILogger logger;
 
 
-        public FlowStarter(IConfig config, ILogger logger)
+        public FlowStarter(ITapetiConfig config, ILogger logger)
         {
             this.config = config;
             this.logger = logger;
@@ -47,9 +47,9 @@ namespace Tapeti.Flow.Default
             var controller = config.DependencyResolver.Resolve<TController>();
             var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
 
-            var context = new MessageContext
+            var context = new ControllerMessageContext
             {
-                DependencyResolver = config.DependencyResolver,
+                Config = config,
                 Controller = controller
             };
 
@@ -72,6 +72,7 @@ namespace Tapeti.Flow.Default
 
         private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
         {
+            /*
             foreach (var handler in config.CleanupMiddleware)
             {
                 try
@@ -83,6 +84,7 @@ namespace Tapeti.Flow.Default
                     logger.HandlerException(eCleanup);
                 }
             }
+            */
         }
 
 

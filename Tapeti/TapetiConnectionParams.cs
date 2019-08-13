@@ -4,12 +4,34 @@
 
 namespace Tapeti
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class TapetiConnectionParams
     {
+        /// <summary>
+        /// The hostname to connect to. Defaults to localhost.
+        /// </summary>
         public string HostName { get; set; } = "localhost";
+
+        /// <summary>
+        /// The port to connect to. Defaults to 5672.
+        /// </summary>
         public int Port { get; set; } = 5672;
+
+        /// <summary>
+        /// The virtual host in RabbitMQ. Defaults to /.
+        /// </summary>
         public string VirtualHost { get; set; } = "/";
+
+        /// <summary>
+        /// The username to authenticate with. Defaults to guest.
+        /// </summary>
         public string Username { get; set; } = "guest";
+
+        /// <summary>
+        /// The password to authenticate with. Defaults to guest.
+        /// </summary>
         public string Password { get; set; } = "guest";
 
         /// <summary>
@@ -20,10 +42,17 @@ namespace Tapeti
         public ushort PrefetchCount { get; set; } = 50;
 
 
+        /// <inheritdoc />
         public TapetiConnectionParams()
         {            
         }
 
+        /// <summary>
+        /// Construct a new TapetiConnectionParams instance based on standard URI syntax.
+        /// </summary>
+        /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname/"))</example>
+        /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname:5672/virtualHost"))</example>
+        /// <param name="uri"></param>
         public TapetiConnectionParams(Uri uri)
         {
             HostName = uri.Host;

@@ -1,46 +1,68 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Connection;
 
 // ReSharper disable UnusedMember.Global
 
+// TODO more separation from the actual worker / RabbitMQ Client for unit testing purposes
+
 namespace Tapeti
 {
-    public delegate void DisconnectedEventHandler(object sender, DisconnectedEventArgs e);
-
-    public class TapetiConnection : IDisposable
+    /// <inheritdoc />
+    /// <summary>
+    /// Creates a connection to RabbitMQ based on the provided Tapeti config.
+    /// </summary>
+    public class TapetiConnection : IConnection
     {
-        private readonly IConfig config;
+        private readonly ITapetiConfig config;
+
+        /// <summary>
+        /// Specifies the hostname and credentials to use when connecting to RabbitMQ.
+        /// Defaults to guest on localhost.
+        /// </summary>
+        /// <remarks>
+        /// This property must be set before first subscribing or publishing, otherwise it
+        /// will use the default connection parameters.
+        /// </remarks>
         public TapetiConnectionParams Params { get; set; }
 
-        private readonly Lazy<TapetiWorker> worker;
+        private readonly Lazy<TapetiClient> client;
         private TapetiSubscriber subscriber;
 
-        public TapetiConnection(IConfig config)
+        /// <summary>
+        /// Creates a new instance of a TapetiConnection and registers a default IPublisher
+        /// in the IoC container as provided in the config.
+        /// </summary>
+        /// <param name="config"></param>
+        public TapetiConnection(ITapetiConfig config)
         {
             this.config = config;
             (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
-            worker = new Lazy<TapetiWorker>(() => new TapetiWorker(config)
+            client = new Lazy<TapetiClient>(() => new TapetiClient(config, Params ?? new TapetiConnectionParams())
             {
-                ConnectionParams = Params ?? new TapetiConnectionParams(),
                 ConnectionEventListener = new ConnectionEventListener(this)
             });
         }
 
+        /// <inheritdoc />
         public event EventHandler Connected;
+
+        /// <inheritdoc />
         public event DisconnectedEventHandler Disconnected;
+
+        /// <inheritdoc />
         public event EventHandler Reconnected;
 
 
+        /// <inheritdoc />
         public async Task<ISubscriber> Subscribe(bool startConsuming = true)
         {
             if (subscriber == null)
             {
-                subscriber = new TapetiSubscriber(() => worker.Value, config.Queues.ToList());
-                await subscriber.BindQueues();
+                subscriber = new TapetiSubscriber(() => client.Value, config);
+                await subscriber.ApplyBindings();
             }
 
             if (startConsuming)
@@ -50,29 +72,34 @@ namespace Tapeti
         }
 
 
+        /// <inheritdoc />
         public ISubscriber SubscribeSync(bool startConsuming = true)
         {
             return Subscribe(startConsuming).Result;
         }
 
 
+        /// <inheritdoc />
         public IPublisher GetPublisher()
         {
-            return new TapetiPublisher(() => worker.Value);
+            return new TapetiPublisher(config, () => client.Value);
         }
 
 
+        /// <inheritdoc />
         public async Task Close()
         {
-            if (worker.IsValueCreated)
-                await worker.Value.Close();
+            if (client.IsValueCreated)
+                await client.Value.Close();
         }
 
 
+        /// <inheritdoc />
         public void Dispose()
         {
             Close().Wait();
         }
+
 
         private class ConnectionEventListener: IConnectionEventListener
         {
@@ -99,25 +126,47 @@ namespace Tapeti
             }
         }
 
+
+        /// <summary>
+        /// Called when a connection to RabbitMQ has been established.
+        /// </summary>
         protected virtual void OnConnected(EventArgs e)
         {
-            Task.Run(() => Connected?.Invoke(this, e));
+            var connectedEvent = Connected;
+            if (connectedEvent == null)
+                return;
+
+            Task.Run(() => connectedEvent.Invoke(this, e));
         }
 
+        /// <summary>
+        /// Called when the connection to RabbitMQ has been lost.
+        /// </summary>
         protected virtual void OnReconnected(EventArgs e)
         {
+            var reconnectedEvent = Reconnected;
+            if (reconnectedEvent == null)
+                return;
+
             Task.Run(() =>
             {
-                subscriber?.RebindQueues().ContinueWith((t) =>
+                subscriber?.ApplyBindings().ContinueWith((t) =>
                 {
-                    Reconnected?.Invoke(this, e);
+                    reconnectedEvent.Invoke(this, e);
                 });
             });
         }
 
+        /// <summary>
+        /// Called when the connection to RabbitMQ has been recovered after an unexpected disconnect.
+        /// </summary>
         protected virtual void OnDisconnected(DisconnectedEventArgs e)
         {
-            Task.Run(() => Disconnected?.Invoke(this, e));
+            var disconnectedEvent = Disconnected;
+            if (disconnectedEvent == null)
+                return;
+
+            Task.Run(() => disconnectedEvent.Invoke(this, e));
         }
     }
 }

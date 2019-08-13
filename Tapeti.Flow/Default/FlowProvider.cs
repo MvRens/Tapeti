@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using RabbitMQ.Client.Framing;
 using Tapeti.Annotations;
 using Tapeti.Config;
+using Tapeti.Default;
 using Tapeti.Flow.Annotations;
 using Tapeti.Flow.FlowHelpers;
 
@@ -14,11 +14,11 @@ namespace Tapeti.Flow.Default
 {
     public class FlowProvider : IFlowProvider, IFlowHandler
     {
-        private readonly IConfig config;
+        private readonly ITapetiConfig config;
         private readonly IInternalPublisher publisher;
 
 
-        public FlowProvider(IConfig config, IPublisher publisher)
+        public FlowProvider(ITapetiConfig config, IPublisher publisher)
         {
             this.config = config;
             this.publisher = (IInternalPublisher)publisher;
@@ -72,7 +72,7 @@ namespace Tapeti.Flow.Default
                     ConvergeMethodSync = convergeMethodTaskSync
                 });
 
-            var properties = new BasicProperties
+            var properties = new MessageProperties
             {
                 CorrelationId = continuationID.ToString(),
                 ReplyTo = responseHandlerInfo.ReplyToQueue
@@ -96,12 +96,10 @@ namespace Tapeti.Flow.Default
             if (message.GetType().FullName != reply.ResponseTypeName)
                 throw new YieldPointException($"Flow must end with a response message of type {reply.ResponseTypeName}, {message.GetType().FullName} was returned instead");
 
-            var properties = new BasicProperties();
-
-            // Only set the property if it's not null, otherwise a string reference exception can occur:
-            // http://rabbitmq.1065348.n5.nabble.com/SocketException-when-invoking-model-BasicPublish-td36330.html
-            if (reply.CorrelationId != null)
-                properties.CorrelationId = reply.CorrelationId;
+            var properties = new MessageProperties
+            {
+                CorrelationId = reply.CorrelationId
+            };
 
             // TODO disallow if replyto is not specified?
             if (reply.ReplyTo != null)
@@ -122,9 +120,9 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static ResponseHandlerInfo GetResponseHandlerInfo(IConfig config, object request, Delegate responseHandler)
+        private static ResponseHandlerInfo GetResponseHandlerInfo(ITapetiConfig config, object request, Delegate responseHandler)
         {
-            var binding = config.GetBinding(responseHandler);
+            var binding = config.Bindings.ForMethod(responseHandler);
             if (binding == null)
                 throw new ArgumentException("responseHandler must be a registered message handler", nameof(responseHandler));
 
@@ -158,13 +156,13 @@ namespace Tapeti.Flow.Default
                 CorrelationId = context.Properties.CorrelationId,
                 ReplyTo = context.Properties.ReplyTo,
                 ResponseTypeName = requestAttribute.Response.FullName,
-                Mandatory = context.Properties.Persistent
+                Mandatory = context.Properties.Persistent.GetValueOrDefault(true)
             };
         }
 
-        private async Task CreateNewFlowState(FlowContext flowContext)
+        private static async Task CreateNewFlowState(FlowContext flowContext)
         {
-            var flowStore = flowContext.MessageContext.DependencyResolver.Resolve<IFlowStore>();
+            var flowStore = flowContext.MessageContext.Config.DependencyResolver.Resolve<IFlowStore>();
 
             var flowID = Guid.NewGuid();
             flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
@@ -181,25 +179,20 @@ namespace Tapeti.Flow.Default
             };
         }
 
-        public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
+        public async Task Execute(IControllerMessageContext context, IYieldPoint yieldPoint)
         {
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Binding.Method.Name}");
 
-            FlowContext flowContext;
-
-            if (!context.Items.TryGetValue(ContextItems.FlowContext, out var flowContextItem))
+            if (!context.Get(ContextItems.FlowContext, out FlowContext flowContext))
             {
                 flowContext = new FlowContext
                 {
                     MessageContext = context
                 };
 
-                context.Items.Add(ContextItems.FlowContext, flowContext);
+                context.Store(ContextItems.FlowContext, flowContext);
             }
-            else
-                flowContext = (FlowContext)flowContextItem;
-
 
             try
             {
@@ -234,12 +227,12 @@ namespace Tapeti.Flow.Default
             }
 
 
-            private readonly IConfig config;
+            private readonly ITapetiConfig config;
             private readonly SendRequestFunc sendRequest;
             private readonly List<RequestInfo> requests = new List<RequestInfo>();
 
 
-            public ParallelRequestBuilder(IConfig config, SendRequestFunc sendRequest)
+            public ParallelRequestBuilder(ITapetiConfig config, SendRequestFunc sendRequest)
             {
                 this.config = config;
                 this.sendRequest = sendRequest;

@@ -2,6 +2,10 @@
 
 namespace Tapeti.Helpers
 {
+    /// <summary>
+    /// Helper class to construct a TapetiConnectionParams instance based on the
+    /// ConnectionString syntax as used by EasyNetQ.
+    /// </summary>
     public class ConnectionStringParser
     {
         private readonly TapetiConnectionParams result = new TapetiConnectionParams();
@@ -10,6 +14,10 @@ namespace Tapeti.Helpers
         private int pos = -1;
         private char current = '\0';
 
+        /// <summary>
+        /// Parses an EasyNetQ-compatible ConnectionString into a TapetiConnectionParams instance.
+        /// </summary>
+        /// <param name="connectionstring"></param>
         public static TapetiConnectionParams Parse(string connectionstring)
         {
             return new ConnectionStringParser(connectionstring).result;
@@ -106,7 +114,9 @@ namespace Tapeti.Helpers
 
         private void SetValue(string key, string value)
         {
-            switch (key.ToLowerInvariant()) {
+            // ReSharper disable once SwitchStatementMissingSomeCases - by design, don't fail on unknown properties
+            switch (key.ToLowerInvariant()) 
+            {
                 case "hostname": result.HostName = value; break;
                 case "port": result.Port = int.Parse(value); break;
                 case "virtualhost": result.VirtualHost = value; break;

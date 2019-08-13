@@ -38,7 +38,7 @@ namespace Tapeti.Flow
     /// </summary>
     public interface IFlowHandler
     {
-        Task Execute(IMessageContext context, IYieldPoint yieldPoint);
+        Task Execute(IControllerMessageContext context, IYieldPoint yieldPoint);
     }
 
     public interface IFlowParallelRequestBuilder

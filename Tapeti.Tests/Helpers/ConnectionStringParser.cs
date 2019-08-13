@@ -1,9 +1,8 @@
 ﻿using Tapeti.Helpers;
 using Xunit;
 
-namespace Tapeti.Tests
+namespace Tapeti.Tests.Helpers
 {
-    // ReSharper disable InconsistentNaming
     public class ConnectionStringParserTest
     {
         [Fact]

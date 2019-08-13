@@ -25,7 +25,6 @@ namespace Tapeti.Flow
         public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
         {
             yield return new FlowBindingMiddleware();
-            yield return new FlowCleanupMiddleware();
         }
     }
 }
