@@ -15,9 +15,6 @@ namespace Tapeti.Flow.Default
             if (context.Method.GetCustomAttribute<StartAttribute>() != null)
                 return;
 
-            if (context.Method.GetCustomAttribute<ContinuationAttribute>() != null)
-                context.SetBindingTargetMode(BindingTargetMode.Direct);
-
             RegisterYieldPointResult(context);
             RegisterContinuationFilter(context);
 
@@ -33,7 +30,8 @@ namespace Tapeti.Flow.Default
             if (continuationAttribute == null)
                 return;
 
-            context.Use(new FlowMiddleware());
+            context.SetBindingTargetMode(BindingTargetMode.Direct);
+            context.Use(new FlowContinuationMiddleware());
 
             if (context.Result.HasHandler)
                 return;

@@ -18,6 +18,8 @@ namespace Test
             this.flowProvider = flowProvider;
         }
 
+
+        [Start]
         public IYieldPoint StartFlow(PingMessage message)
         {
             Console.WriteLine("PingMessage received, calling flowProvider.End() directly");

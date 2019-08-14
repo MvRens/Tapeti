@@ -97,7 +97,8 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task Publish(byte[] body, IMessageProperties properties, string exchange, string routingKey, bool mandatory)
         {
-            var publishProperties = new RabbitMQMessageProperties(new BasicProperties(), properties);
+            if (string.IsNullOrEmpty(routingKey))
+                throw new ArgumentNullException(nameof(routingKey));
 
             await taskQueue.Value.Add(async () =>
             {
@@ -131,7 +132,18 @@ namespace Tapeti.Connection
                     else
                         mandatory = false;
 
-                    channel.BasicPublish(exchange, routingKey, mandatory, publishProperties.BasicProperties, body);
+                    try
+                    {
+                        var publishProperties = new RabbitMQMessageProperties(channel.CreateBasicProperties(), properties);
+                        channel.BasicPublish(exchange ?? "", routingKey, mandatory, publishProperties.BasicProperties, body);
+                    }
+                    catch
+                    {
+                        messageInfo.CompletionSource.SetCanceled();
+                        publishResultTask = null;
+
+                        throw;
+                    }
                 });
 
 

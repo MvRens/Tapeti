@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using Tapeti.Config;
 using Tapeti.Default;
 using System.Threading.Tasks;
@@ -56,9 +55,6 @@ namespace Tapeti.Connection
             }
             catch (Exception dispatchException)
             {
-                // TODO check if this is still necessary:
-                // var exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
-
                 using (var emptyContext = new MessageContext
                 {
                     Config = config,
@@ -119,15 +115,18 @@ namespace Tapeti.Connection
                 try
                 {
                     await MiddlewareHelper.GoAsync(config.Middleware.Message,
-                        (handler, next) => handler.Handle(context, next),
+                        async (handler, next) => await handler.Handle(context, next),
                         async () => { await binding.Invoke(context); });
 
+                    await binding.Cleanup(context, ConsumeResult.Success);
                     return ConsumeResult.Success;
                 }
                 catch (Exception invokeException)
                 {
                     var exceptionContext = new ExceptionStrategyContext(context, invokeException);
                     HandleException(exceptionContext);
+
+                    await binding.Cleanup(context, exceptionContext.ConsumeResult);
                     return exceptionContext.ConsumeResult;
                 }
             }

@@ -107,7 +107,7 @@ namespace Tapeti.Config
         IDependencyResolver DependencyResolver { get; }
 
         /// <summary>
-        /// Applies the currently registered binding middleware to 
+        /// Applies the currently registered binding middleware to the specified context.
         /// </summary>
         /// <param name="context"></param>
         /// <param name="lastHandler"></param>

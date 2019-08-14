@@ -6,11 +6,11 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
-    public class FlowMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
+    public class FlowContinuationMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
     {
         public async Task Filter(IControllerMessageContext context, Func<Task> next)
         {
-            var flowContext = await CreateFlowContext(context);
+            var flowContext = await EnrichWithFlowContext(context);
             if (flowContext?.ContinuationMetadata == null)
                 return;
 
@@ -44,7 +44,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Cleanup(IControllerMessageContext context, ConsumeResult consumeResult, Func<Task> next)
+        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next)
         {
             await next();
 
@@ -62,7 +62,7 @@ namespace Tapeti.Flow.Default
 
 
 
-        private static async Task<FlowContext> CreateFlowContext(IControllerMessageContext context)
+        private static async Task<FlowContext> EnrichWithFlowContext(IControllerMessageContext context)
         {
             if (context.Get(ContextItems.FlowContext, out FlowContext flowContext))
                 return flowContext;

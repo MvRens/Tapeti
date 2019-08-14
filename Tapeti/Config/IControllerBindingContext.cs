@@ -43,9 +43,15 @@ namespace Tapeti.Config
     public interface IControllerBindingContext
     {
         /// <summary>
-        /// The message class for this method.
+        /// The message class for this method. Can be null if not yet set by the default MessageBinding or other middleware.
+        /// If required, call next first to ensure it is available.
         /// </summary>
         Type MessageClass { get; }
+
+        /// <summary>
+        /// Determines if SetMessageClass has already been called.
+        /// </summary>
+        bool HasMessageClass { get; }
 
         /// <summary>
         /// The controller class for this binding.
@@ -69,7 +75,7 @@ namespace Tapeti.Config
 
 
         /// <summary>
-        /// Sets the message class for this method. Can only be called once, which is always done first by the default MessageBinding.
+        /// Sets the message class for this method. Can only be called once, which is normally done by the default MessageBinding.
         /// </summary>
         /// <param name="messageClass"></param>
         void SetMessageClass(Type messageClass);

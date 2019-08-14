@@ -3,11 +3,10 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Denotes middleware that runs after controller methods.
     /// </summary>
-    public interface IControllerCleanupMiddleware : IControllerMiddlewareBase
+    public interface IControllerCleanupMiddleware
     {
         /// <summary>
         /// Called after the message handler method, even if exceptions occured.
@@ -15,6 +14,6 @@ namespace Tapeti.Config
         /// <param name="context"></param>
         /// <param name="consumeResult"></param>
         /// <param name="next">Always call to allow the next in the chain to clean up</param>
-        Task Cleanup(IControllerMessageContext context, ConsumeResult consumeResult, Func<Task> next);
+        Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next);
     }
 }

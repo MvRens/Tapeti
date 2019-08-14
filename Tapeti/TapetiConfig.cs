@@ -32,6 +32,12 @@ namespace Tapeti
         public TapetiConfig(IDependencyResolver dependencyResolver)
         {
             config = new Config(dependencyResolver);
+
+            Use(new DependencyResolverBinding());
+            Use(new PublishResultBinding());
+
+            // Registered last so it runs first and the MessageClass is known to other middleware
+            Use(new MessageBinding());
         }
 
 
@@ -40,12 +46,6 @@ namespace Tapeti
         {
             if (config == null)
                 throw new InvalidOperationException("TapetiConfig.Build must only be called once");
-
-            Use(new DependencyResolverBinding());
-            Use(new PublishResultBinding());
-
-            // Registered last so it runs first and the MessageClass is known to other middleware
-            Use(new MessageBinding());
 
             RegisterDefaults();
             (config.DependencyResolver as IDependencyContainer)?.RegisterDefaultSingleton<ITapetiConfig>(config);
@@ -201,7 +201,7 @@ namespace Tapeti
             if (config == null)
                 throw new InvalidOperationException("TapetiConfig can not be updated after Build");
 
-            return null;
+            return config;
         }
 
 
@@ -308,130 +308,4 @@ namespace Tapeti
             }
         }
     }
-
-
-    /*
-    public delegate Task MessageHandlerFunc(IMessageContext context, object message);
-
-
-        protected MessageHandlerFunc GetMessageHandler(IBindingContext context, MethodInfo method)
-        {
-            var allowBinding= false;
-
-            MiddlewareHelper.Go(bindingMiddleware, 
-                (handler, next) => handler.Handle(context, next),
-                () =>
-                {
-                    allowBinding = true;
-                });
-
-            if (!allowBinding)
-                return null;
-
-            if (context.MessageClass == null)
-                throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} does not resolve to a message class");
-
-
-            var invalidBindings = context.Parameters.Where(p => !p.HasBinding).ToList();
-
-            // ReSharper disable once InvertIf
-            if (invalidBindings.Count > 0)
-            {
-                var parameterNames = string.Join(", ", invalidBindings.Select(p => p.Info.Name));
-                throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} has unknown parameters: {parameterNames}");
-            }
-
-            var resultHandler = ((IBindingResultAccess) context.Result).GetHandler();
-
-            return WrapMethod(method, context.Parameters.Select(p => ((IBindingParameterAccess)p).GetBinding()), resultHandler);
-        }
-
-
-        protected MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameters, ResultHandler resultHandler)
-        {
-            if (resultHandler != null)
-                return WrapResultHandlerMethod(method, parameters, resultHandler);
-
-            if (method.ReturnType == typeof(void))
-                return WrapNullMethod(method, parameters);
-
-            if (method.ReturnType == typeof(Task))
-                return WrapTaskMethod(method, parameters);
-
-            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
-                return WrapGenericTaskMethod(method, parameters);
-
-            return WrapObjectMethod(method, parameters);
-        }
-
-
-        protected MessageHandlerFunc WrapResultHandlerMethod(MethodInfo method, IEnumerable<ValueFactory> parameters, ResultHandler resultHandler)
-        {
-            return (context, message) =>
-            {
-                var result = method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-                return resultHandler(context, result);
-            };
-        }
-
-        protected MessageHandlerFunc WrapNullMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
-        {
-            return (context, message) =>
-            {
-                method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-                return Task.CompletedTask;
-            };
-        }
-
-
-        protected MessageHandlerFunc WrapTaskMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
-        {
-            return (context, message) => (Task)method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-        }
-
-
-        protected MessageHandlerFunc WrapGenericTaskMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
-        {
-            return (context, message) =>
-            {
-                return (Task<object>)method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray());
-            };
-        }
-
-
-        protected MessageHandlerFunc WrapObjectMethod(MethodInfo method, IEnumerable<ValueFactory> parameters)
-        {
-            return (context, message) =>
-            {
-                return Task.FromResult(method.Invoke(context.Controller, parameters.Select(p => p(context)).ToArray()));
-            };
-        }
-
-
-        protected void AddStaticRegistration(IBindingQueueInfo binding)
-        {
-            if (staticRegistrations.ContainsKey(binding.QueueInfo.Name))
-            {
-                var existing = staticRegistrations[binding.QueueInfo.Name];
-
-                // TODO allow multiple only if there is a filter which guarantees uniqueness? and/or move to independant validation middleware
-                //if (existing.Any(h => h.MessageClass == binding.MessageClass))
-                //    throw new TopologyConfigurationException($"Multiple handlers for message class {binding.MessageClass.Name} in queue {binding.QueueInfo.Name}");
-
-                existing.Add(binding);
-            }
-            else
-                staticRegistrations.Add(binding.QueueInfo.Name, new List<IBinding> { binding });
-        }
-
-
-        protected string GetDynamicQueueName(string prefix)
-        {
-            if (String.IsNullOrEmpty(prefix))
-                return "";
-
-            return prefix + "." + Guid.NewGuid().ToString("N");
-        }
-    }
-    */
 }

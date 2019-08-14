@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation of IFlowStore.
+    /// </summary>
     public class FlowStore : IFlowStore
     {
         private readonly ConcurrentDictionary<Guid, FlowState> flowStates = new ConcurrentDictionary<Guid, FlowState>();

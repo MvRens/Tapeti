@@ -47,17 +47,19 @@ namespace Tapeti.Flow.Default
             var controller = config.DependencyResolver.Resolve<TController>();
             var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
 
-            var context = new ControllerMessageContext
+            /*
+            var context = new ControllerMessageContext()
             {
                 Config = config,
                 Controller = controller
             };
+            */
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
 
             try
             {
-                await flowHandler.Execute(context, yieldPoint);
+                //await flowHandler.Execute(context, yieldPoint);
                 //handlingResult.ConsumeResponse = ConsumeResponse.Ack;
             }
             finally

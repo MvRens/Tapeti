@@ -12,6 +12,10 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
+    /// <inheritdoc cref="IFlowProvider"/> />
+    /// <summary>
+    /// Default implementation for IFlowProvider.
+    /// </summary>
     public class FlowProvider : IFlowProvider, IFlowHandler
     {
         private readonly ITapetiConfig config;
@@ -25,28 +29,33 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task<IYieldPoint>> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
             return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
             return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
+        /// <inheritdoc />
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
         {
             return new ParallelRequestBuilder(config, SendRequest);
         }
 
+        /// <inheritdoc />
         public IYieldPoint EndWithResponse<TResponse>(TResponse message)
         {
             return new DelegateYieldPoint(context => SendResponse(context, message));
         }
 
+        /// <inheritdoc />
         public IYieldPoint End()
         {
             return new DelegateYieldPoint(EndFlow);
@@ -179,6 +188,7 @@ namespace Tapeti.Flow.Default
             };
         }
 
+        /// <inheritdoc />
         public async Task Execute(IControllerMessageContext context, IYieldPoint yieldPoint)
         {
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))

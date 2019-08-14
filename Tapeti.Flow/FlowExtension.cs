@@ -4,15 +4,21 @@ using Tapeti.Flow.Default;
 
 namespace Tapeti.Flow
 {
-    public class FlowMiddleware : ITapetiExtension
+    /// <inheritdoc />
+    /// <summary>
+    /// Provides the Flow middleware.
+    /// </summary>
+    public class FlowExtension : ITapetiExtension
     {
         private readonly IFlowRepository flowRepository;
 
-        public FlowMiddleware(IFlowRepository flowRepository)
+        /// <inheritdoc />
+        public FlowExtension(IFlowRepository flowRepository)
         {
             this.flowRepository = flowRepository;
         }
 
+        /// <inheritdoc />
         public void RegisterDefaults(IDependencyContainer container)
         {
             container.RegisterDefault<IFlowProvider, FlowProvider>();
@@ -22,6 +28,7 @@ namespace Tapeti.Flow
             container.RegisterDefaultSingleton<IFlowStore, FlowStore>();
         }
 
+        /// <inheritdoc />
         public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
         {
             yield return new FlowBindingMiddleware();

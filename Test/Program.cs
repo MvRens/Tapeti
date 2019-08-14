@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using SimpleInjector;
 using Tapeti;
 using Tapeti.DataAnnotations;
 using Tapeti.Flow;
 using Tapeti.SimpleInjector;
 using System.Threading;
-using Tapeti.Annotations;
 using Tapeti.Transient;
 
 namespace Test

@@ -33,6 +33,15 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="context"></param>
         Task Invoke(IMessageContext context);
+
+
+        /// <summary>
+        /// Called after the handler is invoked and any exception handling has been done.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="consumeResult"></param>
+        /// <returns></returns>
+        Task Cleanup(IMessageContext context, ConsumeResult consumeResult);
     }
 
 
@@ -67,7 +76,7 @@ namespace Tapeti.Config
         /// Used for direct-to-queue messages.
         /// </summary>
         /// <param name="queueName">The name of the durable queue</param>
-        Task BindDirectDurable(string queueName);
+        Task BindDurableDirect(string queueName);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -76,7 +85,7 @@ namespace Tapeti.Config
         /// <param name="messageClass">The message class which will be handled on the queue. It is not actually bound to the queue.</param>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        Task<string> BindDirectDynamic(Type messageClass = null, string queuePrefix = null);
+        Task<string> BindDynamicDirect(Type messageClass = null, string queuePrefix = null);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -84,6 +93,6 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        Task<string> BindDirectDynamic(string queuePrefix = null);
+        Task<string> BindDynamicDirect(string queuePrefix = null);
     }
 }

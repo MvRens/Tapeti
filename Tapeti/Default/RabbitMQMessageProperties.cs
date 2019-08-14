@@ -61,16 +61,16 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public RabbitMQMessageProperties(IBasicProperties BasicProperties)
+        public RabbitMQMessageProperties(IBasicProperties basicProperties)
         {
-            this.BasicProperties = BasicProperties;
+            BasicProperties = basicProperties;
         }
 
 
         /// <inheritdoc />
-        public RabbitMQMessageProperties(IBasicProperties BasicProperties, IMessageProperties source)
+        public RabbitMQMessageProperties(IBasicProperties basicProperties, IMessageProperties source)
         {
-            this.BasicProperties = BasicProperties;
+            BasicProperties = basicProperties;
             if (source == null)
                 return;
 

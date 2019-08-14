@@ -29,7 +29,7 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public async Task Apply(IBindingTarget target)
         {
-            QueueName = await target.BindDirectDynamic(dynamicQueuePrefix);
+            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix);
             router.TransientResponseQueueName = QueueName;
         }
 
@@ -45,6 +45,13 @@ namespace Tapeti.Transient
         public Task Invoke(IMessageContext context)
         {
             router.HandleMessage(context);
+            return Task.CompletedTask;
+        }
+
+
+        /// <inheritdoc />
+        public Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
+        {
             return Task.CompletedTask;
         }
     }

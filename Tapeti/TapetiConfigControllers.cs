@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Tapeti.Annotations;
@@ -44,40 +45,53 @@ namespace Tapeti
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
-                // TODO create binding for method
-
-                /*
-                var context = new BindingContext(method);
-                var messageHandler = GetMessageHandler(context, method);
-                if (messageHandler == null)
-                    continue;
-                */
-
                 var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
                 if (methodQueueInfo == null || !methodQueueInfo.IsValid)
                     throw new TopologyConfigurationException(
                         $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 
-                /*
-                var handlerInfo = new Binding
+
+                var context = new ControllerBindingContext(method.GetParameters(), method.ReturnParameter)
                 {
                     Controller = controller,
-                    Method = method,
-                    QueueInfo = methodQueueInfo,
-                    QueueBindingMode = context.QueueBindingMode,
-                    MessageClass = context.MessageClass,
-                    MessageHandler = messageHandler,
-                    MessageMiddleware = context.MessageMiddleware,
-                    MessageFilterMiddleware = context.MessageFilterMiddleware
+                    Method = method
                 };
 
-                if (methodQueueInfo.Dynamic.GetValueOrDefault())
-                    AddDynamicRegistration(handlerInfo);
-                else
-                    AddStaticRegistration(handlerInfo);
-                */
 
-                builder.RegisterBinding(new ControllerMethodBinding(controller, method, methodQueueInfo));
+                var allowBinding = false;
+                builderAccess.ApplyBindingMiddleware(context, () => { allowBinding = true; });
+
+                if (!allowBinding)
+                    continue;
+
+
+                if (context.MessageClass == null)
+                    throw new TopologyConfigurationException($"Method {method.Name} in controller {controller.Name} does not resolve to a message class");
+
+
+                var invalidBindings = context.Parameters.Where(p => !p.HasBinding).ToList();
+                if (invalidBindings.Count > 0)
+                {
+                    var parameterNames = string.Join(", ", invalidBindings.Select(p => p.Info.Name));
+                    throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} has unknown parameters: {parameterNames}");
+                }
+
+
+                builder.RegisterBinding(new ControllerMethodBinding(builderAccess.DependencyResolver, new ControllerMethodBinding.BindingInfo
+                {
+                    ControllerType = controller,
+                    Method = method,
+                    QueueInfo = methodQueueInfo,
+                    MessageClass = context.MessageClass,
+                    BindingTargetMode = context.BindingTargetMode,
+                    ParameterFactories = context.GetParameterHandlers(),
+                    ResultHandler = context.GetResultHandler(),
+
+                    FilterMiddleware = context.Middleware.Where(m => m is IControllerFilterMiddleware).Cast<IControllerFilterMiddleware>().ToList(),
+                    MessageMiddleware = context.Middleware.Where(m => m is IControllerMessageMiddleware).Cast<IControllerMessageMiddleware>().ToList(),
+                    CleanupMiddleware = context.Middleware.Where(m => m is IControllerCleanupMiddleware).Cast<IControllerCleanupMiddleware>().ToList()
+                }));
+
             }
 
             return builder;

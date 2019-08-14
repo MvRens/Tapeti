@@ -5,46 +5,60 @@ using Tapeti.Config;
 namespace Tapeti.Default
 {
     /// <inheritdoc cref="IControllerMessageContext" />
-    public class ControllerMessageContext : MessageContext, IControllerMessageContext
+    public class ControllerMessageContext : IControllerMessageContext
     {
-        private readonly Dictionary<string, object> items = new Dictionary<string, object>();
-
+        private readonly IMessageContext decoratedContext;
 
         /// <inheritdoc />
         public object Controller { get; set; }
 
         /// <inheritdoc />
-        public new IControllerMethodBinding Binding { get; set; }
+        public ITapetiConfig Config => decoratedContext.Config;
+
+        /// <inheritdoc />
+        public string Queue => decoratedContext.Queue;
+
+        /// <inheritdoc />
+        public string Exchange => decoratedContext.Exchange;
+
+        /// <inheritdoc />
+        public string RoutingKey => decoratedContext.RoutingKey;
+
+        /// <inheritdoc />
+        public object Message => decoratedContext.Message;
+
+        /// <inheritdoc />
+        public IMessageProperties Properties => decoratedContext.Properties;
+
+
+        IBinding IMessageContext.Binding => decoratedContext.Binding;
+        IControllerMethodBinding IControllerMessageContext.Binding => decoratedContext.Binding as IControllerMethodBinding;
 
 
         /// <inheritdoc />
-        public override void Dispose()
+        public ControllerMessageContext(IMessageContext decoratedContext)
         {
-            foreach (var item in items.Values)
-                (item as IDisposable)?.Dispose();                
+            this.decoratedContext = decoratedContext;
+        }
 
-            base.Dispose();
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
         }
 
 
         /// <inheritdoc />
         public void Store(string key, object value)
         {
-            items.Add(key, value);
+            decoratedContext.Store(key, value);
         }
 
 
         /// <inheritdoc />
         public bool Get<T>(string key, out T value) where T : class
         {
-            if (!items.TryGetValue(key, out var objectValue))
-            {
-                value = default(T);
-                return false;
-            }
-
-            value = (T)objectValue;
-            return true;
+            return decoratedContext.Get(key, out value);
         }
     }
 }

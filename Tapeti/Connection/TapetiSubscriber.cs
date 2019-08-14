@@ -96,7 +96,7 @@ namespace Tapeti.Connection
 
 
             public abstract Task BindDurable(Type messageClass, string queueName);
-            public abstract Task BindDirectDurable(string queueName);
+            public abstract Task BindDurableDirect(string queueName);
 
 
             public async Task<string> BindDynamic(Type messageClass, string queuePrefix = null)
@@ -115,14 +115,14 @@ namespace Tapeti.Connection
             }
 
 
-            public async Task<string> BindDirectDynamic(Type messageClass, string queuePrefix = null)
+            public async Task<string> BindDynamicDirect(Type messageClass, string queuePrefix = null)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix);
                 return result.QueueName;
             }
 
 
-            public async Task<string> BindDirectDynamic(string queuePrefix = null)
+            public async Task<string> BindDynamicDirect(string queuePrefix = null)
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
@@ -215,7 +215,7 @@ namespace Tapeti.Connection
             }
 
 
-            public override Task BindDirectDurable(string queueName)
+            public override Task BindDurableDirect(string queueName)
             {
                 if (!durableQueues.ContainsKey(queueName))
                     durableQueues.Add(queueName, new List<Type>());
@@ -259,7 +259,7 @@ namespace Tapeti.Connection
                 await VerifyDurableQueue(queueName);
             }
 
-            public override async Task BindDirectDurable(string queueName)
+            public override async Task BindDurableDirect(string queueName)
             {
                 await VerifyDurableQueue(queueName);
             }
