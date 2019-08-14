@@ -12,11 +12,11 @@ namespace Tapeti.Connection
     public class TapetiBasicConsumer : DefaultBasicConsumer
     {
         private readonly IConsumer consumer;
-        private readonly Func<ulong, ConsumeResponse, Task> onRespond;
+        private readonly Func<ulong, ConsumeResult, Task> onRespond;
 
 
         /// <inheritdoc />
-        public TapetiBasicConsumer(IConsumer consumer, Func<ulong, ConsumeResponse, Task> onRespond)
+        public TapetiBasicConsumer(IConsumer consumer, Func<ulong, ConsumeResult, Task> onRespond)
         {
             this.consumer = consumer;
             this.onRespond = onRespond;
@@ -35,7 +35,7 @@ namespace Tapeti.Connection
                 }
                 catch
                 {
-                    await onRespond(deliveryTag, ConsumeResponse.Nack);
+                    await onRespond(deliveryTag, ConsumeResult.Error);
                 }
             });
         }

@@ -1,16 +1,46 @@
 ﻿using System;
+using Tapeti.Config;
 
 // ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {
-    // This interface is deliberately specific and typed to allow for structured logging (e.g. Serilog)
-    // instead of only string-based logging without control over the output.
+    /// <summary>
+    /// Handles the logging of various events in Tapeti
+    /// </summary>
+    /// <remarks>
+    /// This interface is deliberately specific and typed to allow for structured logging (e.g. Serilog)
+    /// instead of only string-based logging without control over the output.
+    /// </remarks>
     public interface ILogger
     {
-        void Connect(TapetiConnectionParams connectionParams);
+        /// <summary>
+        /// Called before a connection to RabbitMQ is attempted.
+        /// </summary>
+        /// <param name="connectionParams"></param>
+        /// <param name="isReconnect">Indicates whether this is the initial connection or a reconnect</param>
+        void Connect(TapetiConnectionParams connectionParams, bool isReconnect);
+
+        /// <summary>
+        /// Called when the connection has failed or is lost.
+        /// </summary>
+        /// <param name="connectionParams"></param>
+        /// <param name="exception"></param>
         void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception);
-        void ConnectSuccess(TapetiConnectionParams connectionParams);
-        void HandlerException(Exception e);
+
+        /// <summary>
+        /// Called when a connection to RabbitMQ has been succesfully established.
+        /// </summary>
+        /// <param name="connectionParams"></param>
+        /// <param name="isReconnect">Indicates whether this is the initial connection or a reconnect</param>
+        void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect);
+
+        /// <summary>
+        /// Called when an exception occurs in a consumer.
+        /// </summary>
+        /// <param name="exception"></param>
+        /// <param name="messageContext"></param>
+        /// <param name="consumeResult">Indicates the action taken by the exception handler</param>
+        void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult);
     }
 }

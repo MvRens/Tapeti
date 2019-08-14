@@ -1,27 +1,49 @@
 ﻿using System;
+using Tapeti.Config;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default ILogger implementation for console applications.
+    /// </summary>
     public class ConsoleLogger : ILogger
     {
-        public void Connect(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void Connect(TapetiConnectionParams connectionParams, bool isReconnect)
         {
-            Console.WriteLine($"[Tapeti] Connecting to {connectionParams.HostName}:{connectionParams.Port}{connectionParams.VirtualHost}");
+            Console.WriteLine($"[Tapeti] {(isReconnect ? "Reconnecting" : "Connecting")} to {connectionParams.HostName}:{connectionParams.Port}{connectionParams.VirtualHost}");
         }
 
+        /// <inheritdoc />
         public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
         {
             Console.WriteLine($"[Tapeti] Connection failed: {exception}");
         }
 
-        public void ConnectSuccess(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect)
         {
-            Console.WriteLine("[Tapeti] Connected");
+            Console.WriteLine($"[Tapeti] {(isReconnect ? "Reconnected" : "Connected")}");
         }
 
-        public void HandlerException(Exception e)
+        /// <inheritdoc />
+        public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
-            Console.WriteLine(e.ToString());
+            Console.WriteLine("[Tapeti] Exception while handling message");
+            Console.WriteLine($"  Result     : {consumeResult}");
+            Console.WriteLine($"  Exchange   : {messageContext.Exchange}");
+            Console.WriteLine($"  Queue      : {messageContext.Queue}");
+            Console.WriteLine($"  RoutingKey : {messageContext.RoutingKey}");
+
+            if (messageContext is IControllerMessageContext controllerMessageContext)
+            {
+                Console.WriteLine($"  Controller : {controllerMessageContext.Binding.Controller.FullName}");
+                Console.WriteLine($"  Method     : {controllerMessageContext.Binding.Method.Name}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine(exception);
         }
     }
 }

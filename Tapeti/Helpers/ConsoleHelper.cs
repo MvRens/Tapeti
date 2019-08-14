@@ -2,9 +2,17 @@
 
 namespace Tapeti.Helpers
 {
+    /// <summary>
+    /// Helper class for console applications.
+    /// </summary>
     public static class ConsoleHelper
     {
-        // Source: http://stackoverflow.com/questions/6408588/how-to-tell-if-there-is-a-console
+        /// <summary>
+        /// Determines if the application is running in a console.
+        /// </summary>
+        /// <remarks>
+        /// Source: http://stackoverflow.com/questions/6408588/how-to-tell-if-there-is-a-console
+        /// </remarks>
         public static bool IsAvailable()
         {
             try

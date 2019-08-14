@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using Tapeti.Config;
 using Tapeti.Default;
 using System.Threading.Tasks;
@@ -37,106 +38,49 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<ConsumeResponse> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body)
+        public async Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body)
         {
+            object message = null;
             try
             {
-                var message = messageSerializer.Deserialize(body, properties);
+                message = messageSerializer.Deserialize(body, properties);
                 if (message == null)
-                    throw new ArgumentException($"Message body could not be deserialized into a message object in queue {queueName}", nameof(body));
+                    throw new ArgumentException("Message body could not be deserialized into a message object", nameof(body));
 
-                await DispatchMessage(message, new MessageContextData
+                return await DispatchMessage(message, new MessageContextData
                 {
                     Exchange = exchange,
                     RoutingKey = routingKey,
                     Properties = properties
                 });
-
-                return ConsumeResponse.Ack;
             }
-            catch (Exception e)
+            catch (Exception dispatchException)
             {
-                // TODO exception strategy
-                // TODO logger
-                return ConsumeResponse.Nack;
-            }
+                // TODO check if this is still necessary:
+                // var exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
 
-
-            /*
-
-                    handlingResult = new HandlingResult
-                    {
-                        ConsumeResponse = ConsumeResponse.Ack,
-                        MessageAction = MessageAction.None
-                    };
-                }
-                catch (Exception eDispatch)
+                using (var emptyContext = new MessageContext
                 {
-                    var exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
-                    logger.HandlerException(eDispatch);
-                    try
-                    {
-                        var exceptionStrategyContext = new ExceptionStrategyContext(context, exception.SourceException);
-
-                        exceptionStrategy.HandleException(exceptionStrategyContext);
-
-                        handlingResult = exceptionStrategyContext.HandlingResult.ToHandlingResult();
-                    }
-                    catch (Exception eStrategy)
-                    {
-                        logger.HandlerException(eStrategy);
-                    }
-                }
-                try
+                    Config = config,
+                    Queue = queueName,
+                    Exchange = exchange,
+                    RoutingKey = routingKey,
+                    Message = message,
+                    Properties = properties,
+                    Binding = null
+                })
                 {
-                    if (handlingResult == null)
-                    {
-                        handlingResult = new HandlingResult
-                        {
-                            ConsumeResponse = ConsumeResponse.Nack,
-                            MessageAction = MessageAction.None
-                        };
-                    }
-                    await RunCleanup(context, handlingResult);
-                }
-                catch (Exception eCleanup)
-                {
-                    logger.HandlerException(eCleanup);
+                    var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
+                    HandleException(exceptionContext);
+                    return exceptionContext.ConsumeResult;
                 }
             }
-            finally
-            {
-                try
-                {
-                    if (handlingResult == null)
-                    {
-                        handlingResult = new HandlingResult
-                        {
-                            ConsumeResponse = ConsumeResponse.Nack,
-                            MessageAction = MessageAction.None
-                        };
-                    }
-                    await client.Respond(deliveryTag, handlingResult.ConsumeResponse);
-                }
-                catch (Exception eRespond)
-                {
-                    logger.HandlerException(eRespond);
-                }
-                try
-                {
-                    context?.Dispose();
-                }
-                catch (Exception eDispose)
-                {
-                    logger.HandlerException(eDispose);
-                }
-            }
-            */
         }
 
 
-        private async Task DispatchMessage(object message, MessageContextData messageContextData)
+        private async Task<ConsumeResult> DispatchMessage(object message, MessageContextData messageContextData)
         {
+            var returnResult = ConsumeResult.Success;
             var messageType = message.GetType();
             var validMessageType = false;
 
@@ -145,18 +89,23 @@ namespace Tapeti.Connection
                 if (!binding.Accept(messageType)) 
                     continue;
 
-                await InvokeUsingBinding(message, messageContextData, binding);
+                var consumeResult = await InvokeUsingBinding(message, messageContextData, binding);
                 validMessageType = true;
+
+                if (consumeResult != ConsumeResult.Success)
+                    returnResult = consumeResult;
             }
 
             if (!validMessageType)
-                throw new ArgumentException($"Unsupported message type in queue {queueName}: {message.GetType().FullName}");
+                throw new ArgumentException($"No binding found for message type: {message.GetType().FullName}");
+
+            return returnResult;
         }
 
 
-        private async Task InvokeUsingBinding(object message, MessageContextData messageContextData, IBinding binding)
+        private async Task<ConsumeResult> InvokeUsingBinding(object message, MessageContextData messageContextData, IBinding binding)
         {
-            var context = new MessageContext
+            using (var context = new MessageContext
             {
                 Config = config,
                 Queue = queueName,
@@ -165,19 +114,42 @@ namespace Tapeti.Connection
                 Message = message,
                 Properties = messageContextData.Properties,
                 Binding = binding
-            };
+            })
+            {
+                try
+                {
+                    await MiddlewareHelper.GoAsync(config.Middleware.Message,
+                        (handler, next) => handler.Handle(context, next),
+                        async () => { await binding.Invoke(context); });
 
-            try
-            {
-                await MiddlewareHelper.GoAsync(config.Middleware.Message,
-                    (handler, next) => handler.Handle(context, next),
-                    async () => { await binding.Invoke(context); });
-            }
-            finally
-            {
-                context.Dispose();
+                    return ConsumeResult.Success;
+                }
+                catch (Exception invokeException)
+                {
+                    var exceptionContext = new ExceptionStrategyContext(context, invokeException);
+                    HandleException(exceptionContext);
+                    return exceptionContext.ConsumeResult;
+                }
             }
         }
+
+
+        private void HandleException(ExceptionStrategyContext exceptionContext)
+        {
+            try
+            {
+                exceptionStrategy.HandleException(exceptionContext);
+            }
+            catch (Exception strategyException)
+            {
+                // Exception in the exception strategy. Oh dear.
+                exceptionContext.SetConsumeResult(ConsumeResult.Error);
+                logger.ConsumeException(strategyException, exceptionContext.MessageContext, ConsumeResult.Error);
+            }
+
+            logger.ConsumeException(exceptionContext.Exception, exceptionContext.MessageContext, exceptionContext.ConsumeResult);
+        }
+
 
 
         private struct MessageContextData

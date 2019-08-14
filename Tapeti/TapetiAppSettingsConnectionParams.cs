@@ -4,17 +4,35 @@ using System.Linq;
 
 namespace Tapeti
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Implementation of TapetiConnectionParams which reads the values from the AppSettings.
+    /// </summary>
+    /// <list type="table">
+    ///   <listheader>
+    ///     <description>AppSettings keys</description>
+    ///   </listheader>
+    ///   <item><description>rabbitmq:hostname</description></item>
+    ///   <item><description>rabbitmq:port</description></item>
+    ///   <item><description>rabbitmq:virtualhost</description></item>
+    ///   <item><description>rabbitmq:username</description></item>
+    ///   <item><description>rabbitmq:password</description></item>
+    ///   <item><description>rabbitmq:prefetchcount</description></item>
+    /// </list>
     public class TapetiAppSettingsConnectionParams : TapetiConnectionParams
     {
-        public const string DefaultPrefix = "rabbitmq:";
-        public const string KeyHostname = "hostname";
-        public const string KeyPort = "port";
-        public const string KeyVirtualHost = "virtualhost";
-        public const string KeyUsername = "username";
-        public const string KeyPassword = "password";
-        public const string KeyPrefetchCount = "prefetchcount";
+        private const string DefaultPrefix = "rabbitmq:";
+        private const string KeyHostname = "hostname";
+        private const string KeyPort = "port";
+        private const string KeyVirtualHost = "virtualhost";
+        private const string KeyUsername = "username";
+        private const string KeyPassword = "password";
+        private const string KeyPrefetchCount = "prefetchcount";
 
 
+        /// <inheritdoc />
+        /// <summary></summary>
+        /// <param name="prefix">The prefix to apply to the keys. Defaults to "rabbitmq:"</param>
         public TapetiAppSettingsConnectionParams(string prefix = DefaultPrefix)
         {
             var keys = ConfigurationManager.AppSettings.AllKeys;

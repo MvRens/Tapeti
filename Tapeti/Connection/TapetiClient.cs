@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -50,7 +49,7 @@ namespace Tapeti.Connection
         private IModel channelInstance;
         private ulong lastDeliveryTag;
         private DateTime connectedDateTime;
-        private HttpClient managementClient;
+        private readonly HttpClient managementClient;
 
         // These fields must be locked, since the callbacks for BasicAck/BasicReturn can run in a different thread
         private readonly object confirmLock = new object();
@@ -186,28 +185,29 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task Respond(ulong deliveryTag, ConsumeResponse response)
+        private async Task Respond(ulong deliveryTag, ConsumeResult result)
         {
             await taskQueue.Value.Add(() =>
             {
                 // No need for a retryable channel here, if the connection is lost we can't
                 // use the deliveryTag anymore.
-                switch (response)
+                switch (result)
                 {
-                    case ConsumeResponse.Ack:
+                    case ConsumeResult.Success:
+                    case ConsumeResult.ExternalRequeue:
                         GetChannel().BasicAck(deliveryTag, false);
                         break;
 
-                    case ConsumeResponse.Nack:
+                    case ConsumeResult.Error:
                         GetChannel().BasicNack(deliveryTag, false, false);
                         break;
 
-                    case ConsumeResponse.Requeue:
+                    case ConsumeResult.Requeue:
                         GetChannel().BasicNack(deliveryTag, false, true);
                         break;
 
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(response), response, null);
+                        throw new ArgumentOutOfRangeException(nameof(result), result, null);
                 }
 
             });
@@ -454,7 +454,7 @@ namespace Tapeti.Connection
             {
                 try
                 {
-                    logger.Connect(connectionParams);
+                    logger.Connect(connectionParams, isReconnect);
 
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
@@ -510,7 +510,7 @@ namespace Tapeti.Connection
                     else
                         ConnectionEventListener?.Connected();
 
-                    logger.ConnectSuccess(connectionParams);
+                    logger.ConnectSuccess(connectionParams, isReconnect);
                     isReconnect = true;
 
                     break;

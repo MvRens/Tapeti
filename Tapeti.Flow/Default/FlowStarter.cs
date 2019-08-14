@@ -42,7 +42,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private async Task CallControllerMethod<TController>(MethodInfo method, Func<object, Task<IYieldPoint>> getYieldPointResult, object[] parameters) where TController : class
+        private async Task CallControllerMethod<TController>(MethodBase method, Func<object, Task<IYieldPoint>> getYieldPointResult, object[] parameters) where TController : class
         {
             var controller = config.DependencyResolver.Resolve<TController>();
             var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
@@ -55,24 +55,20 @@ namespace Tapeti.Flow.Default
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
 
-            HandlingResultBuilder handlingResult = new HandlingResultBuilder
-            {
-                ConsumeResponse = ConsumeResponse.Nack,
-            };
             try
             {
                 await flowHandler.Execute(context, yieldPoint);
-                handlingResult.ConsumeResponse = ConsumeResponse.Ack;
+                //handlingResult.ConsumeResponse = ConsumeResponse.Ack;
             }
             finally
             {
-                await RunCleanup(context, handlingResult.ToHandlingResult());
+                //await RunCleanup(context, handlingResult.ToHandlingResult());
             }
         }
 
+        /*
         private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
         {
-            /*
             foreach (var handler in config.CleanupMiddleware)
             {
                 try
@@ -84,8 +80,8 @@ namespace Tapeti.Flow.Default
                     logger.HandlerException(eCleanup);
                 }
             }
-            */
         }
+        */
 
 
         private static MethodInfo GetExpressionMethod<TController, TResult>(Expression<Func<TController, Func<TResult>>> methodSelector)

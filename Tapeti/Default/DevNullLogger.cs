@@ -1,22 +1,31 @@
 ﻿using System;
+using Tapeti.Config;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default ILogger implementation which does not log anything.
+    /// </summary>
     public class DevNullLogger : ILogger
     {
-        public void Connect(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void Connect(TapetiConnectionParams connectionParams, bool isReconnect)
         {
         }
 
+        /// <inheritdoc />
         public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
         {
         }
 
-        public void ConnectSuccess(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect)
         {
         }
 
-        public void HandlerException(Exception e)
+        /// <inheritdoc />
+        public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
         }
     }

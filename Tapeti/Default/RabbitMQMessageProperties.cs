@@ -12,6 +12,9 @@ namespace Tapeti.Default
     /// </summary>
     public class RabbitMQMessageProperties : IMessageProperties
     {
+        /// <summary>
+        /// Provides access to the wrapped IBasicProperties
+        /// </summary>
         public IBasicProperties BasicProperties { get; }
 
 

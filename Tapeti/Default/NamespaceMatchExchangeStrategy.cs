@@ -3,13 +3,20 @@ using System.Text.RegularExpressions;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// IExchangeStrategy implementation which uses the first identifier in the namespace in lower case,
+    /// skipping the first identifier if it is 'Messaging'.
+    /// </summary>
+    /// <example>
+    /// Messaging.Service.Optional.Further.Parts will result in the exchange name 'service'.
+    /// </example>
     public class NamespaceMatchExchangeStrategy : IExchangeStrategy
     {
-        // If the namespace starts with "Messaging.Service[.Optional.Further.Parts]", the exchange will be "Service".
-        // If no Messaging prefix is present, the first part of the namespace will be used instead.
         private static readonly Regex NamespaceRegex = new Regex("^(Messaging\\.)?(?<exchange>[^\\.]+)", RegexOptions.Compiled | RegexOptions.Singleline);
 
 
+        /// <inheritdoc />
         public string GetExchange(Type messageType)
         {
             if (messageType.Namespace == null)

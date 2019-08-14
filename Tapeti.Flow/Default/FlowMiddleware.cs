@@ -44,7 +44,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Cleanup(IControllerMessageContext context, HandlingResult handlingResult, Func<Task> next)
+        public async Task Cleanup(IControllerMessageContext context, ConsumeResult consumeResult, Func<Task> next)
         {
             await next();
 
@@ -53,11 +53,9 @@ namespace Tapeti.Flow.Default
 
             if (flowContext?.FlowStateLock != null)
             {
-                if (handlingResult.ConsumeResponse == ConsumeResponse.Nack
-                    || handlingResult.MessageAction == MessageAction.ErrorLog)
-                {
+                if (consumeResult == ConsumeResult.Error)
                     await flowContext.FlowStateLock.DeleteFlowState();
-                }
+
                 flowContext.FlowStateLock.Dispose();
             }
         }

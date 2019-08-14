@@ -7,7 +7,7 @@ namespace Tapeti.Default
     /// <inheritdoc cref="IControllerMessageContext" />
     public class ControllerMessageContext : MessageContext, IControllerMessageContext
     {
-        private Dictionary<string, object> items = new Dictionary<string, object>();
+        private readonly Dictionary<string, object> items = new Dictionary<string, object>();
 
 
         /// <inheritdoc />

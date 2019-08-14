@@ -4,7 +4,7 @@ using Tapeti.Config;
 namespace Tapeti.Transient
 {
     /// <summary>
-    /// TapetiConfig extension to register Tapeti.Transient
+    /// ITapetiConfigBuilder extension to register Tapeti.Transient
     /// </summary>
     public static class ConfigExtensions
     {

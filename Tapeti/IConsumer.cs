@@ -16,6 +16,6 @@ namespace Tapeti
         /// <param name="properties">Metadata included in the message</param>
         /// <param name="body">The raw body of the message</param>
         /// <returns></returns>
-        Task<ConsumeResponse> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body);
+        Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body);
     }
 }
