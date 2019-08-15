@@ -82,8 +82,7 @@ namespace Tapeti.Config
         /// Note that access to the RabbitMQ Management plugin's REST API is required for this
         /// feature to work, since AMQP does not provide a way to query existing bindings.
         /// </remarks>
-        ITapetiConfigBuilder EnableDeclareDurableQueues();
-
+        ITapetiConfigBuilder EnableDeclareDurableQueues();        
 
         /// <summary>
         /// Configures the automatic creation of durable queues and updating of their bindings.

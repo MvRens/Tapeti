@@ -18,6 +18,7 @@ namespace Tapeti
     ///   <item><description>rabbitmq:username</description></item>
     ///   <item><description>rabbitmq:password</description></item>
     ///   <item><description>rabbitmq:prefetchcount</description></item>
+    ///   <item><description>rabbitmq:managementport</description></item>
     /// </list>
     public class TapetiAppSettingsConnectionParams : TapetiConnectionParams
     {
@@ -28,6 +29,7 @@ namespace Tapeti
         private const string KeyUsername = "username";
         private const string KeyPassword = "password";
         private const string KeyPrefetchCount = "prefetchcount";
+        private const string KeyManagementPort = "managementport";
 
 
         /// <inheritdoc />
@@ -49,6 +51,7 @@ namespace Tapeti
             GetAppSetting(KeyUsername, value => Username = value);
             GetAppSetting(KeyPassword, value => Password = value);
             GetAppSetting(KeyPrefetchCount, value => PrefetchCount = ushort.Parse(value));
+            GetAppSetting(KeyManagementPort, value => ManagementPort = int.Parse(value));
         }
     }
 }

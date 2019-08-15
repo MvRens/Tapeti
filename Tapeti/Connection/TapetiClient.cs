@@ -111,6 +111,8 @@ namespace Tapeti.Connection
 
                 WithRetryableChannel(channel =>
                 {
+                    DeclareExchange(channel, exchange);
+
                     // The delivery tag is lost after a reconnect, register under the new tag
                     if (config.Features.PublisherConfirms)
                     {
@@ -230,18 +232,20 @@ namespace Tapeti.Connection
         {
             await taskQueue.Value.Add(async () =>
             {
-                var existingBindings = await GetQueueBindings(queueName);
+                var existingBindings = (await GetQueueBindings(queueName)).ToList();
+                var currentBindings = bindings.ToList();
 
                 WithRetryableChannel(channel =>
                 {
                     channel.QueueDeclare(queueName, true, false, false);
 
-                    var currentBindings = bindings.ToList();
-
-                    foreach (var binding in currentBindings)
+                    foreach (var binding in currentBindings.Except(existingBindings))
+                    {
+                        DeclareExchange(channel, binding.Exchange);
                         channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
+                    }
 
-                    foreach (var deletedBinding in existingBindings.Where(binding => !currentBindings.Any(b => b.Exchange == binding.Exchange && b.RoutingKey == binding.RoutingKey)))
+                    foreach (var deletedBinding in existingBindings.Except(currentBindings))
                         channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
                 });
             });
@@ -288,6 +292,7 @@ namespace Tapeti.Connection
             {
                 WithRetryableChannel(channel =>
                 {
+                    DeclareExchange(channel, binding.Exchange); 
                     channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);                    
                 });
             });
@@ -372,7 +377,7 @@ namespace Tapeti.Connection
         {
             var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
             var queuePath = Uri.EscapeDataString(queueName);
-            var requestUri = new Uri($"{connectionParams.HostName}:{connectionParams.Port}/api/queues/{virtualHostPath}/{queuePath}/bindings");
+            var requestUri = new Uri($"http://{connectionParams.HostName}:{connectionParams.ManagementPort}/api/queues/{virtualHostPath}/{queuePath}/bindings");
 
             using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
             { 
@@ -411,6 +416,21 @@ namespace Tapeti.Connection
                         retryDelayIndex++;
                 }
             }
+        }
+
+
+        private readonly HashSet<string> declaredExchanges = new HashSet<string>();
+
+        private void DeclareExchange(IModel channel, string exchange)
+        {
+            if (string.IsNullOrEmpty(exchange))
+                return;
+
+            if (declaredExchanges.Contains(exchange))
+                return;
+
+            channel.ExchangeDeclare(exchange, "topic", true);
+            declaredExchanges.Add(exchange);
         }
 
 

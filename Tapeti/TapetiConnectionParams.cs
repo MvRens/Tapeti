@@ -41,6 +41,11 @@ namespace Tapeti
         /// </summary>
         public ushort PrefetchCount { get; set; } = 50;
 
+        /// <summary>
+        /// The port the management plugin binds to. Only used when DeclareDurableQueues is enabled. Defaults to 15672.
+        /// </summary>
+        public int ManagementPort { get; set; } = 15672;
+
 
         /// <inheritdoc />
         public TapetiConnectionParams()
