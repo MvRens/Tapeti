@@ -132,12 +132,15 @@ namespace Tapeti.Flow.Default
 
         private static ResponseHandlerInfo GetResponseHandlerInfo(ITapetiConfig config, object request, Delegate responseHandler)
         {
+            var requestAttribute = request.GetType().GetCustomAttribute<RequestAttribute>();
+            if (requestAttribute?.Response == null)
+                throw new ArgumentException($"Request message {request.GetType().Name} must be marked with the Request attribute and a valid Response type", nameof(request));
+
             var binding = config.Bindings.ForMethod(responseHandler);
             if (binding == null)
                 throw new ArgumentException("responseHandler must be a registered message handler", nameof(responseHandler));
 
-            var requestAttribute = request.GetType().GetCustomAttribute<RequestAttribute>();
-            if (requestAttribute?.Response != null && !binding.Accept(requestAttribute.Response))
+            if (!binding.Accept(requestAttribute.Response))
                 throw new ArgumentException($"responseHandler must accept message of type {requestAttribute.Response}", nameof(responseHandler));
 
             var continuationAttribute = binding.Method.GetCustomAttribute<ContinuationAttribute>();
@@ -145,7 +148,7 @@ namespace Tapeti.Flow.Default
                 throw new ArgumentException("responseHandler must be marked with the Continuation attribute", nameof(responseHandler));
 
             if (binding.QueueName == null)
-                throw new ArgumentException("responseHandler must bind to a valid queue", nameof(responseHandler));
+                throw new ArgumentException("responseHandler is not yet subscribed to a queue, TapetiConnection.Subscribe must be called before starting a flow", nameof(responseHandler));
 
             return new ResponseHandlerInfo
             {
