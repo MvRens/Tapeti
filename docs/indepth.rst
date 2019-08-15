@@ -8,6 +8,31 @@ As described in the Getting started guide, a message is a plain object which can
 
 When communicating between services it is considered best practice to define messages in separate class library assemblies which can be referenced in other services. This establishes a public interface between services and components without binding to the implementation.
 
+.. _declaredurablequeues:
+
+Durable queues
+--------------
+Before version 2.0, and still by default in the newer versions, Tapeti assumes all durable queues are set up with the proper bindings before starting the service.
+
+However, since this is very inconvenient you can enable Tapeti to manage durable queues as well. There are two things to keep in mind when enabling this functionality:
+
+#) The `RabbitMQ management plugin <https://www.rabbitmq.com/management.html>`_ must be enabled
+#) The queue name must be unique to the service to prevent conflicting updates to the bindings
+
+To enable the automatic creation of durable queues, call EnableDeclareDurableQueues or SetDeclareDurableQueues on the TapetiConfig:
+
+::
+
+  var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
+      .EnableDeclareDurableQueues()
+      .RegisterAllControllers()
+      .Build();
+
+
+The queue will be bound to all message classes for which you have defined a message handler. If the queue already existed and contains bindings which are no longer valid, those bindings will be removed. Note however that if there are still messages of that type in the queue they will be consumed and cause an exception.
+
+At the time of writing there is no special support for obsolete queues. Once a durable queue is no longer referenced in the service it will remain in RabbitMQ along with any messages in it, without a consumer. This allows you to inspect the contents, perform any migrating steps necessary and delete the queue manually.
+
 
 Request - response
 ------------------
