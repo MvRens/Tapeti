@@ -251,11 +251,9 @@ A few things to note:
 
 #) The response handlers do not return an IYieldPoint themselves, but void (for AddRequestSync) or Task (for AddRequest). Therefore they can not influence the flow. Instead the converge method as passed to Yield or YieldSync determines how the flow continues. It is called immediately after the last response handler.
 #) The converge method must be private, as it is not a valid message handler in itself.
-
+#) You must add at least one request.
 
 Note that you do not have to perform all the operations in one go. You can store the result of ``YieldWithParallelRequest`` and conditionally call ``AddRequest`` or ``AddRequestSync`` as many times as required.
-
-.. warning:: At the time of writing, you must add at least one request to the parallel request builder before yielding or your flow will halt. This will hopefully be fixed in the future.
 
 
 Persistent state

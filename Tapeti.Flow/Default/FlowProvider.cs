@@ -290,6 +290,9 @@ namespace Tapeti.Flow.Default
 
             private IYieldPoint BuildYieldPoint(Delegate convergeMethod, bool convergeMethodSync)
             {
+                if (requests.Count == 0)
+                    throw new YieldPointException("At least one request must be added before yielding a parallel request");
+
                 if (convergeMethod?.Method == null)
                     throw new ArgumentNullException(nameof(convergeMethod));
 

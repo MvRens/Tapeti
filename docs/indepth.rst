@@ -132,6 +132,7 @@ The routing key is determined by converting CamelCase to dot-separated lowercase
       public string Description { get; set; }
   }
 
+
 This behaviour is implemented using the IRoutingKeyStrategy interface. For more information about changing this, see `Overriding default behaviour`_
 
 
