@@ -8,6 +8,22 @@ As described in the Getting started guide, a message is a plain object which can
 
 When communicating between services it is considered best practice to define messages in separate class library assemblies which can be referenced in other services. This establishes a public interface between services and components without binding to the implementation.
 
+
+Enums
+-----
+Special care must be taken when using enums in messages. For example, you have several services consuming a message containing an enum field. Some services will have logic which depends on a specific value, others will not use that specific field at all.
+
+Then later on, you want to add a new value to the enum. Some services will have to be updated, but the two examples mentioned above do not rely on the new value. As your application grows, it will become unmanageable to keep all services up-to-date.
+
+Tapeti accounts for this scenario by using a custom deserializer for enums. Enums are always serialized to their string representation, and you should never rely on their ordinal values. When deserializing, if the sending service sends out an enum value that is unknown to the consuming service, Tapeti will deserialize it to an out-of-bounds enum value instead of failing immediately.
+
+This effectively means that as long as your code has conditional or switch statements that can handle unknown values, or only perform direct comparisons, the existing logic will run without issues.
+
+In addition, Tapeti does not allow you to pass the value as-is to another message, as the original string representation is lost. If it detects the out-of-bounds value in an enum field of a message being published, it will raise an exception.
+
+However, Tapeti cannot analyze your code and the ways you use the enum field. So if you ignored all advice and used the ordinal value of the enum to store somewhere directly, you are left with the value 0xDEADBEEF, and you will now know why.
+
+
 .. _declaredurablequeues:
 
 Durable queues
@@ -103,8 +119,6 @@ Messages like these must not be lost, there should always be a queue bound to it
   public class SomeoneHandleMeMessage
   {
   }
-
-
 
 
 Routing keys
