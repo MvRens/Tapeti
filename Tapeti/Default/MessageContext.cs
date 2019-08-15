@@ -4,8 +4,7 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
-    public class MessageContext : IMessageContext
+    internal class MessageContext : IMessageContext
     {
         private readonly Dictionary<string, object> items = new Dictionary<string, object>();
 

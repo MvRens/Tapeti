@@ -3,16 +3,20 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
-using Tapeti.Default;
 
 namespace Tapeti.Flow.Default
 {
-    public class FlowStarter : IFlowStarter
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation for IFlowStarter.
+    /// </summary>
+    internal class FlowStarter : IFlowStarter
     {
         private readonly ITapetiConfig config;
         private readonly ILogger logger;
 
 
+        /// <inheritdoc />
         public FlowStarter(ITapetiConfig config, ILogger logger)
         {
             this.config = config;
@@ -20,22 +24,25 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
         {
             return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
         }
 
-
+        /// <inheritdoc />
         public Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
         {
             return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
         }
 
+        /// <inheritdoc />
         public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
         {
             return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
         }
 
+        /// <inheritdoc />
         public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
         {
             return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});

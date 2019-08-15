@@ -6,7 +6,7 @@ namespace Tapeti.Transient
     /// <summary>
     /// Default implementation of ITransientPublisher
     /// </summary>
-    public class TransientPublisher : ITransientPublisher
+    internal class TransientPublisher : ITransientPublisher
     {
         private readonly TransientRouter router;
         private readonly IPublisher publisher;

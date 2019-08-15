@@ -6,11 +6,7 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
-    /// <summary>
-    /// Wrapper for RabbitMQ Client's IBasicProperties
-    /// </summary>
-    public class RabbitMQMessageProperties : IMessageProperties
+    internal class RabbitMQMessageProperties : IMessageProperties
     {
         /// <summary>
         /// Provides access to the wrapped IBasicProperties

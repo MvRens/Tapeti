@@ -7,7 +7,7 @@ using Tapeti.Config;
 namespace Tapeti.Connection
 {
     /// <inheritdoc />
-    public class TapetiSubscriber : ISubscriber
+    internal class TapetiSubscriber : ISubscriber
     {
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;

@@ -12,7 +12,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Implements a RabbitMQ consumer to pass messages to the Tapeti middleware.
     /// </summary>
-    public class TapetiConsumer : IConsumer
+    internal class TapetiConsumer : IConsumer
     {
         private readonly ITapetiConfig config;
         private readonly string queueName;

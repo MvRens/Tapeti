@@ -9,7 +9,7 @@ namespace Tapeti.DataAnnotations
     /// <summary>
     /// Validates consumed messages using System.ComponentModel.DataAnnotations
     /// </summary>
-    public class DataAnnotationsMessageMiddleware : IMessageMiddleware
+    internal class DataAnnotationsMessageMiddleware : IMessageMiddleware
     {
         /// <inheritdoc />
         public Task Handle(IMessageContext context, Func<Task> next)

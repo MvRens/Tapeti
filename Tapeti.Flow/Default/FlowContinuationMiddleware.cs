@@ -6,7 +6,11 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
-    public class FlowContinuationMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
+    /// <inheritdoc cref="IControllerMessageMiddleware"/> />
+    /// <summary>
+    /// Handles methods marked with the Continuation attribute.
+    /// </summary>
+    internal class FlowContinuationMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
     {
         public async Task Filter(IControllerMessageContext context, Func<Task> next)
         {

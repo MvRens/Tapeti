@@ -6,11 +6,7 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
-    /// <summary>
-    /// Default implementation for IControllerBindingContext
-    /// </summary>
-    public class ControllerBindingContext : IControllerBindingContext
+    internal class ControllerBindingContext : IControllerBindingContext
     {
         private BindingTargetMode? bindingTargetMode;
         private readonly List<IControllerMiddlewareBase> middleware = new List<IControllerMiddlewareBase>();

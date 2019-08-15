@@ -22,12 +22,15 @@ namespace Tapeti.Flow.Default
         private volatile bool inUse;
         private volatile bool loaded;
 
+
+        /// <inheritdoc />
         public FlowStore(IFlowRepository repository) 
         {
             this.repository = repository;
         }
 
 
+        /// <inheritdoc />
         public async Task Load()
         {
             if (inUse)
@@ -50,6 +53,7 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public Task<Guid?> FindFlowID(Guid continuationID)
         {
             if (!loaded)
@@ -59,6 +63,7 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
             if (!loaded)
@@ -70,18 +75,20 @@ namespace Tapeti.Flow.Default
             return flowStatelock;
         }
 
+
         private class FlowStateLock : IFlowStateLock
         {
             private readonly FlowStore owner;
-            private readonly Guid flowID;
             private volatile IDisposable flowLock;
             private FlowState flowState;
+
+            public Guid FlowID { get; }
 
 
             public FlowStateLock(FlowStore owner, Guid flowID, IDisposable flowLock)
             {
                 this.owner = owner;
-                this.flowID = flowID;
+                this.FlowID = flowID;
                 this.flowLock = flowLock;
 
                 owner.flowStates.TryGetValue(flowID, out flowState);
@@ -93,8 +100,6 @@ namespace Tapeti.Flow.Default
                 flowLock = null;
                 l?.Dispose();
             }
-
-            public Guid FlowID => flowID;
 
             public Task<FlowState> GetFlowState()
             {
@@ -121,22 +126,22 @@ namespace Tapeti.Flow.Default
 
                 foreach (var addedContinuation in newFlowState.Continuations.Where(c => flowState == null || !flowState.Continuations.ContainsKey(c.Key)))
                 {
-                    owner.continuationLookup.TryAdd(addedContinuation.Key, flowID);
+                    owner.continuationLookup.TryAdd(addedContinuation.Key, FlowID);
                 }
 
                 var isNew = flowState == null;
                 flowState = newFlowState;
-                owner.flowStates[flowID] = newFlowState;
+                owner.flowStates[FlowID] = newFlowState;
 
                 // Storing the flowstate in the underlying repository
                 if (isNew)
                 {
                     var now = DateTime.UtcNow;
-                    await owner.repository.CreateState(flowID, flowState, now);
+                    await owner.repository.CreateState(FlowID, flowState, now);
                 }
                 else
                 {
-                    await owner.repository.UpdateState(flowID, flowState);
+                    await owner.repository.UpdateState(FlowID, flowState);
                 }
             }
 
@@ -150,12 +155,12 @@ namespace Tapeti.Flow.Default
                     foreach (var removedContinuation in flowState.Continuations.Keys)
                         owner.continuationLookup.TryRemove(removedContinuation, out _);
 
-                    owner.flowStates.TryRemove(flowID, out _);
+                    owner.flowStates.TryRemove(FlowID, out _);
 
                     if (flowState != null)
                     {
                         flowState = null;
-                        await owner.repository.DeleteState(flowID);
+                        await owner.repository.DeleteState(FlowID);
                     }
                 }
             }

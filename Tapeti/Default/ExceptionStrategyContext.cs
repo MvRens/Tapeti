@@ -3,11 +3,7 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
-    /// <summary>
-    /// Default implementation of IExceptionStrategyContext.
-    /// </summary>
-    public class ExceptionStrategyContext : IExceptionStrategyContext
+    internal class ExceptionStrategyContext : IExceptionStrategyContext
     {
         /// <summary>
         /// The ConsumeResult as set by the exception strategy. Defaults to Error.

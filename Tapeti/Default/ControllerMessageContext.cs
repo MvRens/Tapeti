@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using Tapeti.Config;
+﻿using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc cref="IControllerMessageContext" />
-    public class ControllerMessageContext : IControllerMessageContext
+    internal class ControllerMessageContext : IControllerMessageContext
     {
         private readonly IMessageContext decoratedContext;
 

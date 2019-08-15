@@ -1,19 +1,15 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using RabbitMQ.Client;
 using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Default;
-using Tapeti.Exceptions;
 using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
     /// <inheritdoc />
-    public class TapetiPublisher : IInternalPublisher
+    internal class TapetiPublisher : IInternalPublisher
     {
         private readonly ITapetiConfig config;
         private readonly Func<ITapetiClient> clientFactory;

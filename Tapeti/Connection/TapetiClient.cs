@@ -9,7 +9,6 @@ using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
-using RabbitMQ.Client.Framing;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Exceptions;
@@ -21,7 +20,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Implementation of ITapetiClient for the RabbitMQ Client library
     /// </summary>
-    public class TapetiClient : ITapetiClient
+    internal class TapetiClient : ITapetiClient
     {
         private const int ReconnectDelay = 5000;
         private const int MandatoryReturnTimeout = 30000;

@@ -10,7 +10,7 @@ namespace Tapeti.Transient
     /// <summary>
     /// Manages active requests and responses. For internal use.
     /// </summary>
-    public class TransientRouter
+    internal class TransientRouter
     {
         private readonly int defaultTimeoutMs;
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new ConcurrentDictionary<Guid, TaskCompletionSource<object>>();

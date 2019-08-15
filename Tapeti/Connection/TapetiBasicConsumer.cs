@@ -9,7 +9,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
     /// </summary>
-    public class TapetiBasicConsumer : DefaultBasicConsumer
+    internal class TapetiBasicConsumer : DefaultBasicConsumer
     {
         private readonly IConsumer consumer;
         private readonly Func<ulong, ConsumeResult, Task> onRespond;
