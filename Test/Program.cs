@@ -37,8 +37,9 @@ namespace Test
                 {
                     var flowStore = container.GetInstance<IFlowStore>();
                     var flowStore2 = container.GetInstance<IFlowStore>();
-
                     Console.WriteLine("IFlowHandler is singleton = " + (flowStore == flowStore2));
+
+                    flowStore.Load().Wait();
 
                     connection.Connected += (sender, e) => { Console.WriteLine("Event Connected"); };
                     connection.Disconnected += (sender, e) => { Console.WriteLine("Event Disconnected"); };
@@ -52,6 +53,7 @@ namespace Test
 
                     Console.WriteLine("Done!");
 
+                    /*
                     var response = container.GetInstance<ITransientPublisher>()
                         .RequestResponse<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(
                             new PoloConfirmationRequestMessage
@@ -60,11 +62,12 @@ namespace Test
                             }).Result;
 
                     Console.WriteLine(response.ShouldMatchState);
+                    */
 
                     //connection.GetPublisher().Publish(new FlowEndController.PingMessage());
 
-                    //container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true).Wait();
-                    //container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest).Wait();
+                    container.GetInstance<IFlowStarter>().Start<MarcoController, bool>(c => c.StartFlow, true).Wait();
+                    container.GetInstance<IFlowStarter>().Start<MarcoController>(c => c.TestParallelRequest).Wait();
 
                     Thread.Sleep(1000);
 

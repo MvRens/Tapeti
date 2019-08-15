@@ -14,7 +14,7 @@ namespace Tapeti.Default
     /// instead use the ITapetiConfigBuilder RegisterController / RegisterAllControllers extension
     /// methods.
     /// </summary>
-    internal class ControllerMethodBinding : IBinding
+    internal class ControllerMethodBinding : IControllerMethodBinding
     {
         /// <summary>
         /// Contains all the required information to bind a controller method to a queue.
@@ -82,6 +82,12 @@ namespace Tapeti.Default
 
         /// <inheritdoc />
         public string QueueName { get; private set; }
+
+        /// <inheritdoc />
+        public Type Controller => bindingInfo.ControllerType;
+
+        /// <inheritdoc />
+        public MethodInfo Method => bindingInfo.Method;
 
 
         /// <inheritdoc />
