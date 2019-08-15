@@ -60,12 +60,6 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task ApplyBinding(IBinding binding, IBindingTarget bindingTarget)
-        {
-            await binding.Apply(bindingTarget);
-        }
-
-
         private abstract class CustomBindingTarget : IBindingTarget
         {
             protected readonly Func<ITapetiClient> ClientFactory;

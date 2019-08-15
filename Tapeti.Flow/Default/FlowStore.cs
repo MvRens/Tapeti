@@ -88,7 +88,7 @@ namespace Tapeti.Flow.Default
             public FlowStateLock(FlowStore owner, Guid flowID, IDisposable flowLock)
             {
                 this.owner = owner;
-                this.FlowID = flowID;
+                FlowID = flowID;
                 this.flowLock = flowLock;
 
                 owner.flowStates.TryGetValue(flowID, out flowState);

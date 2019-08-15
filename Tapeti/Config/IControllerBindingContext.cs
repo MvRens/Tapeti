@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Config
 {
     /// <summary>

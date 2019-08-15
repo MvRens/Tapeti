@@ -1,6 +1,4 @@
-﻿using RabbitMQ.Client;
-
-// ReSharper disable UnusedMember.Global
+﻿// ReSharper disable UnusedMember.Global
 
 namespace Tapeti.Config
 {

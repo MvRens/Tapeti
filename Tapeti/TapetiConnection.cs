@@ -27,7 +27,7 @@ namespace Tapeti
         /// </remarks>
         public TapetiConnectionParams Params { get; set; }
 
-        private readonly Lazy<TapetiClient> client;
+        private readonly Lazy<ITapetiClient> client;
         private TapetiSubscriber subscriber;
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Tapeti
             this.config = config;
             (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
-            client = new Lazy<TapetiClient>(() => new TapetiClient(config, Params ?? new TapetiConnectionParams())
+            client = new Lazy<ITapetiClient>(() => new TapetiClient(config, Params ?? new TapetiConnectionParams())
             {
                 ConnectionEventListener = new ConnectionEventListener(this)
             });

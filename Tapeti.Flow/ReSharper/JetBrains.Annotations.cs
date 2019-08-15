@@ -96,9 +96,9 @@ namespace JetBrains.Annotations
             TargetFlags = targetFlags;
         }
 
-        public ImplicitUseKindFlags UseKindFlags { get; private set; }
+        public ImplicitUseKindFlags UseKindFlags { get; }
 
-        public ImplicitUseTargetFlags TargetFlags { get; private set; }
+        public ImplicitUseTargetFlags TargetFlags { get; }
     }
 
     /// <summary>
@@ -174,6 +174,6 @@ namespace JetBrains.Annotations
             Comment = comment;
         }
 
-        [CanBeNull] public string Comment { get; private set; }
+        [CanBeNull] public string Comment { get; }
     }
 }
