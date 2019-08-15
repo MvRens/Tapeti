@@ -7,12 +7,12 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Flow.SQL
 {
+    /// <inheritdoc />
     /// <summary>
     /// IFlowRepository implementation for SQL server.
     /// </summary>
     /// <remarks>
     /// Assumes the following table layout (table name configurable and may include schema):
-    /// 
     /// create table Flow
     /// (
     ///     FlowID uniqueidentifier not null,

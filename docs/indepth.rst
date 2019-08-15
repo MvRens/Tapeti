@@ -9,6 +9,79 @@ As described in the Getting started guide, a message is a plain object which can
 When communicating between services it is considered best practice to define messages in separate class library assemblies which can be referenced in other services. This establishes a public interface between services and components without binding to the implementation.
 
 
+Request - response
+------------------
+Messages can be annotated with the Request attribute to indicate that they require a response. For example:
+
+::
+
+  [Request(Response = typeof(BunnyCountResponseMessage))]
+  public class BunnyCountRequestMessage
+  {
+      public string ColorFilter { get; set; }
+  }
+
+  public class BunnyCountResponseMessage
+  {
+      public int Count { get; set; }
+  }
+
+Message handlers processing the BunnyCountRequestMessage *must* respond with a BunnyCountResponseMessage, either directly or at the end of a Flow when using the :doc:`flow`.
+
+::
+
+  [MessageController]
+  [DurableQueue("hutch")]
+  public class HutchController
+  {
+      private IBunnyRepository repository;
+
+      public HutchController(IBunnyRepository repository)
+      {
+          this.repository = repository;
+      }
+
+      public async Task<BunnyCountResponseMessage> HandleCountRequest(BunnyCountRequestMessage message)
+      {
+          return new BunnyCountResponseMessage
+          {
+              Count = await repository.Count(message.ColorFilter)
+          };
+      }
+  }
+
+Tapeti will throw an exception if a request message is published but there is no route for it. Tapeti will also throw an exception if you do not return the correct response class. This ensures consistent flow across services.
+
+If you simply want to broadcast an event in response to a message, do not use the return value but instead call IPublisher.Publish in the message handler.
+
+
+In practise your service may end up with the same message having two versions; one where a reply is expected and one where it's not. This is not considered a design flaw but a clear contract between services. It is common and recommended for the request message to inherit from the base non-request version, and implement two message handlers that internally perform the same logic.
+
+While designing Tapeti this difference has been defined as `Transfer of responsibility`_ which is explained below.
+
+
+Transfer of responsibility
+--------------------------
+When working with microservices there will be dependencies between services.
+
+Sometimes the dependency should be on the consumer side, which is the classic publish-subscribe pattern. For example, a reporting service will often listen in on status updates from various other services to compose a combined report. The services producing the events simply broadcast the message without concerning who if anyone is listening.
+
+Sometimes you need another service to handle or query data outside of your responsibility, and the Request - Response mechanism can be used. Tapeti ensures these messages are routed as described above.
+
+The third pattern is what we refer to as "Transfer of responsibility". You need another service to continue your work, but a response is not required. For example, you have a REST API which receives and validates a request, then sends it to a queue to be handled by a background service.
+
+Messages like these must not be lost, there should always be a queue bound to it to handle the message. Tapeti supports the [Mandatory] attribute for these cases and will throw an exception if there is no queue bound to receive the message:
+
+::
+
+  [Mandatory]
+  public class SomeoneHandleMeMessage
+  {
+  }
+
+
+
+
 Routing keys
 ------------
 The routing key is determined by converting CamelCase to dot-separated lowercase, leaving out "Message" at the end if it is present. In the example below, the routing key will be "something.happened":
@@ -21,7 +94,6 @@ The routing key is determined by converting CamelCase to dot-separated lowercase
   }
 
 This behaviour is implemented using the IRoutingKeyStrategy interface. For more information about changing this, see `Overriding default behaviour`_
-
 
 
 Exchanges

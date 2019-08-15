@@ -8,4 +8,6 @@ Tapeti documentation
    introduction
    gettingstarted
    indepth
+   dataannotations
    flow
+   transient
