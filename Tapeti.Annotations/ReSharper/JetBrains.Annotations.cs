@@ -30,6 +30,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 using System;
+// ReSharper disable InheritdocConsiderUsage
 
 #pragma warning disable 1591
 // ReSharper disable UnusedMember.Global
@@ -142,7 +143,7 @@ namespace JetBrains.Annotations
         /// </summary>
         InstantiatedWithFixedConstructorSignature = 4,
         /// <summary>Indicates implicit instantiation of a type.</summary>
-        InstantiatedNoFixedConstructorSignature = 8,
+        InstantiatedNoFixedConstructorSignature = 8
     }
 
     /// <summary>

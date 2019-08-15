@@ -27,7 +27,7 @@ namespace Tapeti.Flow.FlowHelpers
             var nextLi = new LockItem(locks, key);
             try
             {
-                bool continueImmediately = false;
+                var continueImmediately = false;
                 lock (locks)
                 {
                     if (!locks.TryGetValue(key, out var li))

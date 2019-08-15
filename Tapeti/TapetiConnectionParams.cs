@@ -67,12 +67,12 @@ namespace Tapeti
                 Port = uri.Port;
 
             var userInfo = uri.UserInfo.Split(':');
-            if (userInfo.Length > 0)
-            {
-                Username = userInfo[0];
-                if (userInfo.Length > 1)
-                    Password = userInfo[1];
-            }
+            if (userInfo.Length <= 0) 
+                return;
+
+            Username = userInfo[0];
+            if (userInfo.Length > 1)
+                Password = userInfo[1];
         }
     }
 }

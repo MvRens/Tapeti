@@ -126,7 +126,7 @@ namespace Tapeti.Tests.Helpers
             AssertConnectionString("HostName=rabbit.com;Username=\"myApplication\"", new TapetiConnectionParams
             {
                 HostName = "rabbit.com",
-                Username = "myApplication",
+                Username = "myApplication"
             });
         }
 

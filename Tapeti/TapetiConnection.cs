@@ -150,7 +150,7 @@ namespace Tapeti
 
             Task.Run(() =>
             {
-                subscriber?.ApplyBindings().ContinueWith((t) =>
+                subscriber?.ApplyBindings().ContinueWith(t =>
                 {
                     reconnectedEvent.Invoke(this, e);
                 });

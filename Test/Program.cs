@@ -26,6 +26,7 @@ namespace Test
                     .WithFlow()
                     .WithDataAnnotations()
                     .WithTransient(TimeSpan.FromSeconds(30))
+                    .EnableDeclareDurableQueues()
                     .RegisterAllControllers()
                     //.DisablePublisherConfirms() -> you probably never want to do this if you're using Flow or want requeues when a publish fails
                     .Build();
@@ -74,7 +75,8 @@ namespace Test
                     //var emitter = container.GetInstance<MarcoEmitter>();
                     //emitter.Run().Wait();
 
-
+                    Console.WriteLine("Press any Enter to continue");
+                    Console.ReadLine();
                 }
             }
             //catch (Exception e)

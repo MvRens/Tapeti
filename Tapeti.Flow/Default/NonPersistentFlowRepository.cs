@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
+    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IFlowRepository. Does not persist any state, relying on the FlowStore's cache instead.
     /// </summary>

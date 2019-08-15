@@ -81,7 +81,7 @@ namespace Test
                 .AddRequestSync<PoloConfirmationRequestMessage, PoloConfirmationResponseMessage>(new PoloConfirmationRequestMessage
                 {
                     StoredInState = StateTestGuid,
-                    EnumValue = TestEnum.Value1,
+                    EnumValue = TestEnum.Value1
 
                 }, HandlePoloConfirmationResponse1)
 
@@ -124,6 +124,7 @@ namespace Test
          * This will automatically include the correlationId in the response and
          * use the replyTo header of the request if provided.
          */
+        [DurableQueue("tapeti.test.durable")]
         public async Task<PoloConfirmationResponseMessage> PoloConfirmation(PoloConfirmationRequestMessage message)
         {
             Console.WriteLine(">> PoloConfirmation (returning confirmation)");

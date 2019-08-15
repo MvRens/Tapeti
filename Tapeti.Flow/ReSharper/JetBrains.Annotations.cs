@@ -38,6 +38,7 @@ using System;
 // ReSharper disable IntroduceOptionalParameters.Global
 // ReSharper disable MemberCanBeProtected.Global
 // ReSharper disable InconsistentNaming
+// ReSharper disable InheritdocConsiderUsage
 
 // ReSharper disable once CheckNamespace
 namespace JetBrains.Annotations
@@ -142,7 +143,7 @@ namespace JetBrains.Annotations
         /// </summary>
         InstantiatedWithFixedConstructorSignature = 4,
         /// <summary>Indicates implicit instantiation of a type.</summary>
-        InstantiatedNoFixedConstructorSignature = 8,
+        InstantiatedNoFixedConstructorSignature = 8
     }
 
     /// <summary>

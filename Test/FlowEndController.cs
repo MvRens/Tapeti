@@ -29,7 +29,7 @@ namespace Test
                 //never true
                 return flowProvider
                     .YieldWithRequestSync<PingConfirmationRequestMessage, PingConfirmationResponseMessage>
-                    (new PingConfirmationRequestMessage() { StoredInState = "Ping:" },
+                    (new PingConfirmationRequestMessage { StoredInState = "Ping:" },
                         HandlePingConfirmationResponse);
             }
 

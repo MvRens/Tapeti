@@ -96,14 +96,13 @@ namespace Tapeti.Connection
             public async Task<string> BindDynamic(Type messageClass, string queuePrefix = null)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix);
+                if (!result.IsNewMessageClass) 
+                    return result.QueueName;
 
-                if (result.IsNewMessageClass)
-                {
-                    var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
-                    var exchange = ExchangeStrategy.GetExchange(messageClass);
+                var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
+                var exchange = ExchangeStrategy.GetExchange(messageClass);
 
-                    await ClientFactory().DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey));
-                }
+                await ClientFactory().DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey));
 
                 return result.QueueName;
             }

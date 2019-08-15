@@ -23,7 +23,7 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public async Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request)
         {
-            return (TResponse)(await router.RequestResponse(publisher, request));
+            return (TResponse)await router.RequestResponse(publisher, request);
         }
     }
 }
