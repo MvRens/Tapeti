@@ -109,7 +109,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="context"></param>
         /// <param name="yieldPoint"></param>
-        Task Execute(IControllerMessageContext context, IYieldPoint yieldPoint);
+        Task Execute(IFlowHandlerContext context, IYieldPoint yieldPoint);
     }
 
 

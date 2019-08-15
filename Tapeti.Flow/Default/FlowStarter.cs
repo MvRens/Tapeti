@@ -13,84 +13,55 @@ namespace Tapeti.Flow.Default
     internal class FlowStarter : IFlowStarter
     {
         private readonly ITapetiConfig config;
-        private readonly ILogger logger;
 
 
         /// <inheritdoc />
-        public FlowStarter(ITapetiConfig config, ILogger logger)
+        public FlowStarter(ITapetiConfig config)
         {
             this.config = config;
-            this.logger = logger;
         }
 
 
         /// <inheritdoc />
-        public Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
+        public async Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
         }
 
         /// <inheritdoc />
-        public Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
+        public async Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
         }
 
         /// <inheritdoc />
-        public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
+        public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
         }
 
         /// <inheritdoc />
-        public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
+        public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});
         }
 
 
-        private async Task CallControllerMethod<TController>(MethodBase method, Func<object, Task<IYieldPoint>> getYieldPointResult, object[] parameters) where TController : class
+        private async Task CallControllerMethod<TController>(MethodInfo method, Func<object, Task<IYieldPoint>> getYieldPointResult, object[] parameters) where TController : class
         {
             var controller = config.DependencyResolver.Resolve<TController>();
             var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
 
-            /*
-            var context = new ControllerMessageContext()
+            var context = new FlowHandlerContext
             {
                 Config = config,
-                Controller = controller
+                Controller = controller,
+                Method = method
             };
-            */
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
-
-            try
-            {
-                //await flowHandler.Execute(context, yieldPoint);
-                //handlingResult.ConsumeResponse = ConsumeResponse.Ack;
-            }
-            finally
-            {
-                //await RunCleanup(context, handlingResult.ToHandlingResult());
-            }
+            await flowHandler.Execute(context, yieldPoint);
         }
-
-        /*
-        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
-        {
-            foreach (var handler in config.CleanupMiddleware)
-            {
-                try
-                {
-                    await handler.Handle(context, handlingResult);
-                }
-                catch (Exception eCleanup)
-                {
-                    logger.HandlerException(eCleanup);
-                }
-            }
-        }
-        */
 
 
         private static MethodInfo GetExpressionMethod<TController, TResult>(Expression<Func<TController, Func<TResult>>> methodSelector)
@@ -104,6 +75,7 @@ namespace Tapeti.Flow.Default
 
             return method;
         }
+
 
         private static MethodInfo GetExpressionMethod<TController, TResult, TParameter>(Expression<Func<TController, Func<TParameter, TResult>>> methodSelector)
         {

@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Tapeti.Config;
 
 namespace Tapeti.Flow.Default
 {
     internal class FlowContext : IDisposable
     {
-        public IControllerMessageContext MessageContext { get; set; }
+        public IFlowHandlerContext HandlerContext { get; set; }
         public IFlowStateLock FlowStateLock { get; set; }
         public FlowState FlowState { get; set; }
 
@@ -21,11 +20,11 @@ namespace Tapeti.Flow.Default
         {
             storeCalled = true;
 
-            if (MessageContext == null) throw new ArgumentNullException(nameof(MessageContext));
+            if (HandlerContext == null) throw new ArgumentNullException(nameof(HandlerContext));
             if (FlowState == null) throw new ArgumentNullException(nameof(FlowState));
             if (FlowStateLock == null) throw new ArgumentNullException(nameof(FlowStateLock));
 
-            FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(MessageContext.Controller);
+            FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller);
             await FlowStateLock.StoreFlowState(FlowState);
         }
 

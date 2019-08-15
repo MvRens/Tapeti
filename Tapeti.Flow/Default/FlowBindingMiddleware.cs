@@ -77,14 +77,14 @@ namespace Tapeti.Flow.Default
         private static Task HandleYieldPoint(IControllerMessageContext context, IYieldPoint yieldPoint)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
-            return flowHandler.Execute(context, yieldPoint);
+            return flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
 
 
         private static Task HandleParallelResponse(IControllerMessageContext context)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
-            return flowHandler.Execute(context, new DelegateYieldPoint(async flowContext =>
+            return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>
             {
                 await flowContext.Store();
             }));

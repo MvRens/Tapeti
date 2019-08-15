@@ -97,7 +97,7 @@ namespace Tapeti.Flow.Default
         private async Task SendResponse(FlowContext context, object message)
         {
             var reply = context.FlowState == null
-                ? GetReply(context.MessageContext)
+                ? GetReply(context.HandlerContext)
                 : context.FlowState.Metadata.Reply;
 
             if (reply == null)
@@ -155,24 +155,24 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static ReplyMetadata GetReply(IMessageContext context)
+        private static ReplyMetadata GetReply(IFlowHandlerContext context)
         {
-            var requestAttribute = context.Message?.GetType().GetCustomAttribute<RequestAttribute>();
+            var requestAttribute = context.ControllerMessageContext?.Message?.GetType().GetCustomAttribute<RequestAttribute>();
             if (requestAttribute?.Response == null)
                 return null;
 
             return new ReplyMetadata
             {
-                CorrelationId = context.Properties.CorrelationId,
-                ReplyTo = context.Properties.ReplyTo,
+                CorrelationId = context.ControllerMessageContext.Properties.CorrelationId,
+                ReplyTo = context.ControllerMessageContext.Properties.ReplyTo,
                 ResponseTypeName = requestAttribute.Response.FullName,
-                Mandatory = context.Properties.Persistent.GetValueOrDefault(true)
+                Mandatory = context.ControllerMessageContext.Properties.Persistent.GetValueOrDefault(true)
             };
         }
 
         private static async Task CreateNewFlowState(FlowContext flowContext)
         {
-            var flowStore = flowContext.MessageContext.Config.DependencyResolver.Resolve<IFlowStore>();
+            var flowStore = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowStore>();
 
             var flowID = Guid.NewGuid();
             flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
@@ -184,25 +184,27 @@ namespace Tapeti.Flow.Default
             {
                 Metadata = new FlowMetadata
                 {
-                    Reply = GetReply(flowContext.MessageContext)
+                    Reply = GetReply(flowContext.HandlerContext)
                 }
             };
         }
 
+        
         /// <inheritdoc />
-        public async Task Execute(IControllerMessageContext context, IYieldPoint yieldPoint)
+        public async Task Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
         {
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
-                throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Binding.Method.Name}");
+                throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Method.Name}");
 
-            if (!context.Get(ContextItems.FlowContext, out FlowContext flowContext))
+            var messageContext = context.ControllerMessageContext;
+            if (messageContext == null || !messageContext.Get(ContextItems.FlowContext, out FlowContext flowContext))
             {
                 flowContext = new FlowContext
                 {
-                    MessageContext = context
+                    HandlerContext = context
                 };
 
-                context.Store(ContextItems.FlowContext, flowContext);
+                messageContext?.Store(ContextItems.FlowContext, flowContext);
             }
 
             try
@@ -213,7 +215,7 @@ namespace Tapeti.Flow.Default
             {
                 // Useful for debugging
                 e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
-                e.Data["Tapeti.Controller.Method"] = context.Binding.Method.Name;
+                e.Data["Tapeti.Controller.Method"] = context.Method.Name;
                 throw;
             }
 
@@ -293,7 +295,7 @@ namespace Tapeti.Flow.Default
 
                 return new DelegateYieldPoint(context =>
                 {
-                    if (convergeMethod.Method.DeclaringType != context.MessageContext.Controller.GetType())
+                    if (convergeMethod.Method.DeclaringType != context.HandlerContext.Controller.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");
 
                     return Task.WhenAll(requests.Select(requestInfo =>

@@ -12,12 +12,12 @@ namespace Tapeti.DataAnnotations
     internal class DataAnnotationsPublishMiddleware : IPublishMiddleware
     {
         /// <inheritdoc />
-        public Task Handle(IPublishContext context, Func<Task> next)
+        public async Task Handle(IPublishContext context, Func<Task> next)
         {
             var validationContext = new ValidationContext(context.Message);
             Validator.ValidateObject(context.Message, validationContext, true);
 
-            return next();
+            await next();
         }
     }
 }

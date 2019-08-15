@@ -92,7 +92,7 @@ namespace Tapeti.Flow.Default
 
             flowContext = new FlowContext
             {
-                MessageContext = context,
+                HandlerContext = new FlowHandlerContext(context),
 
                 FlowStateLock = flowStateLock,
                 FlowState = flowState,
@@ -124,7 +124,7 @@ namespace Tapeti.Flow.Default
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for converge method {methodName}");
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
-            await flowHandler.Execute(context, yieldPoint);
+            await flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
     }
 }
