@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
+    <ProjectReference Include="..\..\Tapeti\Tapeti.csproj" />
   </ItemGroup>
 
 </Project>

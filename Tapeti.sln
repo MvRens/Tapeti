@@ -29,13 +29,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{26
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "01-PublishSubscribe", "Examples\01-PublishSubscribe\01-PublishSubscribe.csproj", "{8350A0AB-F0EE-48CF-9CA6-6019467101CF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExampleLib", "ExampleHelper.cs\ExampleLib.csproj", "{F3B38753-06B4-4932-84B4-A07692AD802D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExampleLib", "Examples\ExampleLib\ExampleLib.csproj", "{F3B38753-06B4-4932-84B4-A07692AD802D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messaging.TapetiExample", "Messaging.TapetiExample\Messaging.TapetiExample.csproj", "{D24120D4-50A2-44B6-A4EA-6ADAAEBABA84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messaging.TapetiExample", "Examples\Messaging.TapetiExample\Messaging.TapetiExample.csproj", "{D24120D4-50A2-44B6-A4EA-6ADAAEBABA84}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "02-DeclareDurableQueues", "02-DeclareDurableQueues\02-DeclareDurableQueues.csproj", "{85511282-EF91-4B56-B7DC-9E8706556D6E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "02-DeclareDurableQueues", "Examples\02-DeclareDurableQueues\02-DeclareDurableQueues.csproj", "{85511282-EF91-4B56-B7DC-9E8706556D6E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "03-FlowRequestResponse", "03-FlowRequestResponse\03-FlowRequestResponse.csproj", "{463A12CE-E221-450D-ADEA-91A599612DFA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "03-FlowRequestResponse", "Examples\03-FlowRequestResponse\03-FlowRequestResponse.csproj", "{463A12CE-E221-450D-ADEA-91A599612DFA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
