@@ -135,6 +135,7 @@ The routing key is determined by converting CamelCase to dot-separated lowercase
 
 This behaviour is implemented using the IRoutingKeyStrategy interface. For more information about changing this, see `Overriding default behaviour`_
 
+.. note:: As you can see the namespace in which the message class is declared is not used in the routing key. This means you should not use the same class name twice as it may result in conflicts. The exchange strategy described below helps in differentiating between the messages, but to avoid any confusion it is still best practice to use unambiguous message class names or use another routing key strategy.
 
 Exchanges
 ---------
