@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\ExampleHelper.cs\ExampleLib.csproj" />
     <ProjectReference Include="..\..\Messaging.TapetiExample\Messaging.TapetiExample.csproj" />
+    <ProjectReference Include="..\..\Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj" />
     <ProjectReference Include="..\..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
     <ProjectReference Include="..\..\Tapeti\Tapeti.csproj" />
   </ItemGroup>

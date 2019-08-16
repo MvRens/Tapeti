@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messaging.TapetiExample", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "02-DeclareDurableQueues", "02-DeclareDurableQueues\02-DeclareDurableQueues.csproj", "{85511282-EF91-4B56-B7DC-9E8706556D6E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "03-FlowRequestResponse", "03-FlowRequestResponse\03-FlowRequestResponse.csproj", "{463A12CE-E221-450D-ADEA-91A599612DFA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,10 @@ Global
 		{85511282-EF91-4B56-B7DC-9E8706556D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{85511282-EF91-4B56-B7DC-9E8706556D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{85511282-EF91-4B56-B7DC-9E8706556D6E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{463A12CE-E221-450D-ADEA-91A599612DFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{463A12CE-E221-450D-ADEA-91A599612DFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{463A12CE-E221-450D-ADEA-91A599612DFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{463A12CE-E221-450D-ADEA-91A599612DFA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -110,6 +116,7 @@ Global
 		{F3B38753-06B4-4932-84B4-A07692AD802D} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{D24120D4-50A2-44B6-A4EA-6ADAAEBABA84} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{85511282-EF91-4B56-B7DC-9E8706556D6E} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
+		{463A12CE-E221-450D-ADEA-91A599612DFA} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B09CC2BF-B2AF-4CB6-8728-5D1D8E5C50FA}

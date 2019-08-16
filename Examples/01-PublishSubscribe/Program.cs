@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using ExampleLib;
 using SimpleInjector;
 using Tapeti;
+using Tapeti.DataAnnotations;
 using Tapeti.Default;
 using Tapeti.SimpleInjector;
 
@@ -29,6 +30,7 @@ namespace _01_PublishSubscribe
         internal static async Task MainAsync(IDependencyResolver dependencyResolver, Func<Task> waitForDone)
         {
             var config = new TapetiConfig(dependencyResolver)
+                .WithDataAnnotations()
                 .RegisterAllControllers()
                 .Build();
 

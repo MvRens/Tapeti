@@ -7,7 +7,7 @@ namespace Messaging.TapetiExample
     /// </summary>
     public class PublishSubscribeMessage
     {
-        [Required]
+        [Required(ErrorMessage = "Don't be impolite, supply a {0}")]
         public string Greeting { get; set; }
     }
 }

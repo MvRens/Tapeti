@@ -24,7 +24,7 @@ namespace ExampleLib
         private readonly TaskCompletionSource<bool> doneSignal = new TaskCompletionSource<bool>();
 
 
-        /// <inheritdoc />
+        /// <param name="dependencyResolver">Uses Tapeti's IDependencyContainer interface so you can easily switch an example to your favourite IoC container</param>
         public ExampleConsoleApp(IDependencyContainer dependencyResolver)
         {
             this.dependencyResolver = dependencyResolver;

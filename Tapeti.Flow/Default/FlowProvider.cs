@@ -199,30 +199,43 @@ namespace Tapeti.Flow.Default
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Method.Name}");
 
-            var messageContext = context.ControllerMessageContext;
-            if (messageContext == null || !messageContext.Get(ContextItems.FlowContext, out FlowContext flowContext))
-            {
-                flowContext = new FlowContext
-                {
-                    HandlerContext = context
-                };
-
-                messageContext?.Store(ContextItems.FlowContext, flowContext);
-            }
+            FlowContext flowContext = null;
+            var disposeFlowContext = false;
 
             try
             {
-                await executableYieldPoint.Execute(flowContext);
-            }
-            catch (YieldPointException e)
-            {
-                // Useful for debugging
-                e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
-                e.Data["Tapeti.Controller.Method"] = context.Method.Name;
-                throw;
-            }
+                var messageContext = context.ControllerMessageContext;
+                if (messageContext == null || !messageContext.Get(ContextItems.FlowContext, out flowContext))
+                {
+                    flowContext = new FlowContext
+                    {
+                        HandlerContext = context
+                    };
 
-            flowContext.EnsureStoreOrDeleteIsCalled();
+                    // If we ended up here it is because of a Start. No point in storing the new FlowContext
+                    // in the messageContext as the yield point is the last to execute.
+                    disposeFlowContext = true;
+                }
+
+                try
+                {
+                    await executableYieldPoint.Execute(flowContext);
+                }
+                catch (YieldPointException e)
+                {
+                    // Useful for debugging
+                    e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
+                    e.Data["Tapeti.Controller.Method"] = context.Method.Name;
+                    throw;
+                }
+
+                flowContext.EnsureStoreOrDeleteIsCalled();
+            }
+            finally
+            {
+                if (disposeFlowContext)
+                    flowContext.Dispose();
+            }
         }
 
 

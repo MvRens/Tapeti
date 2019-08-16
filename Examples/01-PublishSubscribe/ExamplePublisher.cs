@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
 using Messaging.TapetiExample;
 using Tapeti;
 
@@ -24,6 +26,20 @@ namespace _01_PublishSubscribe
             {
                 Greeting = "Hello world of messaging!"
             });
+
+
+            // Demonstrates what happens when DataAnnotations is enabled 
+            // and the message is invalid
+            try
+            {
+                await publisher.Publish(new PublishSubscribeMessage());
+
+                Console.WriteLine("This is not supposed to show. Did you disable the DataAnnotations extension?");
+            }
+            catch (ValidationException e)
+            {
+                Console.WriteLine("As expected, the DataAnnotations check failed: " + e.Message);
+            }
         }
     }
 }
