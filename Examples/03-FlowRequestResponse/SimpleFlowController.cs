@@ -9,7 +9,7 @@ namespace _03_FlowRequestResponse
 {
     [MessageController]
     [DynamicQueue("tapeti.example.03")]
-    public class SendingFlowController
+    public class SimpleFlowController
     {
         private readonly IFlowProvider flowProvider;
         private readonly IExampleState exampleState;
@@ -32,7 +32,7 @@ namespace _03_FlowRequestResponse
         public DateTime RequestStartTime;
 
 
-        public SendingFlowController(IFlowProvider flowProvider, IExampleState exampleState)
+        public SimpleFlowController(IFlowProvider flowProvider, IExampleState exampleState)
         {
             this.flowProvider = flowProvider;
             this.exampleState = exampleState;
@@ -58,11 +58,11 @@ namespace _03_FlowRequestResponse
         public IYieldPoint HandleQuoteResponse(QuoteResponseMessage message)
         {
             if (nonPersistentState)
-                Console.WriteLine("This is not supposed to show. NonPersistentState should not be retained. Someone please check http://www.hasthelargehadroncolliderdestroyedtheworldyet.com.");
+                Console.WriteLine("[SimpleFlowController] This is not supposed to show. NonPersistentState should not be retained. Someone please check http://www.hasthelargehadroncolliderdestroyedtheworldyet.com.");
 
-            Console.WriteLine("Request start: " + RequestStartTime.ToLongTimeString());
-            Console.WriteLine("Response time: " + DateTime.Now.ToLongTimeString());
-            Console.WriteLine("Quote: " + message.Quote);
+            Console.WriteLine("[SimpleFlowController] Request start: " + RequestStartTime.ToLongTimeString());
+            Console.WriteLine("[SimpleFlowController] Response time: " + DateTime.Now.ToLongTimeString());
+            Console.WriteLine("[SimpleFlowController] Quote: " + message.Quote);
 
 
             exampleState.Done();

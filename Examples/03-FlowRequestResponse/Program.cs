@@ -42,20 +42,20 @@ namespace _03_FlowRequestResponse
                 await dependencyResolver.Resolve<IFlowStore>().Load();
 
 
-                // This creates or updates the durable queue
                 await connection.Subscribe();
 
 
                 var flowStarter = dependencyResolver.Resolve<IFlowStarter>();
 
-                var startData = new SendingFlowController.StartData
+                var startData = new SimpleFlowController.StartData
                 {
                     RequestStartTime = DateTime.Now,
                     Amount = 1
                 };
 
 
-                await flowStarter.Start<SendingFlowController, SendingFlowController.StartData>(c => c.StartFlow, startData);
+                await flowStarter.Start<SimpleFlowController, SimpleFlowController.StartData>(c => c.StartFlow, startData);
+                await flowStarter.Start<ParallelFlowController>(c => c.StartFlow);
 
 
                 // Wait for the controller to signal that the message has been received
