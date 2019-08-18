@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Flow.SQL", "Tapeti.F
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.SimpleInjector", "Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj", "{A190C736-E95A-4BDA-AA80-6211226DFCAD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test", "Test\Test.csproj", "{1A4B7136-B7DF-41EA-BEA2-E87B4607D420}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Tests", "Tapeti.Tests\Tapeti.Tests.csproj", "{334F3715-63CF-4D13-B09A-38E2A616D4F5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Serilog", "Tapeti.Serilog\Tapeti.Serilog.csproj", "{43AA5DF3-49D5-4795-A290-D6511502B564}"
@@ -37,7 +35,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "02-DeclareDurableQueues", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "03-FlowRequestResponse", "Examples\03-FlowRequestResponse\03-FlowRequestResponse.csproj", "{463A12CE-E221-450D-ADEA-91A599612DFA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "04-Transient", "Examples\04-Transient\04-Transient.csproj", "{46DFC131-A398-435F-A7DF-3C41B656BF11}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "04-Transient", "Examples\04-Transient\04-Transient.csproj", "{46DFC131-A398-435F-A7DF-3C41B656BF11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "05-SpeedTest", "Examples\05-SpeedTest\05-SpeedTest.csproj", "{330D05CE-5321-4C7D-8017-2070B891289E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,10 +69,6 @@ Global
 		{A190C736-E95A-4BDA-AA80-6211226DFCAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A190C736-E95A-4BDA-AA80-6211226DFCAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A190C736-E95A-4BDA-AA80-6211226DFCAD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1A4B7136-B7DF-41EA-BEA2-E87B4607D420}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1A4B7136-B7DF-41EA-BEA2-E87B4607D420}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1A4B7136-B7DF-41EA-BEA2-E87B4607D420}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1A4B7136-B7DF-41EA-BEA2-E87B4607D420}.Release|Any CPU.Build.0 = Release|Any CPU
 		{334F3715-63CF-4D13-B09A-38E2A616D4F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{334F3715-63CF-4D13-B09A-38E2A616D4F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{334F3715-63CF-4D13-B09A-38E2A616D4F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -113,6 +109,10 @@ Global
 		{46DFC131-A398-435F-A7DF-3C41B656BF11}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46DFC131-A398-435F-A7DF-3C41B656BF11}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{46DFC131-A398-435F-A7DF-3C41B656BF11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{330D05CE-5321-4C7D-8017-2070B891289E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{330D05CE-5321-4C7D-8017-2070B891289E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{330D05CE-5321-4C7D-8017-2070B891289E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{330D05CE-5321-4C7D-8017-2070B891289E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -124,6 +124,7 @@ Global
 		{85511282-EF91-4B56-B7DC-9E8706556D6E} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{463A12CE-E221-450D-ADEA-91A599612DFA} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{46DFC131-A398-435F-A7DF-3C41B656BF11} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
+		{330D05CE-5321-4C7D-8017-2070B891289E} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B09CC2BF-B2AF-4CB6-8728-5D1D8E5C50FA}
