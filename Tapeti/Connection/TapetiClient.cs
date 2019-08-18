@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -480,6 +481,16 @@ namespace Tapeti.Connection
                 TopologyRecoveryEnabled = false,
                 RequestedHeartbeat = 30
             };
+
+            if (connectionParams.ClientProperties != null)
+                foreach (var pair in connectionParams.ClientProperties)
+                {
+                    if (connectionFactory.ClientProperties.ContainsKey(pair.Key))
+                        connectionFactory.ClientProperties[pair.Key] = Encoding.UTF8.GetBytes(pair.Value);
+                    else
+                        connectionFactory.ClientProperties.Add(pair.Key, Encoding.UTF8.GetBytes(pair.Value));
+                }
+
 
             while (true)
             {

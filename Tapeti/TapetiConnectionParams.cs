@@ -1,14 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 
 // ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {
     /// <summary>
-    /// 
+    /// Defines the connection parameters.
     /// </summary>
     public class TapetiConnectionParams
     {
+        private IDictionary<string, string> clientProperties;
+
+
         /// <summary>
         /// The hostname to connect to. Defaults to localhost.
         /// </summary>
@@ -46,10 +50,24 @@ namespace Tapeti
         /// </summary>
         public int ManagementPort { get; set; } = 15672;
 
+        /// <summary>
+        /// Key-value pair of properties that are set on the connection. These will be visible in the RabbitMQ Management interface.
+        /// Note that you can either set a new dictionary entirely, to allow for inline declaration, or use this property directly
+        /// and use the auto-created dictionary.
+        /// </summary>
+        /// <remarks>
+        /// If any of the default keys used by the RabbitMQ Client library (product, version) are specified their value
+        /// will be overwritten. See DefaultClientProperties in Connection.cs in the RabbitMQ .NET client source for the default values.
+        /// </remarks>
+        public IDictionary<string, string> ClientProperties { 
+            get => clientProperties ?? (clientProperties = new Dictionary<string, string>());
+            set => clientProperties = value;
+        }
+
 
         /// <inheritdoc />
         public TapetiConnectionParams()
-        {            
+        {
         }
 
         /// <summary>

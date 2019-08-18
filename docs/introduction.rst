@@ -22,3 +22,5 @@ Key features
 What it is not
 --------------
 Tapeti is not a general purpose RabbitMQ client. Although some behaviour can be overridden by implementing various interfaces, it enforces it's style of messaging and assumes everyone on the bus speaks the same language.
+
+There is no support for TLS connections, nor are there any plans to support it. The author is of the opinion the message bus should be considered an internal, highly available, service and recommends self-hosted REST API's behind an SSL proxy for communicating over public interfaces.

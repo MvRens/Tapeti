@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using ExampleLib;
 using SimpleInjector;
@@ -42,7 +43,13 @@ namespace _01_PublishSubscribe
                 {
                     HostName = "localhost",
                     Username = "guest",
-                    Password = "guest"
+                    Password = "guest",
+
+                    // These properties allow you to identify the connection in the RabbitMQ Management interface
+                    ClientProperties = new Dictionary<string, string>
+                    {
+                        { "example", "01 - Publish Subscribe" }
+                    }
                 }
             })
             {

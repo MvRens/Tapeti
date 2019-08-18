@@ -149,3 +149,72 @@ To send a message, get a reference to IPublisher using dependency injection and 
           });
       }
   }
+
+
+Connection parameters
+---------------------
+If you don't want to use the default connection parameters, which is probably a good idea in a production environment, you can manually specify the properties for TapetiConnectionParams or get them from your configuration of choice. Tapeti provides with two helpers.
+
+App.config / Web.config
+^^^^^^^^^^^^^^^^^^^^^^^
+The TapetiAppSettingsConnectionParams class can be used to load the connection parameters from the AppSettings:
+
+::
+
+  using (var connection = new TapetiConnection(config)
+  {
+      Params = new TapetiAppSettingsConnectionParams()
+  })
+
+The constructor accepts a prefix parameter, which defaults to "rabbitmq:". You can then specify the values in the appSettings block of your App.config or Web.config. Any omitted parameters will use the default value.
+
+.. code-block:: xml
+
+  <?xml version="1.0" encoding="utf-8" ?>
+  <configuration>
+    <appSettings>
+      <add key="rabbitmq:hostname" value="localhost" />
+      <add key="rabbitmq:port" value="5672" />
+      <add key="rabbitmq:virtualhost" value="/" />
+      <add key="rabbitmq:username" value="guest" />
+      <add key="rabbitmq:password" value="guest" />
+      <add key="rabbitmq:prefetchcount" value="50" />
+      <add key="rabbitmq:managementport" value="15672" />
+      <add key="rabbitmq:clientproperty:application" value="Example" />
+    </appSettings>
+  </configuration>
+
+
+The last entry is special: any setting which starts with "clientproperty:", after the configured prefix, will be added to the ClientProperties set. These properties are visible in the RabbitMQ Management interface and can be used to identify the connection.
+
+ConnectionString
+^^^^^^^^^^^^^^^^
+Tapeti also includes a helper which can parse a connection string style value which is mainly for compatibility with `EasyNetQ <http://easynetq.com/>`_. It made porting our applications slightly easier. EasyNetQ is a very capable library which includes high- and low-level wrappers for the RabbitMQ Client as well as a Management API client, and is worth checking out if you have a use case that is not suited to Tapeti.
+
+To parse a connection string, use the ConnectionStringParser.Parse method. You can of course still load the value from the AppSettings easily:
+
+::
+
+  using (var connection = new TapetiConnection(config)
+  {
+      Params = Tapeti.Helpers.ConnectionStringParser.Parse(
+        ConfigurationManager.AppSettings["RabbitMQ.ConnectionString"])
+  })
+
+An example connection string:
+
+::
+
+  host=localhost;username=guest;password=prefetchcount=5
+
+Supported keys are:
+
+- hostname
+- port
+- virtualhost
+- username
+- password
+- prefetchcount
+- managementport
+
+Any keys in the connection string which are not supported will be silently ignored.

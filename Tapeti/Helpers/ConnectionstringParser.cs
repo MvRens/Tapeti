@@ -123,6 +123,7 @@ namespace Tapeti.Helpers
                 case "username": result.Username = value; break;
                 case "password": result.Password = value; break;
                 case "prefetchcount": result.PrefetchCount = ushort.Parse(value); break;
+                case "managementport": result.ManagementPort = int.Parse(value); break;
             }
         }
     }
