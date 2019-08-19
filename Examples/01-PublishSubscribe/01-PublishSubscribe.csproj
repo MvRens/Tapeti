@@ -7,12 +7,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Autofac" Version="4.9.4" />
+    <PackageReference Include="Castle.Windsor" Version="5.0.0" />
+    <PackageReference Include="Ninject" Version="3.3.4" />
     <PackageReference Include="SimpleInjector" Version="4.6.2" />
+    <PackageReference Include="Unity" Version="5.11.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Tapeti.Autofac\Tapeti.Autofac.csproj" />
+    <ProjectReference Include="..\..\Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj" />
     <ProjectReference Include="..\..\Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj" />
+    <ProjectReference Include="..\..\Tapeti.Ninject\Tapeti.Ninject.csproj" />
     <ProjectReference Include="..\..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
+    <ProjectReference Include="..\..\Tapeti.UnityContainer\Tapeti.UnityContainer.csproj" />
     <ProjectReference Include="..\..\Tapeti\Tapeti.csproj" />
     <ProjectReference Include="..\ExampleLib\ExampleLib.csproj" />
     <ProjectReference Include="..\Messaging.TapetiExample\Messaging.TapetiExample.csproj" />

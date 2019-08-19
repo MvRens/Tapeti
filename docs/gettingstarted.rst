@@ -9,9 +9,18 @@ I'll assume you are familiar with installing NuGet.org packages into your projec
 
 Find and install the *Tapeti* package. This will also install *Tapeti.Annotations*, which contains the various attributes.
 
-You will need an integration package as well for your IoC (Inversion of Control) container of choice. At the time of writing, one is provided for `SimpleInjector <https://simpleinjector.org/>`_. Simply install *Tapeti.SimpleInjector* as well.
+You will need an integration package as well for your IoC (Inversion of Control) container of choice. Various containers are supported by default:
 
-.. note:: If you need support for your favourite library, implement *IDependencyContainer* using the *Tapeti.SimpleInjector* source as a reference and replace *SimpleInjectorDependencyResolver* with your class name in the example code below.
+- `SimpleInjector <https://simpleinjector.org/>`_ (Tapeti.SimpleInjector)
+- `Autofac <https://autofac.org/>`_ (Tapeti.Autofac)
+- `Castle Windsor <https://www.castleproject.org>`_ (Tapeti.CastleWindsor)
+- `Ninject <http://www.ninject.org>`_ (Tapeti.Ninject)
+- `Unity <https://github.com/unitycontainer/unity>`_ (Tapeti.UnityContainer)
+
+
+SimpleInjector is used in all examples. The "01-PublishSubscribe" example included in the source shows how the other integration packages can be used.
+
+.. note:: If you need support for your favourite library, implement *IDependencyContainer* using the existing packages' source as a reference and replace *SimpleInjectorDependencyResolver* with your class name in the example code.
 
 Configuring Tapeti
 ------------------

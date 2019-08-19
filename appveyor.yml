@@ -31,12 +31,24 @@ after_build:
   # Tapeti.Transient
   - cmd: nuget pack Tapeti.Transient\Tapeti.Transient.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: appveyor PushArtifact "Tapeti.Transient.%GitVersion_NuGetVersion%.nupkg"
-  # Tapeti.SimpleInjector
-  - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Serilog
   - cmd: nuget pack Tapeti.Serilog\Tapeti.Serilog.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: appveyor PushArtifact "Tapeti.Serilog.%GitVersion_NuGetVersion%.nupkg"
+  # Tapeti.SimpleInjector
+  - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
+  # Tapeti.Autofac
+  - cmd: nuget pack Tapeti.Autofac\Tapeti.Autofac.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.Autofac.%GitVersion_NuGetVersion%.nupkg"
+  # Tapeti.CastleWindsor
+  - cmd: nuget pack Tapeti.CastleWindsor\Tapeti.CastleWindsor.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.CastleWindsor.%GitVersion_NuGetVersion%.nupkg"
+  # Tapeti.Ninject
+  - cmd: nuget pack Tapeti.Ninject\Tapeti.Ninject.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.Ninject.%GitVersion_NuGetVersion%.nupkg"
+  # Tapeti.UnityContainer
+  - cmd: nuget pack Tapeti.UnityContainer\Tapeti.UnityContainer.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
+  - cmd: appveyor PushArtifact "Tapeti.UnityContainer.%GitVersion_NuGetVersion%.nupkg"
 
 assembly_info:
   patch: false
