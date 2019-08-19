@@ -88,7 +88,7 @@ namespace Tapeti.Flow.Default
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
-            await context.Store();
+            await context.Store(responseHandlerInfo.IsDurableQueue);
 
             await publisher.Publish(message, properties, true);
         }
@@ -153,7 +153,8 @@ namespace Tapeti.Flow.Default
             return new ResponseHandlerInfo
             {
                 MethodName = MethodSerializer.Serialize(responseHandler.Method),
-                ReplyToQueue = binding.QueueName
+                ReplyToQueue = binding.QueueName,
+                IsDurableQueue = binding.QueueType == QueueType.Durable
             };
         }
 
@@ -331,6 +332,7 @@ namespace Tapeti.Flow.Default
         {
             public string MethodName { get; set; }
             public string ReplyToQueue { get; set; }
+            public bool IsDurableQueue { get; set; }
         }
     }
 }

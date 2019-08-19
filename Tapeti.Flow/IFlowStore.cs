@@ -52,7 +52,8 @@ namespace Tapeti.Flow
         /// Stores the new flow state.
         /// </summary>
         /// <param name="flowState"></param>
-        Task StoreFlowState(FlowState flowState);
+        /// <param name="persistent"></param>
+        Task StoreFlowState(FlowState flowState, bool persistent);
 
         /// <summary>
         /// Disposes of the flow state corresponding to this Flow ID.

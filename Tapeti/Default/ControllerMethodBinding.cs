@@ -84,6 +84,9 @@ namespace Tapeti.Default
         public string QueueName { get; private set; }
 
         /// <inheritdoc />
+        public QueueType QueueType => bindingInfo.QueueInfo.QueueType;
+
+        /// <inheritdoc />
         public Type Controller => bindingInfo.ControllerType;
 
         /// <inheritdoc />
@@ -106,7 +109,7 @@ namespace Tapeti.Default
             switch (bindingInfo.BindingTargetMode)
             {
                 case BindingTargetMode.Default:
-                    if (bindingInfo.QueueInfo.Dynamic)
+                    if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
                         QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
                     else
                     {
@@ -117,7 +120,7 @@ namespace Tapeti.Default
                     break;
 
                 case BindingTargetMode.Direct:
-                    if (bindingInfo.QueueInfo.Dynamic)
+                    if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
                         QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
                     else
                     {
@@ -259,9 +262,9 @@ namespace Tapeti.Default
         public class QueueInfo
         {
             /// <summary>
-            /// Whether the queue is dynamic or durable.
+            /// The type of queue this binding consumes.
             /// </summary>
-            public bool Dynamic { get; set; }
+            public QueueType QueueType { get; set; }
 
             /// <summary>
             /// The name of the durable queue, or optional prefix of the dynamic queue.
@@ -272,7 +275,7 @@ namespace Tapeti.Default
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.
             /// </summary>
-            public bool IsValid => Dynamic|| !string.IsNullOrEmpty(Name);
+            public bool IsValid => QueueType == QueueType.Dynamic || !string.IsNullOrEmpty(Name);
         }
     }
 }

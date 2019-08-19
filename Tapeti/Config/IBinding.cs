@@ -4,6 +4,23 @@ using System.Threading.Tasks;
 namespace Tapeti.Config
 {
     /// <summary>
+    /// Determines the type of queue the binding registers
+    /// </summary>
+    public enum QueueType
+    {
+        /// <summary>
+        /// The consumed queue is durable
+        /// </summary>
+        Durable,
+
+        /// <summary>
+        /// The consumed queue is dynamic
+        /// </summary>
+        Dynamic
+    }
+
+
+    /// <summary>
     /// Represents a registered binding to handle incoming messages.
     /// </summary>
     public interface IBinding
@@ -12,6 +29,12 @@ namespace Tapeti.Config
         /// The name of the queue the binding is consuming. May change after a reconnect for dynamic queues.
         /// </summary>
         string QueueName { get; }
+
+
+        /// <summary>
+        /// Determines the type of queue the binding registers
+        /// </summary>
+        QueueType QueueType { get; }
 
 
         /// <summary>

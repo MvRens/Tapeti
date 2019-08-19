@@ -17,6 +17,9 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public string QueueName { get; private set; }
 
+        /// <inheritdoc />
+        public QueueType QueueType => QueueType.Dynamic;
+
 
         /// <inheritdoc />
         public TransientGenericBinding(TransientRouter router, string dynamicQueuePrefix)

@@ -16,7 +16,7 @@ namespace Tapeti.Flow.Default
         private bool deleteCalled;
 
 
-        public async Task Store()
+        public async Task Store(bool persistent)
         {
             storeCalled = true;
 
@@ -25,7 +25,7 @@ namespace Tapeti.Flow.Default
             if (FlowStateLock == null) throw new ArgumentNullException(nameof(FlowStateLock));
 
             FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller);
-            await FlowStateLock.StoreFlowState(FlowState);
+            await FlowStateLock.StoreFlowState(FlowState, persistent);
         }
 
         public async Task Delete()

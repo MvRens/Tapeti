@@ -130,10 +130,10 @@ namespace Tapeti
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on controller {member.DeclaringType?.Name} method {member.Name}");
 
             if (dynamicQueueAttribute != null)
-                return new ControllerMethodBinding.QueueInfo { Dynamic = true, Name = dynamicQueueAttribute.Prefix };
+                return new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Dynamic, Name = dynamicQueueAttribute.Prefix };
 
             return durableQueueAttribute != null 
-                ? new ControllerMethodBinding.QueueInfo { Dynamic = false, Name = durableQueueAttribute.Name } 
+                ? new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Durable, Name = durableQueueAttribute.Name } 
                 : null;
         }
     }
