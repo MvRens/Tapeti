@@ -2,7 +2,7 @@
 The documentation for Tapeti is available on Read the Docs:
 
 [2.0 beta release branch](http://tapeti.readthedocs.io/en/release-2.0/introduction.html)<br />
-[![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=release-2.0)](http://tapeti.readthedocs.io/en/latest/introduction.html?badge=release-2.0)
+[![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=release-2.0)](http://tapeti.readthedocs.io/en/release-2.0/introduction.html?badge=release-2.0)
 
 [Master branch (stable release)](http://tapeti.readthedocs.io/en/stable/introduction.html)<br />
 [![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=stable)](http://tapeti.readthedocs.io/en/stable/introduction.html?badge=stable)
