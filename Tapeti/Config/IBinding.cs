@@ -117,5 +117,12 @@ namespace Tapeti.Config
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
         Task<string> BindDynamicDirect(string queuePrefix = null);
+
+        /// <summary>
+        /// Marks the specified durable queue as having an obsolete binding. If after all bindings have subscribed, the queue only contains obsolete
+        /// bindings and is empty, it will be removed.
+        /// </summary>
+        /// <param name="queueName">The name of the durable queue</param>
+        Task BindDurableObsolete(string queueName);
     }
 }

@@ -92,6 +92,13 @@ namespace Tapeti.Connection
         Task DurableQueueVerify(string queueName);
 
         /// <summary>
+        /// Deletes a durable queue.
+        /// </summary>
+        /// <param name="queueName">The name of the queue to delete</param>
+        /// <param name="onlyIfEmpty">If true, the queue will only be deleted if it is empty otherwise all bindings will be removed. If false, the queue is deleted even if there are queued messages.</param>
+        Task DurableQueueDelete(string queueName, bool onlyIfEmpty = true);
+
+        /// <summary>
         /// Creates a dynamic queue.
         /// </summary>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>

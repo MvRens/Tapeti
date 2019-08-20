@@ -45,9 +45,41 @@ To enable the automatic creation of durable queues, call EnableDeclareDurableQue
       .Build();
 
 
-The queue will be bound to all message classes for which you have defined a message handler. If the queue already existed and contains bindings which are no longer valid, those bindings will be removed. Note however that if there are still messages of that type in the queue they will be consumed and cause an exception.
+The queue will be bound to all message classes for which you have defined a message handler. If the queue already existed and contains bindings which are no longer valid, those bindings will be removed. Note however that if there are still messages of that type in the queue they will be consumed and cause an exception. To keep the queue backwards compatible, see the next section on migrating durable queues.
 
-At the time of writing there is no special support for obsolete queues. Once a durable queue is no longer referenced in the service it will remain in RabbitMQ along with any messages in it, without a consumer. This allows you to inspect the contents, perform any migrating steps necessary and delete the queue manually.
+
+Migrating durable queues
+------------------------
+.. note:: This section assumes you are using EnableDeclareDurableQueues.
+
+As your service evolves so can your message handlers. Perhaps a message no longer needs to handled, or you want to split them into another queue.
+
+If you remove a message handler the binding will also be removed from the queue, but there may still be messages of that type in the queue. Since these have nowhere to go, they will cause an error and be lost.
+
+Instead of removing the message handler you can mark it with the standard .NET ``[Obsolete]`` attribute:
+
+::
+
+  [MessageController]
+  [DurableQueue("monitoring")]
+  public class ObsoleteMonitoringController
+  {
+      [Obsolete]
+      public void HandleEscapeMessage(RabbitEscapedMessage message)
+      {
+          // Handle the message like before, perform the necessary migration,
+          // or simply ignore it if you no longer need it.
+      }
+  }
+
+Messages will still be consumed from the queue as long as it exists, but the routing key binding will removed so no new messages of that type will be delivered.
+
+The ``[Obsolete]`` attribute can also be applied to the entire controller to mark all message handlers it contains as obsolete.
+
+
+If all message handlers bound to a durable queue are marked as obsolete, including other controllers bound to the same durable queue, the queue is a candidate for removal. During startup, if the queue is empty it will be deleted. This action is logged to the registered ILogger.
+
+If there are still messages in the queue it's pending removal will be logged but the consumers will run as normal to empty the queue. The queue will then remain until it is checked again when the application is restarted.
 
 
 Request - response

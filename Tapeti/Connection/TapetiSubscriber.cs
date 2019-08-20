@@ -91,6 +91,7 @@ namespace Tapeti.Connection
 
             public abstract Task BindDurable(Type messageClass, string queueName);
             public abstract Task BindDurableDirect(string queueName);
+            public abstract Task BindDurableObsolete(string queueName);
 
 
             public async Task<string> BindDynamic(Type messageClass, string queuePrefix = null)
@@ -182,6 +183,7 @@ namespace Tapeti.Connection
         private class DeclareDurableQueuesBindingTarget : CustomBindingTarget
         {
             private readonly Dictionary<string, List<Type>> durableQueues = new Dictionary<string, List<Type>>();
+            private readonly HashSet<string> obsoleteDurableQueues = new HashSet<string>();
 
 
             public DeclareDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy) : base(clientFactory, routingKeyStrategy, exchangeStrategy)
@@ -217,10 +219,23 @@ namespace Tapeti.Connection
             }
 
 
+            public override Task BindDurableObsolete(string queueName)
+            {
+                obsoleteDurableQueues.Add(queueName);
+                return Task.CompletedTask;
+            }
+
+
             public override async Task Apply()
             {
                 var worker = ClientFactory();
+                await DeclareQueues(worker);
+                await DeleteObsoleteQueues(worker);
+            }
 
+
+            private async Task DeclareQueues(ITapetiClient worker)
+            {
                 await Task.WhenAll(durableQueues.Select(async queue =>
                 {
                     var bindings = queue.Value.Select(messageClass =>
@@ -232,6 +247,15 @@ namespace Tapeti.Connection
                     });
 
                     await worker.DurableQueueDeclare(queue.Key, bindings);
+                }));
+            }
+
+
+            private async Task DeleteObsoleteQueues(ITapetiClient worker)
+            {
+                await Task.WhenAll(obsoleteDurableQueues.Except(durableQueues.Keys).Select(async queue =>
+                {
+                    await worker.DurableQueueDelete(queue);
                 }));
             }
         }
@@ -255,6 +279,11 @@ namespace Tapeti.Connection
             public override async Task BindDurableDirect(string queueName)
             {
                 await VerifyDurableQueue(queueName);
+            }
+
+            public override Task BindDurableObsolete(string queueName)
+            {
+                return Task.CompletedTask;
             }
 
 

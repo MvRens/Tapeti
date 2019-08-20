@@ -6,7 +6,7 @@
     <title>Tapeti UnityContainer</title>
     <authors>Mark van Renswoude</authors>
     <owners>Mark van Renswoude</owners>
-    <licenseUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/UNLICENSE</licenseUrl>
+    <license type="expression">Unlicense</license>
     <projectUrl>https://github.com/MvRens/Tapeti</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/MvRens/Tapeti/master/resources/icons/Tapeti.SimpleInjector.png</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>

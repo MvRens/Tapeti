@@ -40,6 +40,9 @@ namespace Tapeti
             var controllerQueueInfo = GetQueueInfo(controller);
             (builderAccess.DependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
+            var controllerIsObsolete = controller.GetCustomAttribute<ObsoleteAttribute>() != null;
+
+
             foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
@@ -48,6 +51,9 @@ namespace Tapeti
                 if (methodQueueInfo == null || !methodQueueInfo.IsValid)
                     throw new TopologyConfigurationException(
                         $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
+
+
+                var methodIsObsolete = controllerIsObsolete || method.GetCustomAttribute<ObsoleteAttribute>() != null;
 
 
                 var context = new ControllerBindingContext(method.GetParameters(), method.ReturnParameter)
@@ -83,6 +89,7 @@ namespace Tapeti
                     QueueInfo = methodQueueInfo,
                     MessageClass = context.MessageClass,
                     BindingTargetMode = context.BindingTargetMode,
+                    IsObsolete = methodIsObsolete,
                     ParameterFactories = context.GetParameterHandlers(),
                     ResultHandler = context.GetResultHandler(),
 

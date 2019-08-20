@@ -47,6 +47,12 @@ namespace Tapeti.Default
             public BindingTargetMode BindingTargetMode;
 
             /// <summary>
+            /// Indicates if the method or controller is marked with the Obsolete attribute, indicating it should
+            /// only handle messages already in the queue and not bind to the routing key for new messages.
+            /// </summary>
+            public bool IsObsolete;
+
+            /// <summary>
             /// Value factories for the method parameters.
             /// </summary>
             public IEnumerable<ValueFactory> ParameterFactories;
@@ -106,32 +112,40 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public async Task Apply(IBindingTarget target)
         {
-            switch (bindingInfo.BindingTargetMode)
+            if (!bindingInfo.IsObsolete)
             {
-                case BindingTargetMode.Default:
-                    if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                        QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
-                    else
-                    {
-                        await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
-                        QueueName = bindingInfo.QueueInfo.Name;
-                    }
+                switch (bindingInfo.BindingTargetMode)
+                {
+                    case BindingTargetMode.Default:
+                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
+                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                        else
+                        {
+                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                            QueueName = bindingInfo.QueueInfo.Name;
+                        }
 
-                    break;
+                        break;
 
-                case BindingTargetMode.Direct:
-                    if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                        QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
-                    else
-                    {
-                        await target.BindDurableDirect(bindingInfo.QueueInfo.Name);
-                        QueueName = bindingInfo.QueueInfo.Name;
-                    }
+                    case BindingTargetMode.Direct:
+                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
+                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                        else
+                        {
+                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name);
+                            QueueName = bindingInfo.QueueInfo.Name;
+                        }
 
-                    break;
+                        break;
 
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(bindingInfo.BindingTargetMode), bindingInfo.BindingTargetMode, "Invalid BindingTargetMode");
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(bindingInfo.BindingTargetMode), bindingInfo.BindingTargetMode, "Invalid BindingTargetMode");
+                }
+            }
+            else if (bindingInfo.QueueInfo.QueueType == QueueType.Durable)
+            {
+                await target.BindDurableObsolete(bindingInfo.QueueInfo.Name);
+                QueueName = bindingInfo.QueueInfo.Name;
             }
         }
 

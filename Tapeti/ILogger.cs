@@ -42,5 +42,13 @@ namespace Tapeti
         /// <param name="messageContext"></param>
         /// <param name="consumeResult">Indicates the action taken by the exception handler</param>
         void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult);
+
+        /// <summary>
+        /// Called when a queue is determined to be obsolete.
+        /// </summary>
+        /// <param name="queueName"></param>
+        /// <param name="deleted">True if the queue was empty and has been deleted, false if there are still messages to process</param>
+        /// <param name="messageCount">If deleted, the number of messages purged, otherwise the number of messages still in the queue</param>
+        void QueueObsolete(string queueName, bool deleted, uint messageCount);
     }
 }

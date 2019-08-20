@@ -71,5 +71,14 @@ namespace Tapeti.Serilog
             
             contextLogger.Error(exception, "Tapeti: exception in message handler");
         }
+
+        /// <inheritdoc />
+        public void QueueObsolete(string queueName, bool deleted, uint messageCount)
+        {
+            if (deleted)
+                seriLogger.Information("Tapeti: obsolete queue {queue} has been deleted", queueName);
+            else
+                seriLogger.Information("Tapeti: obsolete queue {queue} has been unbound but not yet deleted, {messageCount} messages remaining", queueName, messageCount);
+        }
     }
 }

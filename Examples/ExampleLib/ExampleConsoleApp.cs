@@ -61,6 +61,11 @@ namespace ExampleLib
         public async Task WaitAsync()
         {
             await doneSignal.Task;
+            
+            // This is a hack, because the signal is often given in a message handler before the message can be
+            // acknowledged, causing it to be put back on the queue because the connection is closed.
+            // This short delay allows consumers to finish. This is not an issue in a proper service application.
+            await Task.Delay(500);
         }
 
 

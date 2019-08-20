@@ -50,6 +50,7 @@ namespace Tapeti.Connection
         private ulong lastDeliveryTag;
         private DateTime connectedDateTime;
         private readonly HttpClient managementClient;
+        private readonly HashSet<string> deletedQueues = new HashSet<string>();
 
         // These fields must be locked, since the callbacks for BasicAck/BasicReturn can run in a different thread
         private readonly object confirmLock = new object();
@@ -185,16 +186,16 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task Consume(string queueName, IConsumer consumer)
         {
+            if (deletedQueues.Contains(queueName))
+                return;
+
             if (string.IsNullOrEmpty(queueName))
                 throw new ArgumentNullException(nameof(queueName));
 
-            await taskQueue.Value.Add(() =>
-            {
-                WithRetryableChannel(channel =>
-                {
-                    var basicConsumer = new TapetiBasicConsumer(consumer, Respond);
-                    channel.BasicConsume(queueName, false, basicConsumer);
-                });
+            await QueueWithRetryableChannel(channel =>
+            { 
+                var basicConsumer = new TapetiBasicConsumer(consumer, Respond);
+                channel.BasicConsume(queueName, false, basicConsumer);
             });
         }
 
@@ -223,7 +224,6 @@ namespace Tapeti.Connection
                     default:
                         throw new ArgumentOutOfRangeException(nameof(result), result, null);
                 }
-
             });
         }
 
@@ -255,32 +255,106 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DurableQueueVerify(string queueName)
         {
-            await taskQueue.Value.Add(() => 
-            { 
-                WithRetryableChannel(channel =>
-                {
-                    channel.QueueDeclarePassive(queueName);
-                });
+            await QueueWithRetryableChannel(channel =>
+            {
+                channel.QueueDeclarePassive(queueName);
             });
         }
+
+
+        /// <inheritdoc />
+        public async Task DurableQueueDelete(string queueName, bool onlyIfEmpty = true)
+        {
+            if (!onlyIfEmpty)
+            {
+                uint deletedMessages = 0;
+
+                await QueueWithRetryableChannel(channel =>
+                {
+                    deletedMessages = channel.QueueDelete(queueName);
+                });
+
+                deletedQueues.Add(queueName);
+                logger.QueueObsolete(queueName, true, deletedMessages);
+                return;
+            }
+
+
+            await taskQueue.Value.Add(async () =>
+            {
+                bool retry;
+                do
+                {
+                    retry = false;
+
+                    // Get queue information from the Management API, since the AMQP operations will
+                    // throw an error if the queue does not exist or still contains messages and resets
+                    // the connection. The resulting reconnect will cause subscribers to reset.
+                    var queueInfo = await GetQueueInfo(queueName);
+                    if (queueInfo == null)
+                    {
+                        deletedQueues.Add(queueName);
+                        return;
+                    }
+
+                    if (queueInfo.Messages == 0)
+                    {
+                        // Still pass onlyIfEmpty to prevent concurrency issues if a message arrived between
+                        // the call to the Management API and deleting the queue. Because the QueueWithRetryableChannel
+                        // includes the GetQueueInfo, the next time around it should have Messages > 0
+                        try
+                        {
+                            WithRetryableChannel(channel =>
+                            {
+                                channel.QueueDelete(queueName, false, true);
+                            });
+
+                            deletedQueues.Add(queueName);
+                            logger.QueueObsolete(queueName, true, 0);
+                        }
+                        catch (OperationInterruptedException e)
+                        {
+                            if (e.ShutdownReason.ReplyCode == RabbitMQ.Client.Framing.Constants.PreconditionFailed)
+                                retry = true;
+                            else
+                                throw;
+                        }
+                    }
+                    else
+                    {
+                        // Remove all bindings instead
+                        var existingBindings = (await GetQueueBindings(queueName)).ToList();
+
+                        if (existingBindings.Count > 0)
+                        {
+                            WithRetryableChannel(channel =>
+                            {
+                                foreach (var binding in existingBindings)
+                                    channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
+                            });
+                        }
+
+                        logger.QueueObsolete(queueName, false, queueInfo.Messages);
+                    }
+                } while (retry);
+            });
+        }
+
 
         /// <inheritdoc />
         public async Task<string> DynamicQueueDeclare(string queuePrefix = null)
         {
             string queueName = null;
 
-            await taskQueue.Value.Add(() =>
+            await QueueWithRetryableChannel(channel =>
             {
-                WithRetryableChannel(channel =>
+                if (!string.IsNullOrEmpty(queuePrefix))
                 {
-                    if (!string.IsNullOrEmpty(queuePrefix))
-                    {
-                        queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
-                        channel.QueueDeclare(queueName);
-                    }
-                    else
-                        queueName = channel.QueueDeclare().QueueName;
-                });
+                    queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
+                    channel.QueueDeclare(queueName);
+                }
+                else
+                    queueName = channel.QueueDeclare().QueueName;
             });
 
             return queueName;
@@ -289,13 +363,10 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DynamicQueueBind(string queueName, QueueBinding binding)
         {
-            await taskQueue.Value.Add(() =>
+            await QueueWithRetryableChannel(channel =>
             {
-                WithRetryableChannel(channel =>
-                {
-                    DeclareExchange(channel, binding.Exchange); 
-                    channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);                    
-                });
+                DeclareExchange(channel, binding.Exchange); 
+                channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);                    
             });
         }
 
@@ -335,18 +406,31 @@ namespace Tapeti.Connection
             HttpStatusCode.ServiceUnavailable
         };
 
-        private static readonly TimeSpan[] ExponentialBackoff = 
+
+        private class ManagementQueueInfo
         {
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(2),
-            TimeSpan.FromSeconds(3),
-            TimeSpan.FromSeconds(5),
-            TimeSpan.FromSeconds(8),
-            TimeSpan.FromSeconds(13),
-            TimeSpan.FromSeconds(21),
-            TimeSpan.FromSeconds(34),
-            TimeSpan.FromSeconds(55)
-        };
+            [JsonProperty("messages")]
+            public uint Messages { get; set; }
+        }
+
+
+
+        private async Task<ManagementQueueInfo> GetQueueInfo(string queueName)
+        {
+            var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
+            var queuePath = Uri.EscapeDataString(queueName);
+
+            return await WithRetryableManagementAPI($"queues/{virtualHostPath}/{queuePath}", async response =>
+            {
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                    return null;
+
+                response.EnsureSuccessStatusCode();
+
+                var content = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<ManagementQueueInfo>(content);
+            });
+        }
 
 
         private class ManagementBinding
@@ -378,10 +462,42 @@ namespace Tapeti.Connection
         {
             var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
             var queuePath = Uri.EscapeDataString(queueName);
-            var requestUri = new Uri($"http://{connectionParams.HostName}:{connectionParams.ManagementPort}/api/queues/{virtualHostPath}/{queuePath}/bindings");
+
+            return await WithRetryableManagementAPI($"queues/{virtualHostPath}/{queuePath}/bindings", async response =>
+            {
+                response.EnsureSuccessStatusCode();
+
+                var content = await response.Content.ReadAsStringAsync();
+                var bindings = JsonConvert.DeserializeObject<IEnumerable<ManagementBinding>>(content);
+
+                // Filter out the binding to an empty source, which is always present for direct-to-queue routing
+                return bindings
+                    .Where(binding => !string.IsNullOrEmpty(binding.Source))
+                    .Select(binding => new QueueBinding(binding.Source, binding.RoutingKey));
+            });
+        }
+
+
+        private static readonly TimeSpan[] ExponentialBackoff =
+        {
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(3),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(8),
+            TimeSpan.FromSeconds(13),
+            TimeSpan.FromSeconds(21),
+            TimeSpan.FromSeconds(34),
+            TimeSpan.FromSeconds(55)
+        };
+
+
+        private async Task<T> WithRetryableManagementAPI<T>(string path, Func<HttpResponseMessage, Task<T>> handleResponse)
+        {
+            var requestUri = new Uri($"http://{connectionParams.HostName}:{connectionParams.ManagementPort}/api/{path}");
 
             using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
-            { 
+            {
                 var retryDelayIndex = 0;
 
                 while (true)
@@ -389,15 +505,7 @@ namespace Tapeti.Connection
                     try
                     {
                         var response = await managementClient.SendAsync(request);
-                        response.EnsureSuccessStatusCode();
-
-                        var content = await response.Content.ReadAsStringAsync();
-                        var bindings = JsonConvert.DeserializeObject<IEnumerable<ManagementBinding>>(content);
-
-                        // Filter out the binding to an empty source, which is always present for direct-to-queue routing
-                        return bindings
-                            .Where(binding => !string.IsNullOrEmpty(binding.Source))
-                            .Select(binding => new QueueBinding(binding.Source, binding.RoutingKey));
+                        return await handleResponse(response);
                     }
                     catch (TimeoutException)
                     {
@@ -432,6 +540,15 @@ namespace Tapeti.Connection
 
             channel.ExchangeDeclare(exchange, "topic", true);
             declaredExchanges.Add(exchange);
+        }
+
+
+        private async Task QueueWithRetryableChannel(Action<IModel> operation)
+        {
+            await taskQueue.Value.Add(() =>
+            {
+                WithRetryableChannel(operation);
+            });
         }
 
 

@@ -45,5 +45,13 @@ namespace Tapeti.Default
             Console.WriteLine();
             Console.WriteLine(exception);
         }
+
+        /// <inheritdoc />
+        public void QueueObsolete(string queueName, bool deleted, uint messageCount)
+        {
+            Console.WriteLine(deleted 
+                ? $"[Tapeti] Obsolete queue was deleted: {queueName}" 
+                : $"[Tapeti] Obsolete queue bindings removed: {queueName}, {messageCount} messages remaining");
+        }
     }
 }
