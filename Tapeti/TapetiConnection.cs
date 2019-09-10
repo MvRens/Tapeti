@@ -145,15 +145,15 @@ namespace Tapeti
         protected virtual void OnReconnected(EventArgs e)
         {
             var reconnectedEvent = Reconnected;
-            if (reconnectedEvent == null)
+            if (reconnectedEvent == null && subscriber == null)
                 return;
 
-            Task.Run(() =>
+            Task.Run(async () =>
             {
-                subscriber?.ApplyBindings().ContinueWith(t =>
-                {
-                    reconnectedEvent.Invoke(this, e);
-                });
+                if (subscriber != null)
+                    await subscriber.Reconnect();
+
+                reconnectedEvent?.Invoke(this, e);
             });
         }
 

@@ -40,6 +40,20 @@ namespace Tapeti.Connection
         }
 
 
+        /// <summary>
+        /// Called after the connection is lost and regained. Reapplies the bindings and if Resume
+        /// has already been called, restarts the consumers. For internal use only.
+        /// </summary>
+        /// <returns></returns>
+        public async Task Reconnect()
+        {
+            await ApplyBindings();
+
+            if (consuming)
+                await ConsumeQueues();
+        }
+
+
         /// <inheritdoc />
         public async Task Resume()
         {
@@ -47,7 +61,12 @@ namespace Tapeti.Connection
                 return;
 
             consuming = true;
+            await ConsumeQueues();
+        }
 
+
+        private async Task ConsumeQueues()
+        {
             var queues = config.Bindings.GroupBy(binding => binding.QueueName);
 
             await Task.WhenAll(queues.Select(async group =>
