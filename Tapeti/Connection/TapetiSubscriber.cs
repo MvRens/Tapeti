@@ -26,9 +26,12 @@ namespace Tapeti.Connection
         }
 
 
-        public Task RebindQueues()
+        public async Task RebindQueues()
         {
-            return BindQueues();
+            await BindQueues();
+
+            if (consuming)
+                await Task.WhenAll(queues.Select(queue => workerFactory().Consume(queue.Name, queue.Bindings)).ToList());
         }
 
 
