@@ -11,6 +11,7 @@ if (-not (Test-Path env:GitVersion_AssemblySemVer))
     $env:GitVersion_AssemblySemVer = "2.0.0"
 }
 
+Write-Host "Updating version to $($env:GitVersion_AssemblySemVer) for projects in $($env:APPVEYOR_BUILD_FOLDER)"
 
 $projectFiles = Get-ChildItem $env:APPVEYOR_BUILD_FOLDER -Recurse *.csproj | Select -ExpandProperty FullName
 foreach ($projectFile in $projectFiles)
