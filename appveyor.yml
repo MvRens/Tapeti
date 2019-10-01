@@ -6,7 +6,8 @@ install:
 
 before_build:
   - nuget restore
-  - ps: gitversion /l console /output buildserver /updateAssemblyInfo
+  - ps: gitversion /l console /output buildserver
+  - ps: build\UpdateVersion.ps1
 
 after_build:
   # Tapeti
@@ -49,9 +50,6 @@ after_build:
   # Tapeti.UnityContainer
   - cmd: nuget pack Tapeti.UnityContainer\Tapeti.UnityContainer.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
   - cmd: appveyor PushArtifact "Tapeti.UnityContainer.%GitVersion_NuGetVersion%.nupkg"
-
-assembly_info:
-  patch: false
 
 build:
   project: Tapeti.sln
