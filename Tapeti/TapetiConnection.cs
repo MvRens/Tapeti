@@ -47,13 +47,13 @@ namespace Tapeti
         }
 
         /// <inheritdoc />
-        public event EventHandler Connected;
+        public event ConnectedEventHandler Connected;
 
         /// <inheritdoc />
         public event DisconnectedEventHandler Disconnected;
 
         /// <inheritdoc />
-        public event EventHandler Reconnected;
+        public event ConnectedEventHandler Reconnected;
 
 
         /// <inheritdoc />
@@ -98,6 +98,8 @@ namespace Tapeti
         public void Dispose()
         {
             Close().Wait();
+
+            subscriber?.Dispose();
         }
 
 
@@ -110,9 +112,9 @@ namespace Tapeti
                 this.owner = owner;
             }
 
-            public void Connected()
+            public void Connected(ConnectedEventArgs e)
             {
-                owner.OnConnected(new EventArgs());
+                owner.OnConnected(e);
             }
 
             public void Disconnected(DisconnectedEventArgs e)
@@ -120,9 +122,9 @@ namespace Tapeti
                 owner.OnDisconnected(e);
             }
 
-            public void Reconnected()
+            public void Reconnected(ConnectedEventArgs e)
             {
-                owner.OnReconnected(new EventArgs());
+                owner.OnReconnected(e);
             }
         }
 
@@ -130,7 +132,7 @@ namespace Tapeti
         /// <summary>
         /// Called when a connection to RabbitMQ has been established.
         /// </summary>
-        protected virtual void OnConnected(EventArgs e)
+        protected virtual void OnConnected(ConnectedEventArgs e)
         {
             var connectedEvent = Connected;
             if (connectedEvent == null)
@@ -142,19 +144,15 @@ namespace Tapeti
         /// <summary>
         /// Called when the connection to RabbitMQ has been lost.
         /// </summary>
-        protected virtual void OnReconnected(EventArgs e)
+        protected virtual void OnReconnected(ConnectedEventArgs e)
         {
             var reconnectedEvent = Reconnected;
             if (reconnectedEvent == null && subscriber == null)
                 return;
 
-            Task.Run(async () =>
-            {
-                if (subscriber != null)
-                    await subscriber.Reconnect();
+            subscriber?.Reconnect();
 
-                reconnectedEvent?.Invoke(this, e);
-            });
+            Task.Run(() => reconnectedEvent?.Invoke(this, e));
         }
 
         /// <summary>
@@ -165,6 +163,8 @@ namespace Tapeti
             var disconnectedEvent = Disconnected;
             if (disconnectedEvent == null)
                 return;
+
+            subscriber?.Disconnect();
 
             Task.Run(() => disconnectedEvent.Invoke(this, e));
         }

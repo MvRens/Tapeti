@@ -23,34 +23,44 @@ namespace Tapeti.Serilog
 
 
         /// <inheritdoc />
-        public void Connect(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void Connect(IConnectContext connectContext)
         {
             seriLogger
-                .ForContext("isReconnect", isReconnect)
+                .ForContext("isReconnect", connectContext.IsReconnect)
                 .Information("Tapeti: trying to connect to {host}:{port}/{virtualHost}", 
-                    connectionParams.HostName,
-                    connectionParams.Port,
-                    connectionParams.VirtualHost);
+                    connectContext.ConnectionParams.HostName,
+                    connectContext.ConnectionParams.Port,
+                    connectContext.ConnectionParams.VirtualHost);
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
+        public void ConnectFailed(IConnectFailedContext connectContext)
         {
-            seriLogger.Error(exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}", 
-                connectionParams.HostName,
-                connectionParams.Port,
-                connectionParams.VirtualHost);
+            seriLogger.Error(connectContext.Exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}",
+                connectContext.ConnectionParams.HostName,
+                connectContext.ConnectionParams.Port,
+                connectContext.ConnectionParams.VirtualHost);
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void ConnectSuccess(IConnectSuccessContext connectContext)
         {
             seriLogger
-                .ForContext("isReconnect", isReconnect)
-                .Information("Tapeti: successfully connected to {host}:{port}/{virtualHost}", 
-                    connectionParams.HostName,
-                    connectionParams.Port,
-                    connectionParams.VirtualHost);
+                .ForContext("isReconnect", connectContext.IsReconnect)
+                .Information("Tapeti: successfully connected to {host}:{port}/{virtualHost} on local port {localPort}",
+                    connectContext.ConnectionParams.HostName,
+                    connectContext.ConnectionParams.Port,
+                    connectContext.ConnectionParams.VirtualHost,
+                    connectContext.LocalPort);
+        }
+
+        /// <inheritdoc />
+        public void Disconnect(IDisconnectContext disconnectContext)
+        {
+            seriLogger
+                .Information("Tapeti: connection closed, reply text = {replyText}, reply code = {replyCode}",
+                    disconnectContext.ReplyText,
+                    disconnectContext.ReplyCode);
         }
 
         /// <inheritdoc />

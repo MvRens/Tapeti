@@ -10,17 +10,22 @@ namespace Tapeti.Default
     public class DevNullLogger : ILogger
     {
         /// <inheritdoc />
-        public void Connect(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void Connect(IConnectContext connectContext)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
+        public void ConnectFailed(IConnectFailedContext connectContext)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void ConnectSuccess(IConnectSuccessContext connectContext)
+        {
+        }
+
+        /// <inheritdoc />
+        public void Disconnect(IDisconnectContext disconnectContext)
         {
         }
 

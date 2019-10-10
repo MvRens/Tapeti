@@ -10,21 +10,27 @@ namespace Tapeti.Default
     public class ConsoleLogger : ILogger
     {
         /// <inheritdoc />
-        public void Connect(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void Connect(IConnectContext connectContext)
         {
-            Console.WriteLine($"[Tapeti] {(isReconnect ? "Reconnecting" : "Connecting")} to {connectionParams.HostName}:{connectionParams.Port}{connectionParams.VirtualHost}");
+            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnecting" : "Connecting")} to {connectContext.ConnectionParams.HostName}:{connectContext.ConnectionParams.Port}{connectContext.ConnectionParams.VirtualHost}");
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
+        public void ConnectFailed(IConnectFailedContext connectContext)
         {
-            Console.WriteLine($"[Tapeti] Connection failed: {exception}");
+            Console.WriteLine($"[Tapeti] Connection failed: {connectContext.Exception}");
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect)
+        public void ConnectSuccess(IConnectSuccessContext connectContext)
         {
-            Console.WriteLine($"[Tapeti] {(isReconnect ? "Reconnected" : "Connected")}");
+            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnected" : "Connected")} using local port {connectContext.LocalPort}");
+        }
+
+        /// <inheritdoc />
+        public void Disconnect(IDisconnectContext disconnectContext)
+        {
+            Console.WriteLine($"[Tapeti] Connection closed: {(!string.IsNullOrEmpty(disconnectContext.ReplyText) ? disconnectContext.ReplyText : "<no reply text>")} (reply code: {disconnectContext.ReplyCode})");
         }
 
         /// <inheritdoc />

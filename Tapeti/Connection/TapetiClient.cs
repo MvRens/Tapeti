@@ -184,7 +184,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task Consume(string queueName, IConsumer consumer)
+        public async Task Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer)
         {
             if (deletedQueues.Contains(queueName))
                 return;
@@ -192,8 +192,12 @@ namespace Tapeti.Connection
             if (string.IsNullOrEmpty(queueName))
                 throw new ArgumentNullException(nameof(queueName));
 
+
             await QueueWithRetryableChannel(channel =>
-            { 
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 var basicConsumer = new TapetiBasicConsumer(consumer, Respond);
                 channel.BasicConsume(queueName, false, basicConsumer);
             });
@@ -229,48 +233,54 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings)
+        public async Task DurableQueueDeclare(CancellationToken cancellationToken, string queueName, IEnumerable<QueueBinding> bindings)
         {
-            await taskQueue.Value.Add(async () =>
+            var existingBindings = (await GetQueueBindings(queueName)).ToList();
+            var currentBindings = bindings.ToList();
+
+            await Queue(channel =>
             {
-                var existingBindings = (await GetQueueBindings(queueName)).ToList();
-                var currentBindings = bindings.ToList();
+                if (cancellationToken.IsCancellationRequested)
+                    return;
 
-                WithRetryableChannel(channel =>
+                channel.QueueDeclare(queueName, true, false, false);
+
+                foreach (var binding in currentBindings.Except(existingBindings))
                 {
-                    channel.QueueDeclare(queueName, true, false, false);
+                    DeclareExchange(channel, binding.Exchange);
+                    channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
+                }
 
-                    foreach (var binding in currentBindings.Except(existingBindings))
-                    {
-                        DeclareExchange(channel, binding.Exchange);
-                        channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
-                    }
-
-                    foreach (var deletedBinding in existingBindings.Except(currentBindings))
-                        channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
-                });
+                foreach (var deletedBinding in existingBindings.Except(currentBindings))
+                    channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
             });
         }
 
         /// <inheritdoc />
-        public async Task DurableQueueVerify(string queueName)
+        public async Task DurableQueueVerify(CancellationToken cancellationToken, string queueName)
         {
-            await QueueWithRetryableChannel(channel =>
+            await Queue(channel =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 channel.QueueDeclarePassive(queueName);
             });
         }
 
 
         /// <inheritdoc />
-        public async Task DurableQueueDelete(string queueName, bool onlyIfEmpty = true)
+        public async Task DurableQueueDelete(CancellationToken cancellationToken, string queueName, bool onlyIfEmpty = true)
         {
             if (!onlyIfEmpty)
             {
                 uint deletedMessages = 0;
 
-                await QueueWithRetryableChannel(channel =>
+                await Queue(channel =>
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
                     deletedMessages = channel.QueueDelete(queueName);
                 });
 
@@ -285,6 +295,9 @@ namespace Tapeti.Connection
                 bool retry;
                 do
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
                     retry = false;
 
                     // Get queue information from the Management API, since the AMQP operations will
@@ -304,10 +317,8 @@ namespace Tapeti.Connection
                         // includes the GetQueueInfo, the next time around it should have Messages > 0
                         try
                         {
-                            WithRetryableChannel(channel =>
-                            {
-                                channel.QueueDelete(queueName, false, true);
-                            });
+                            var channel = GetChannel();
+                            channel.QueueDelete(queueName, false, true);
 
                             deletedQueues.Add(queueName);
                             logger.QueueObsolete(queueName, true, 0);
@@ -327,11 +338,10 @@ namespace Tapeti.Connection
 
                         if (existingBindings.Count > 0)
                         {
-                            WithRetryableChannel(channel =>
-                            {
-                                foreach (var binding in existingBindings)
-                                    channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
-                            });
+                            var channel = GetChannel();
+
+                            foreach (var binding in existingBindings)
+                                channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
                         }
 
                         logger.QueueObsolete(queueName, false, queueInfo.Messages);
@@ -342,12 +352,15 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<string> DynamicQueueDeclare(string queuePrefix = null)
+        public async Task<string> DynamicQueueDeclare(CancellationToken cancellationToken, string queuePrefix = null)
         {
             string queueName = null;
 
-            await QueueWithRetryableChannel(channel =>
+            await Queue(channel =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 if (!string.IsNullOrEmpty(queuePrefix))
                 {
                     queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
@@ -361,10 +374,13 @@ namespace Tapeti.Connection
         }
 
         /// <inheritdoc />
-        public async Task DynamicQueueBind(string queueName, QueueBinding binding)
+        public async Task DynamicQueueBind(CancellationToken cancellationToken, string queueName, QueueBinding binding)
         {
-            await QueueWithRetryableChannel(channel =>
+            await Queue(channel =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 DeclareExchange(channel, binding.Exchange); 
                 channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);                    
             });
@@ -543,6 +559,16 @@ namespace Tapeti.Connection
         }
 
 
+        private async Task Queue(Action<IModel> operation)
+        {
+            await taskQueue.Value.Add(() =>
+            {
+                var channel = GetChannel();
+                operation(channel);
+            });
+        }
+
+
         private async Task QueueWithRetryableChannel(Action<IModel> operation)
         {
             await taskQueue.Value.Add(() =>
@@ -613,7 +639,7 @@ namespace Tapeti.Connection
             {
                 try
                 {
-                    logger.Connect(connectionParams, isReconnect);
+                    logger.Connect(new ConnectContext(connectionParams, isReconnect));
 
                     connection = connectionFactory.CreateConnection();
                     channelInstance = connection.CreateModel();
@@ -652,6 +678,8 @@ namespace Tapeti.Connection
                             ReplyText = e.ReplyText
                         });
 
+                        logger.Disconnect(new DisconnectContext(connectionParams, e.ReplyCode, e.ReplyText));
+
                         channelInstance = null;
 
                         if (!isClosing)
@@ -664,19 +692,25 @@ namespace Tapeti.Connection
 
                     connectedDateTime = DateTime.UtcNow;
 
-                    if (isReconnect)
-                        ConnectionEventListener?.Reconnected();
-                    else
-                        ConnectionEventListener?.Connected();
+                    var connectedEventArgs = new ConnectedEventArgs
+                    {
+                        ConnectionParams = connectionParams,
+                        LocalPort = connection.LocalPort
+                    };
 
-                    logger.ConnectSuccess(connectionParams, isReconnect);
+                    if (isReconnect)
+                        ConnectionEventListener?.Reconnected(connectedEventArgs);
+                    else
+                        ConnectionEventListener?.Connected(connectedEventArgs);
+
+                    logger.ConnectSuccess(new ConnectContext(connectionParams, isReconnect, connection.LocalPort));
                     isReconnect = true;
 
                     break;
                 }
                 catch (BrokerUnreachableException e)
                 {
-                    logger.ConnectFailed(connectionParams, e);
+                    logger.ConnectFailed(new ConnectContext(connectionParams, isReconnect, exception: e));
                     Thread.Sleep(ReconnectDelay);
                 }
             }
@@ -785,6 +819,41 @@ namespace Tapeti.Connection
         private static string GetReturnKey(string exchange, string routingKey)
         {
             return exchange + ':' + routingKey;
+        }
+
+
+
+        private class ConnectContext : IConnectSuccessContext, IConnectFailedContext
+        {
+            public TapetiConnectionParams ConnectionParams { get; }
+            public bool IsReconnect { get; }
+            public int LocalPort { get; }
+            public Exception Exception { get; }
+
+
+            public ConnectContext(TapetiConnectionParams connectionParams, bool isReconnect, int localPort = 0, Exception exception = null)
+            {
+                ConnectionParams = connectionParams;
+                IsReconnect = isReconnect;
+                LocalPort = localPort;
+                Exception = exception;
+            }
+        }
+
+
+        private class DisconnectContext : IDisconnectContext
+        {
+            public TapetiConnectionParams ConnectionParams { get; }
+            public ushort ReplyCode { get; }
+            public string ReplyText { get; }
+
+
+            public DisconnectContext(TapetiConnectionParams connectionParams, ushort replyCode, string replyText)
+            {
+                ConnectionParams = connectionParams;
+                ReplyCode = replyCode;
+                ReplyText = replyText;
+            }
         }
     }
 }

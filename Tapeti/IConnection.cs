@@ -6,6 +6,23 @@ using System.Threading.Tasks;
 namespace Tapeti
 {
     /// <summary>
+    /// 
+    /// </summary>
+    public class ConnectedEventArgs
+    {
+        /// <summary>
+        /// The connection parameters used to establish the connection.
+        /// </summary>
+        public TapetiConnectionParams ConnectionParams;
+
+        /// <summary>
+        /// The local port for the connection. Useful for identifying the connection in the management interface.
+        /// </summary>
+        public int LocalPort;
+    }
+
+
+    /// <summary>
     /// Contains information about the reason for a lost connection.
     /// </summary>
     public class DisconnectedEventArgs
@@ -21,6 +38,9 @@ namespace Tapeti
         public string ReplyText;
     }
 
+
+    /// <inheritdoc />
+    public delegate void ConnectedEventHandler(object sender, ConnectedEventArgs e);
 
     /// <inheritdoc />
     public delegate void DisconnectedEventHandler(object sender, DisconnectedEventArgs e);
@@ -64,7 +84,7 @@ namespace Tapeti
         /// <summary>
         /// Fired when a connection to RabbitMQ has been established.
         /// </summary>
-        event EventHandler Connected;
+        event ConnectedEventHandler Connected;
 
         /// <summary>
         /// Fired when the connection to RabbitMQ has been lost.
@@ -74,7 +94,7 @@ namespace Tapeti
         /// <summary>
         /// Fired when the connection to RabbitMQ has been recovered after an unexpected disconnect.
         /// </summary>
-        event EventHandler Reconnected;
+        event ConnectedEventHandler Reconnected;
 
     }
 }

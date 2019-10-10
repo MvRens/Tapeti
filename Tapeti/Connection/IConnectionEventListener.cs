@@ -8,13 +8,13 @@
         /// <summary>
         /// Called when a connection to RabbitMQ has been established.
         /// </summary>
-        void Connected();
+        void Connected(ConnectedEventArgs e);
 
 
         /// <summary>
         /// Called when the connection to RabbitMQ has been lost.
         /// </summary>
-        void Reconnected();
+        void Reconnected(ConnectedEventArgs e);
 
 
         /// <summary>

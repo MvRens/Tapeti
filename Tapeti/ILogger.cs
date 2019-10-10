@@ -6,6 +6,71 @@ using Tapeti.Config;
 namespace Tapeti
 {
     /// <summary>
+    /// Contains information about the connection being established.
+    /// </summary>
+    public interface IConnectContext
+    {
+        /// <summary>
+        /// The connection parameters used to establish the connection.
+        /// </summary>
+        TapetiConnectionParams ConnectionParams { get; }
+
+        /// <summary>
+        /// Indicates whether this is an automatic reconnect or an initial connection.
+        /// </summary>
+        bool IsReconnect { get; }
+    }
+
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Contains information about the failed connection.
+    /// </summary>
+    public interface IConnectFailedContext : IConnectContext
+    {
+        /// <summary>
+        /// The exception that caused the connection to fail.
+        /// </summary>
+        Exception Exception { get; }
+    }
+
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Contains information about the established connection.
+    /// </summary>
+    public interface IConnectSuccessContext : IConnectContext
+    {
+        /// <summary>
+        /// The local port for the connection. Useful for identifying the connection in the management interface.
+        /// </summary>
+        int LocalPort { get; }
+    }
+
+
+    /// <summary>
+    /// Contains information about the disconnection.
+    /// </summary>
+    public interface IDisconnectContext
+    {
+        /// <summary>
+        /// The connection parameters used to establish the connection.
+        /// </summary>
+        TapetiConnectionParams ConnectionParams { get; }
+
+        /// <summary>
+        /// The reply code as provided by RabbitMQ, if the connection was closed by a protocol message.
+        /// </summary>
+        ushort ReplyCode { get; }
+
+        /// <summary>
+        /// The reply text as provided by RabbitMQ, if the connection was closed by a protocol message.
+        /// </summary>
+        string ReplyText { get; }
+    }
+
+
+    /// <summary>
     /// Handles the logging of various events in Tapeti
     /// </summary>
     /// <remarks>
@@ -17,23 +82,26 @@ namespace Tapeti
         /// <summary>
         /// Called before a connection to RabbitMQ is attempted.
         /// </summary>
-        /// <param name="connectionParams"></param>
-        /// <param name="isReconnect">Indicates whether this is the initial connection or a reconnect</param>
-        void Connect(TapetiConnectionParams connectionParams, bool isReconnect);
+        /// <param name="connectContext">Contains information about the connection being established.</param>
+        void Connect(IConnectContext connectContext);
 
         /// <summary>
-        /// Called when the connection has failed or is lost.
+        /// Called when the connection has failed.
         /// </summary>
-        /// <param name="connectionParams"></param>
-        /// <param name="exception"></param>
-        void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception);
+        /// <param name="connectContext">Contains information about the connection that has failed.</param>
+        void ConnectFailed(IConnectFailedContext connectContext);
 
         /// <summary>
         /// Called when a connection to RabbitMQ has been succesfully established.
         /// </summary>
-        /// <param name="connectionParams"></param>
-        /// <param name="isReconnect">Indicates whether this is the initial connection or a reconnect</param>
-        void ConnectSuccess(TapetiConnectionParams connectionParams, bool isReconnect);
+        /// <param name="connectContext">Contains information about the established connection.</param>
+        void ConnectSuccess(IConnectSuccessContext connectContext);
+
+        /// <summary>
+        /// Called when the connection to RabbitMQ is lost.
+        /// </summary>
+        /// <param name="disconnectContext">Contains information about the disconnect event.</param>
+        void Disconnect(IDisconnectContext disconnectContext);
 
         /// <summary>
         /// Called when an exception occurs in a consumer.
