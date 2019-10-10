@@ -35,74 +35,85 @@ namespace Tapeti.Flow.SQL
 
         public async Task<List<KeyValuePair<Guid, T>>> GetStates<T>()
         {
-            using (var connection = await GetConnection())
+            return await SqlRetryHelper.Execute(async () =>
             {
-                var flowQuery = new SqlCommand($"select FlowID, StateJson from {tableName}", connection);
-                var flowReader = await flowQuery.ExecuteReaderAsync();
-
-                var result = new List<KeyValuePair<Guid, T>>();
-
-                while (await flowReader.ReadAsync())
+                using (var connection = await GetConnection())
                 {
-                    var flowID = flowReader.GetGuid(0);
-                    var stateJson = flowReader.GetString(1);
+                    var flowQuery = new SqlCommand($"select FlowID, StateJson from {tableName}", connection);
+                    var flowReader = await flowQuery.ExecuteReaderAsync();
 
-                    var state = JsonConvert.DeserializeObject<T>(stateJson);
-                    result.Add(new KeyValuePair<Guid, T>(flowID, state));
+                    var result = new List<KeyValuePair<Guid, T>>();
+
+                    while (await flowReader.ReadAsync())
+                    {
+                        var flowID = flowReader.GetGuid(0);
+                        var stateJson = flowReader.GetString(1);
+
+                        var state = JsonConvert.DeserializeObject<T>(stateJson);
+                        result.Add(new KeyValuePair<Guid, T>(flowID, state));
+                    }
+
+                    return result;
                 }
-
-                return result;
-            }
-
+            });
         }
 
         public async Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
-            using (var connection = await GetConnection())
+            await SqlRetryHelper.Execute(async () =>
             {
-                var query = new SqlCommand($"insert into {tableName} (FlowID, StateJson, CreationTime)" +
-                                            "values (@FlowID, @StateJson, @CreationTime)",
-                                            connection);
+                using (var connection = await GetConnection())
+                {
+                    var query = new SqlCommand($"insert into {tableName} (FlowID, StateJson, CreationTime)" +
+                                               "values (@FlowID, @StateJson, @CreationTime)",
+                        connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-                var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
+                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                    var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+                    var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
 
-                flowIDParam.Value = flowID;
-                stateJsonParam.Value = JsonConvert.SerializeObject(state);
-                creationTimeParam.Value = timestamp;
+                    flowIDParam.Value = flowID;
+                    stateJsonParam.Value = JsonConvert.SerializeObject(state);
+                    creationTimeParam.Value = timestamp;
 
-                await query.ExecuteNonQueryAsync();
-            }
+                    await query.ExecuteNonQueryAsync();
+                }
+            });
         }
 
         public async Task UpdateState<T>(Guid flowID, T state)
         {
-            using (var connection = await GetConnection())
+            await SqlRetryHelper.Execute(async () =>
             {
-                var query = new SqlCommand($"update {tableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
+                using (var connection = await GetConnection())
+                {
+                    var query = new SqlCommand($"update {tableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                    var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
 
-                flowIDParam.Value = flowID;
-                stateJsonParam.Value = JsonConvert.SerializeObject(state);
+                    flowIDParam.Value = flowID;
+                    stateJsonParam.Value = JsonConvert.SerializeObject(state);
 
-                await query.ExecuteNonQueryAsync();
-            }
+                    await query.ExecuteNonQueryAsync();
+                }
+            });
         }
 
         public async Task DeleteState(Guid flowID)
         {
-            using (var connection = await GetConnection())
+            await SqlRetryHelper.Execute(async () =>
             {
-                var query = new SqlCommand($"delete from {tableName} where FlowID = @FlowID", connection);
+                using (var connection = await GetConnection())
+                {
+                    var query = new SqlCommand($"delete from {tableName} where FlowID = @FlowID", connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                flowIDParam.Value = flowID;
+                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                    flowIDParam.Value = flowID;
 
-                await query.ExecuteNonQueryAsync();
-            }
+                    await query.ExecuteNonQueryAsync();
+                }
+            });
         }
 
 
