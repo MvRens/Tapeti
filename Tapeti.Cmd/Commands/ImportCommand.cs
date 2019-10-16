@@ -5,25 +5,12 @@ namespace Tapeti.Cmd.Commands
 {
     public class ImportCommand
     {
-        public ConnectionFactory ConnectionFactory { get; set; }
         public IMessageSerializer MessageSerializer { get; set; }
 
         public bool DirectToQueue { get; set; }
 
 
-        public int Execute()
-        {
-            using (var connection = ConnectionFactory.CreateConnection())
-            {
-                using (var channel = connection.CreateModel())
-                {
-                    return PublishMessages(channel);
-                }
-            }
-        }
-
-
-        private int PublishMessages(IModel channel)
+        public int Execute(IModel channel)
         {
             var messageCount = 0;
 

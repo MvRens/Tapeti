@@ -5,7 +5,6 @@ namespace Tapeti.Cmd.Commands
 {
     public class ExportCommand
     {
-        public ConnectionFactory ConnectionFactory { get; set; }
         public IMessageSerializer MessageSerializer { get; set; }
 
         public string QueueName { get; set; }
@@ -13,19 +12,7 @@ namespace Tapeti.Cmd.Commands
         public int? MaxCount { get; set; }
 
 
-        public int Execute()
-        {
-            using (var connection = ConnectionFactory.CreateConnection())
-            {
-                using (var channel = connection.CreateModel())
-                {
-                    return GetMessages(channel);
-                }
-            }
-        }
-
-
-        private int GetMessages(IModel channel)
+        public int Execute(IModel channel)
         {
             var messageCount = 0;
 
