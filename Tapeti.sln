@@ -45,13 +45,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{8E757FF7-F
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extensions", "Extensions", "{57996ADC-18C5-4991-9F95-58D58D442461}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.CastleWindsor", "Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj", "{374AAE64-598B-4F67-8870-4A05168FF987}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.CastleWindsor", "Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj", "{374AAE64-598B-4F67-8870-4A05168FF987}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Autofac", "Tapeti.Autofac\Tapeti.Autofac.csproj", "{B3802005-C941-41B6-A9A5-20573A7C24AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Autofac", "Tapeti.Autofac\Tapeti.Autofac.csproj", "{B3802005-C941-41B6-A9A5-20573A7C24AE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.UnityContainer", "Tapeti.UnityContainer\Tapeti.UnityContainer.csproj", "{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.UnityContainer", "Tapeti.UnityContainer\Tapeti.UnityContainer.csproj", "{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Ninject", "Tapeti.Ninject\Tapeti.Ninject.csproj", "{29478B10-FC53-4E93-ADEF-A775D9408131}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Ninject", "Tapeti.Ninject\Tapeti.Ninject.csproj", "{29478B10-FC53-4E93-ADEF-A775D9408131}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{62002327-46B0-4B72-B95A-594CE7F8C80D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Cmd", "Tapeti.Cmd\Tapeti.Cmd.csproj", "{C8728BFC-7F97-41BC-956B-690A57B634EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -143,6 +147,10 @@ Global
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8728BFC-7F97-41BC-956B-690A57B634EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8728BFC-7F97-41BC-956B-690A57B634EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8728BFC-7F97-41BC-956B-690A57B634EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8728BFC-7F97-41BC-956B-690A57B634EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -168,6 +176,7 @@ Global
 		{B3802005-C941-41B6-A9A5-20573A7C24AE} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
 		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
 		{29478B10-FC53-4E93-ADEF-A775D9408131} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
+		{C8728BFC-7F97-41BC-956B-690A57B634EC} = {62002327-46B0-4B72-B95A-594CE7F8C80D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B09CC2BF-B2AF-4CB6-8728-5D1D8E5C50FA}
