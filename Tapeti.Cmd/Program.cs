@@ -163,7 +163,7 @@ namespace Tapeti.Cmd
                     return new SingleFileJSONMessageSerializer(path);
 
                 case SerializationMethod.EasyNetQHosepipe:
-                    throw new NotImplementedException();
+                    return new EasyNetQMessageSerializer(path);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(options.SerializationMethod), options.SerializationMethod, "Invalid SerializationMethod");
