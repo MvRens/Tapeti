@@ -4,49 +4,59 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using RabbitMQ.Client.Framing;
 using Tapeti.Annotations;
 using Tapeti.Config;
+using Tapeti.Default;
 using Tapeti.Flow.Annotations;
 using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
+    /// <inheritdoc cref="IFlowProvider"/> />
+    /// <summary>
+    /// Default implementation for IFlowProvider.
+    /// </summary>
     public class FlowProvider : IFlowProvider, IFlowHandler
     {
-        private readonly IConfig config;
+        private readonly ITapetiConfig config;
         private readonly IInternalPublisher publisher;
 
 
-        public FlowProvider(IConfig config, IPublisher publisher)
+        /// <inheritdoc />
+        public FlowProvider(ITapetiConfig config, IPublisher publisher)
         {
             this.config = config;
             this.publisher = (IInternalPublisher)publisher;
         }
 
 
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task<IYieldPoint>> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
             return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
             return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
         }
 
+        /// <inheritdoc />
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
         {
             return new ParallelRequestBuilder(config, SendRequest);
         }
 
+        /// <inheritdoc />
         public IYieldPoint EndWithResponse<TResponse>(TResponse message)
         {
             return new DelegateYieldPoint(context => SendResponse(context, message));
         }
 
+        /// <inheritdoc />
         public IYieldPoint End()
         {
             return new DelegateYieldPoint(EndFlow);
@@ -72,13 +82,13 @@ namespace Tapeti.Flow.Default
                     ConvergeMethodSync = convergeMethodTaskSync
                 });
 
-            var properties = new BasicProperties
+            var properties = new MessageProperties
             {
                 CorrelationId = continuationID.ToString(),
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
-            await context.Store();
+            await context.Store(responseHandlerInfo.IsDurableQueue);
 
             await publisher.Publish(message, properties, true);
         }
@@ -87,7 +97,7 @@ namespace Tapeti.Flow.Default
         private async Task SendResponse(FlowContext context, object message)
         {
             var reply = context.FlowState == null
-                ? GetReply(context.MessageContext)
+                ? GetReply(context.HandlerContext)
                 : context.FlowState.Metadata.Reply;
 
             if (reply == null)
@@ -96,12 +106,10 @@ namespace Tapeti.Flow.Default
             if (message.GetType().FullName != reply.ResponseTypeName)
                 throw new YieldPointException($"Flow must end with a response message of type {reply.ResponseTypeName}, {message.GetType().FullName} was returned instead");
 
-            var properties = new BasicProperties();
-
-            // Only set the property if it's not null, otherwise a string reference exception can occur:
-            // http://rabbitmq.1065348.n5.nabble.com/SocketException-when-invoking-model-BasicPublish-td36330.html
-            if (reply.CorrelationId != null)
-                properties.CorrelationId = reply.CorrelationId;
+            var properties = new MessageProperties
+            {
+                CorrelationId = reply.CorrelationId
+            };
 
             // TODO disallow if replyto is not specified?
             if (reply.ReplyTo != null)
@@ -122,14 +130,17 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static ResponseHandlerInfo GetResponseHandlerInfo(IConfig config, object request, Delegate responseHandler)
+        private static ResponseHandlerInfo GetResponseHandlerInfo(ITapetiConfig config, object request, Delegate responseHandler)
         {
-            var binding = config.GetBinding(responseHandler);
+            var requestAttribute = request.GetType().GetCustomAttribute<RequestAttribute>();
+            if (requestAttribute?.Response == null)
+                throw new ArgumentException($"Request message {request.GetType().Name} must be marked with the Request attribute and a valid Response type", nameof(request));
+
+            var binding = config.Bindings.ForMethod(responseHandler);
             if (binding == null)
                 throw new ArgumentException("responseHandler must be a registered message handler", nameof(responseHandler));
 
-            var requestAttribute = request.GetType().GetCustomAttribute<RequestAttribute>();
-            if (requestAttribute?.Response != null && !binding.Accept(requestAttribute.Response))
+            if (!binding.Accept(requestAttribute.Response))
                 throw new ArgumentException($"responseHandler must accept message of type {requestAttribute.Response}", nameof(responseHandler));
 
             var continuationAttribute = binding.Method.GetCustomAttribute<ContinuationAttribute>();
@@ -137,34 +148,35 @@ namespace Tapeti.Flow.Default
                 throw new ArgumentException("responseHandler must be marked with the Continuation attribute", nameof(responseHandler));
 
             if (binding.QueueName == null)
-                throw new ArgumentException("responseHandler must bind to a valid queue", nameof(responseHandler));
+                throw new ArgumentException("responseHandler is not yet subscribed to a queue, TapetiConnection.Subscribe must be called before starting a flow", nameof(responseHandler));
 
             return new ResponseHandlerInfo
             {
                 MethodName = MethodSerializer.Serialize(responseHandler.Method),
-                ReplyToQueue = binding.QueueName
+                ReplyToQueue = binding.QueueName,
+                IsDurableQueue = binding.QueueType == QueueType.Durable
             };
         }
 
 
-        private static ReplyMetadata GetReply(IMessageContext context)
+        private static ReplyMetadata GetReply(IFlowHandlerContext context)
         {
-            var requestAttribute = context.Message?.GetType().GetCustomAttribute<RequestAttribute>();
+            var requestAttribute = context.ControllerMessageContext?.Message?.GetType().GetCustomAttribute<RequestAttribute>();
             if (requestAttribute?.Response == null)
                 return null;
 
             return new ReplyMetadata
             {
-                CorrelationId = context.Properties.CorrelationId,
-                ReplyTo = context.Properties.ReplyTo,
+                CorrelationId = context.ControllerMessageContext.Properties.CorrelationId,
+                ReplyTo = context.ControllerMessageContext.Properties.ReplyTo,
                 ResponseTypeName = requestAttribute.Response.FullName,
-                Mandatory = context.Properties.Persistent
+                Mandatory = context.ControllerMessageContext.Properties.Persistent.GetValueOrDefault(true)
             };
         }
 
-        private async Task CreateNewFlowState(FlowContext flowContext)
+        private static async Task CreateNewFlowState(FlowContext flowContext)
         {
-            var flowStore = flowContext.MessageContext.DependencyResolver.Resolve<IFlowStore>();
+            var flowStore = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowStore>();
 
             var flowID = Guid.NewGuid();
             flowContext.FlowStateLock = await flowStore.LockFlowState(flowID);
@@ -176,44 +188,55 @@ namespace Tapeti.Flow.Default
             {
                 Metadata = new FlowMetadata
                 {
-                    Reply = GetReply(flowContext.MessageContext)
+                    Reply = GetReply(flowContext.HandlerContext)
                 }
             };
         }
 
-        public async Task Execute(IMessageContext context, IYieldPoint yieldPoint)
+        
+        /// <inheritdoc />
+        public async Task Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
         {
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
-                throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Binding.Method.Name}");
+                throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Method.Name}");
 
-            FlowContext flowContext;
-
-            if (!context.Items.TryGetValue(ContextItems.FlowContext, out var flowContextItem))
-            {
-                flowContext = new FlowContext
-                {
-                    MessageContext = context
-                };
-
-                context.Items.Add(ContextItems.FlowContext, flowContext);
-            }
-            else
-                flowContext = (FlowContext)flowContextItem;
-
+            FlowContext flowContext = null;
+            var disposeFlowContext = false;
 
             try
             {
-                await executableYieldPoint.Execute(flowContext);
-            }
-            catch (YieldPointException e)
-            {
-                // Useful for debugging
-                e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
-                e.Data["Tapeti.Controller.Method"] = context.Binding.Method.Name;
-                throw;
-            }
+                var messageContext = context.ControllerMessageContext;
+                if (messageContext == null || !messageContext.Get(ContextItems.FlowContext, out flowContext))
+                {
+                    flowContext = new FlowContext
+                    {
+                        HandlerContext = context
+                    };
 
-            flowContext.EnsureStoreOrDeleteIsCalled();
+                    // If we ended up here it is because of a Start. No point in storing the new FlowContext
+                    // in the messageContext as the yield point is the last to execute.
+                    disposeFlowContext = true;
+                }
+
+                try
+                {
+                    await executableYieldPoint.Execute(flowContext);
+                }
+                catch (YieldPointException e)
+                {
+                    // Useful for debugging
+                    e.Data["Tapeti.Controller.Name"] = context.Controller.GetType().FullName;
+                    e.Data["Tapeti.Controller.Method"] = context.Method.Name;
+                    throw;
+                }
+
+                flowContext.EnsureStoreOrDeleteIsCalled();
+            }
+            finally
+            {
+                if (disposeFlowContext)
+                    flowContext.Dispose();
+            }
         }
 
 
@@ -234,12 +257,12 @@ namespace Tapeti.Flow.Default
             }
 
 
-            private readonly IConfig config;
+            private readonly ITapetiConfig config;
             private readonly SendRequestFunc sendRequest;
             private readonly List<RequestInfo> requests = new List<RequestInfo>();
 
 
-            public ParallelRequestBuilder(IConfig config, SendRequestFunc sendRequest)
+            public ParallelRequestBuilder(ITapetiConfig config, SendRequestFunc sendRequest)
             {
                 this.config = config;
                 this.sendRequest = sendRequest;
@@ -284,12 +307,15 @@ namespace Tapeti.Flow.Default
 
             private IYieldPoint BuildYieldPoint(Delegate convergeMethod, bool convergeMethodSync)
             {
+                if (requests.Count == 0)
+                    throw new YieldPointException("At least one request must be added before yielding a parallel request");
+
                 if (convergeMethod?.Method == null)
                     throw new ArgumentNullException(nameof(convergeMethod));
 
                 return new DelegateYieldPoint(context =>
                 {
-                    if (convergeMethod.Method.DeclaringType != context.MessageContext.Controller.GetType())
+                    if (convergeMethod.Method.DeclaringType != context.HandlerContext.Controller.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");
 
                     return Task.WhenAll(requests.Select(requestInfo =>
@@ -306,6 +332,7 @@ namespace Tapeti.Flow.Default
         {
             public string MethodName { get; set; }
             public string ReplyToQueue { get; set; }
+            public bool IsDurableQueue { get; set; }
         }
     }
 }

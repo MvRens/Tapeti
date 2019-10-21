@@ -2,16 +2,20 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
-using RabbitMQ.Client.Framing;
 using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
-    public class PublishResultBinding : IBindingMiddleware
+    /// <inheritdoc />
+    /// <summary>
+    /// Attempts to publish a return value for Controller methods as a response to the incoming message.
+    /// </summary>
+    public class PublishResultBinding : IControllerBindingMiddleware
     {
-        public void Handle(IBindingContext context, Action next)
+        /// <inheritdoc />
+        public void Handle(IControllerBindingContext context, Action next)
         {
             next();
 
@@ -60,18 +64,15 @@ namespace Tapeti.Default
             if (message == null)
                 throw new ArgumentException("Return value of a request message handler must not be null");
 
-            var publisher = (IInternalPublisher)messageContext.DependencyResolver.Resolve<IPublisher>();
-            var properties = new BasicProperties();
+            var publisher = (IInternalPublisher)messageContext.Config.DependencyResolver.Resolve<IPublisher>();
+            var properties = new MessageProperties
+            {
+                CorrelationId = messageContext.Properties.CorrelationId
+            };
 
-            // Only set the property if it's not null, otherwise a string reference exception can occur:
-            // http://rabbitmq.1065348.n5.nabble.com/SocketException-when-invoking-model-BasicPublish-td36330.html
-            if (messageContext.Properties.IsCorrelationIdPresent())
-                properties.CorrelationId = messageContext.Properties.CorrelationId;
-
-            if (messageContext.Properties.IsReplyToPresent())
-                return publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties, messageContext.Properties.Persistent);
-
-            return publisher.Publish(message, properties, false);
+            return !string.IsNullOrEmpty(messageContext.Properties.ReplyTo) 
+                ? publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties, messageContext.Properties.Persistent.GetValueOrDefault(true)) 
+                : publisher.Publish(message, properties, false);
         }
     }
 }

@@ -1,309 +1,161 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.ExceptionServices;
-using RabbitMQ.Client;
 using Tapeti.Config;
 using Tapeti.Default;
 using System.Threading.Tasks;
+using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
-    public class TapetiConsumer : DefaultBasicConsumer
+    /// <inheritdoc />
+    /// <summary>
+    /// Implements a RabbitMQ consumer to pass messages to the Tapeti middleware.
+    /// </summary>
+    internal class TapetiConsumer : IConsumer
     {
-        private readonly TapetiWorker worker;
+        private readonly ITapetiConfig config;
         private readonly string queueName;
-        private readonly IDependencyResolver dependencyResolver;
-        private readonly IReadOnlyList<IMessageMiddleware> messageMiddleware;
-        private readonly IReadOnlyList<ICleanupMiddleware> cleanupMiddleware;
         private readonly List<IBinding> bindings;
 
         private readonly ILogger logger;
         private readonly IExceptionStrategy exceptionStrategy;
+        private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiConsumer(TapetiWorker worker, string queueName, IDependencyResolver dependencyResolver, IEnumerable<IBinding> bindings, IReadOnlyList<IMessageMiddleware> messageMiddleware, IReadOnlyList<ICleanupMiddleware> cleanupMiddleware)
+        /// <inheritdoc />
+        public TapetiConsumer(ITapetiConfig config, string queueName, IEnumerable<IBinding> bindings)
         {
-            this.worker = worker;
+            this.config = config;
             this.queueName = queueName;
-            this.dependencyResolver = dependencyResolver;
-            this.messageMiddleware = messageMiddleware;
-            this.cleanupMiddleware = cleanupMiddleware;
             this.bindings = bindings.ToList();
 
-            logger = dependencyResolver.Resolve<ILogger>();
-            exceptionStrategy = dependencyResolver.Resolve<IExceptionStrategy>();
+            logger = config.DependencyResolver.Resolve<ILogger>();
+            exceptionStrategy = config.DependencyResolver.Resolve<IExceptionStrategy>();
+            messageSerializer = config.DependencyResolver.Resolve<IMessageSerializer>();
         }
 
 
-        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey,
-            IBasicProperties properties, byte[] body)
+        /// <inheritdoc />
+        public async Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body)
         {
-            Task.Run(async () =>
+            object message = null;
+            try
             {
-                MessageContext context = null;
-                HandlingResult handlingResult = null;
-                try
+                message = messageSerializer.Deserialize(body, properties);
+                if (message == null)
+                    throw new ArgumentException("Message body could not be deserialized into a message object", nameof(body));
+
+                return await DispatchMessage(message, new MessageContextData
                 {
-                    try
-                    {
-                        context = new MessageContext
-                        {
-                            DependencyResolver = dependencyResolver,
-                            Queue = queueName,
-                            RoutingKey = routingKey,
-                            Properties = properties
-                        };
-
-                        await DispatchMesage(context, body);
-
-                        handlingResult = new HandlingResult
-                        {
-                            ConsumeResponse = ConsumeResponse.Ack,
-                            MessageAction = MessageAction.None
-                        };
-                    }
-                    catch (Exception eDispatch)
-                    {
-                        var exception = ExceptionDispatchInfo.Capture(UnwrapException(eDispatch));
-                        logger.HandlerException(eDispatch);
-                        try
-                        {
-                            var exceptionStrategyContext = new ExceptionStrategyContext(context, exception.SourceException);
-
-                            exceptionStrategy.HandleException(exceptionStrategyContext);
-
-                            handlingResult = exceptionStrategyContext.HandlingResult.ToHandlingResult();
-                        }
-                        catch (Exception eStrategy)
-                        {
-                            logger.HandlerException(eStrategy);
-                        }
-                    }
-                    try
-                    {
-                        if (handlingResult == null)
-                        {
-                            handlingResult = new HandlingResult
-                            {
-                                ConsumeResponse = ConsumeResponse.Nack,
-                                MessageAction = MessageAction.None
-                            };
-                        }
-                        await RunCleanup(context, handlingResult);
-                    }
-                    catch (Exception eCleanup)
-                    {
-                        logger.HandlerException(eCleanup);
-                    }
-                }
-                finally
-                {
-                    try
-                    {
-                        if (handlingResult == null)
-                        {
-                            handlingResult = new HandlingResult
-                            {
-                                ConsumeResponse = ConsumeResponse.Nack,
-                                MessageAction = MessageAction.None
-                            };
-                        }
-                        await worker.Respond(deliveryTag, handlingResult.ConsumeResponse);
-                    }
-                    catch (Exception eRespond)
-                    {
-                        logger.HandlerException(eRespond);
-                    }
-                    try
-                    {
-                        context?.Dispose();
-                    }
-                    catch (Exception eDispose)
-                    {
-                        logger.HandlerException(eDispose);
-                    }
-                }
-            });
-        }
-
-        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
-        {
-            foreach(var handler in cleanupMiddleware)
+                    Exchange = exchange,
+                    RoutingKey = routingKey,
+                    Properties = properties
+                });
+            }
+            catch (Exception dispatchException)
             {
-                try
+                using (var emptyContext = new MessageContext
                 {
-                    await handler.Handle(context, handlingResult);
-                }
-                catch (Exception eCleanup)
+                    Config = config,
+                    Queue = queueName,
+                    Exchange = exchange,
+                    RoutingKey = routingKey,
+                    Message = message,
+                    Properties = properties,
+                    Binding = null
+                })
                 {
-                    logger.HandlerException(eCleanup);
+                    var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
+                    HandleException(exceptionContext);
+                    return exceptionContext.ConsumeResult;
                 }
             }
         }
 
-        private async Task DispatchMesage(MessageContext context, byte[] body)
+
+        private async Task<ConsumeResult> DispatchMessage(object message, MessageContextData messageContextData)
         {
-            var message = dependencyResolver.Resolve<IMessageSerializer>().Deserialize(body, context.Properties);
-            if (message == null)
-                throw new ArgumentException("Empty message");
-
-            context.Message = message;
-
+            var returnResult = ConsumeResult.Success;
+            var messageType = message.GetType();
             var validMessageType = false;
 
             foreach (var binding in bindings)
             {
-                if (binding.Accept(context, message))
-                {
-                    await InvokeUsingBinding(context, binding, message);
+                if (!binding.Accept(messageType)) 
+                    continue;
 
-                    validMessageType = true;
-                }
+                var consumeResult = await InvokeUsingBinding(message, messageContextData, binding);
+                validMessageType = true;
+
+                if (consumeResult != ConsumeResult.Success)
+                    returnResult = consumeResult;
             }
 
             if (!validMessageType)
-                throw new ArgumentException($"Unsupported message type: {message.GetType().FullName}");
+                throw new ArgumentException($"No binding found for message type: {message.GetType().FullName}");
+
+            return returnResult;
         }
 
-        private Task InvokeUsingBinding(MessageContext context, IBinding binding, object message)
+
+        private async Task<ConsumeResult> InvokeUsingBinding(object message, MessageContextData messageContextData, IBinding binding)
         {
-            context.Binding = binding;
-
-            RecursiveCaller firstCaller = null;
-            RecursiveCaller currentCaller = null;
-
-            void AddHandler(Handler handle)
+            using (var context = new MessageContext
             {
-                var caller = new RecursiveCaller(handle);
-                if (currentCaller == null)
-                    firstCaller = caller;
-                else
-                    currentCaller.Next = caller;
-                currentCaller = caller;
-            }
-
-            if (binding.MessageFilterMiddleware != null)
-            {
-                foreach (var m in binding.MessageFilterMiddleware)
-                {
-                    AddHandler(m.Handle);
-                }
-            }
-
-            AddHandler(async (c, next) =>
-            {
-                c.Controller = dependencyResolver.Resolve(binding.Controller);
-                await next();
-            });
-
-            foreach (var m in messageMiddleware)
-            {
-                AddHandler(m.Handle);
-            }
-
-            if (binding.MessageMiddleware != null)
-            {
-                foreach (var m in binding.MessageMiddleware)
-                {
-                    AddHandler(m.Handle);
-                }
-            }
-
-            AddHandler(async (c, next) =>
-            {
-                await binding.Invoke(c, message);
-            });
-
-            return firstCaller.Call(context);
-        }
-
-        private static Exception UnwrapException(Exception exception)
-        {
-            // In async/await style code this is handled similarly. For synchronous
-            // code using Tasks we have to unwrap these ourselves to get the proper
-            // exception directly instead of "Errors occured". We might lose
-            // some stack traces in the process though.
-            while (true)
-            {
-                var aggregateException = exception as AggregateException;
-                if (aggregateException == null || aggregateException.InnerExceptions.Count != 1)
-                    return exception;
-
-                exception = aggregateException.InnerExceptions[0];
-            }
-        }
-    }
-
-    public delegate Task Handler(MessageContext context, Func<Task> next);
-
-    public class RecursiveCaller
-    {
-        private readonly Handler handle;
-        private MessageContext currentContext;
-        private MessageContext nextContext;
-
-        public RecursiveCaller Next;
-
-        public RecursiveCaller(Handler handle)
-        {
-            this.handle = handle;
-        }
-
-        internal async Task Call(MessageContext context)
-        {
-            if (currentContext != null)
-                throw new InvalidOperationException("Cannot simultaneously call 'next' in Middleware.");
-
-            try
-            {
-                currentContext = context;
-
-                context.UseNestedContext = Next == null ? (Action<MessageContext>)null : UseNestedContext;
-
-                await handle(context, CallNext);
-            }
-            finally
-            {
-                currentContext = null;
-            }
-        }
-
-        private async Task CallNext()
-        {
-            if (Next == null)
-                return;
-            if (nextContext != null)
-            {
-                await Next.Call(nextContext);
-            }else
+                Config = config,
+                Queue = queueName,
+                Exchange = messageContextData.Exchange,
+                RoutingKey = messageContextData.RoutingKey,
+                Message = message,
+                Properties = messageContextData.Properties,
+                Binding = binding
+            })
             {
                 try
                 {
-                    await Next.Call(currentContext);
+                    await MiddlewareHelper.GoAsync(config.Middleware.Message,
+                        async (handler, next) => await handler.Handle(context, next),
+                        async () => { await binding.Invoke(context); });
+
+                    await binding.Cleanup(context, ConsumeResult.Success);
+                    return ConsumeResult.Success;
                 }
-                finally
+                catch (Exception invokeException)
                 {
-                    currentContext.UseNestedContext = UseNestedContext;
+                    var exceptionContext = new ExceptionStrategyContext(context, invokeException);
+                    HandleException(exceptionContext);
+
+                    await binding.Cleanup(context, exceptionContext.ConsumeResult);
+                    return exceptionContext.ConsumeResult;
                 }
             }
         }
 
-        void UseNestedContext(MessageContext context)
-        {
-            if (nextContext != null)
-                throw new InvalidOperationException("Previous nested context was not yet disposed.");
 
-            context.OnContextDisposed = OnContextDisposed;
-            nextContext = context;
+        private void HandleException(ExceptionStrategyContext exceptionContext)
+        {
+            try
+            {
+                exceptionStrategy.HandleException(exceptionContext);
+            }
+            catch (Exception strategyException)
+            {
+                // Exception in the exception strategy. Oh dear.
+                exceptionContext.SetConsumeResult(ConsumeResult.Error);
+                logger.ConsumeException(strategyException, exceptionContext.MessageContext, ConsumeResult.Error);
+            }
+
+            logger.ConsumeException(exceptionContext.Exception, exceptionContext.MessageContext, exceptionContext.ConsumeResult);
         }
 
-        void OnContextDisposed(MessageContext context)
+
+
+        private struct MessageContextData
         {
-            context.OnContextDisposed = null;
-            if (nextContext == context)
-                nextContext = null;
+            public string Exchange;
+            public string RoutingKey;
+            public IMessageProperties Properties;
         }
     }
-
 }

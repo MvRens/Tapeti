@@ -5,7 +5,7 @@
 namespace Tapeti
 {
     /// <summary>
-    /// Base class for message controllers
+    /// Base class for message controllers.
     /// </summary>
     /// <remarks>
     /// Using this base class is not required, you can add the MessageController attribute

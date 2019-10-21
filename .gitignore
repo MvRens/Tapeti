@@ -8,3 +8,5 @@ packages/
 publish/
 *.sublime-workspace
 docs/_build/
+
+Tapeti.Cmd/Properties/launchSettings.json

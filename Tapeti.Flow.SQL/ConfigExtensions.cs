@@ -5,23 +5,32 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow.SQL
 {
+    /// <summary>
+    /// Extends ITapetiConfigBuilder to enable Flow SQL.
+    /// </summary>
     public static class ConfigExtensions
     {
-        public static TapetiConfig WithFlowSqlRepository(this TapetiConfig config, string connectionString, string tableName = "Flow")
+        /// <summary>
+        /// Enables the Flow SQL repository.
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="connectionString"></param>
+        /// <param name="tableName"></param>
+        public static ITapetiConfigBuilder WithFlowSqlRepository(this ITapetiConfigBuilder config, string connectionString, string tableName = "Flow")
         {
-            config.Use(new FlowSqlRepositoryBundle(connectionString, tableName));
+            config.Use(new FlowSqlRepositoryExtension(connectionString, tableName));
             return config;
         }
     }
 
 
-    internal class FlowSqlRepositoryBundle : ITapetiExtension
+    internal class FlowSqlRepositoryExtension : ITapetiExtension
     {
         private readonly string connectionString;
         private readonly string tableName;
 
 
-        public FlowSqlRepositoryBundle(string connectionString, string tableName)
+        public FlowSqlRepositoryExtension(string connectionString, string tableName)
         {
             this.connectionString = connectionString;
             this.tableName = tableName;

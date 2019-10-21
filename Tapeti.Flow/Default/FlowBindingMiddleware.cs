@@ -8,15 +8,12 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
-    internal class FlowBindingMiddleware : IBindingMiddleware
+    internal class FlowBindingMiddleware : IControllerBindingMiddleware
     {
-        public void Handle(IBindingContext context, Action next)
+        public void Handle(IControllerBindingContext context, Action next)
         {
             if (context.Method.GetCustomAttribute<StartAttribute>() != null)
                 return;
-
-            if (context.Method.GetCustomAttribute<ContinuationAttribute>() != null)
-                context.QueueBindingMode = QueueBindingMode.DirectToQueue;
 
             RegisterYieldPointResult(context);
             RegisterContinuationFilter(context);
@@ -27,14 +24,14 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static void RegisterContinuationFilter(IBindingContext context)
+        private static void RegisterContinuationFilter(IControllerBindingContext context)
         {
             var continuationAttribute = context.Method.GetCustomAttribute<ContinuationAttribute>();
             if (continuationAttribute == null)
                 return;
 
-            context.Use(new FlowMessageFilterMiddleware());
-            context.Use(new FlowMessageMiddleware());
+            context.SetBindingTargetMode(BindingTargetMode.Direct);
+            context.Use(new FlowContinuationMiddleware());
 
             if (context.Result.HasHandler)
                 return;
@@ -58,7 +55,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static void RegisterYieldPointResult(IBindingContext context)
+        private static void RegisterYieldPointResult(IControllerBindingContext context)
         {
             if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var isTaskOf))
                 return;
@@ -77,24 +74,24 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static Task HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
+        private static Task HandleYieldPoint(IControllerMessageContext context, IYieldPoint yieldPoint)
         {
-            var flowHandler = context.DependencyResolver.Resolve<IFlowHandler>();
-            return flowHandler.Execute(context, yieldPoint);
+            var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
+            return flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
 
 
-        private static Task HandleParallelResponse(IMessageContext context)
+        private static Task HandleParallelResponse(IControllerMessageContext context)
         {
-            var flowHandler = context.DependencyResolver.Resolve<IFlowHandler>();
-            return flowHandler.Execute(context, new DelegateYieldPoint(async flowContext =>
+            var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
+            return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>
             {
-                await flowContext.Store();
+                await flowContext.Store(context.Binding.QueueType == QueueType.Durable);
             }));
         }
 
 
-        private static void ValidateRequestResponse(IBindingContext context)
+        private static void ValidateRequestResponse(IControllerBindingContext context)
         {
             var request = context.MessageClass?.GetCustomAttribute<RequestAttribute>();
             if (request?.Response == null)

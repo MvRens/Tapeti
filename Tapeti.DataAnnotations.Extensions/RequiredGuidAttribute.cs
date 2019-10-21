@@ -1,9 +1,11 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
+
+// ReSharper disable UnusedMember.Global
 
 namespace Tapeti.DataAnnotations.Extensions
 {
+    /// <inheritdoc />
     /// <summary>
     /// Can be used on Guid fields which are supposed to be Required, as the Required attribute does
     /// not work for Guids and making them Nullable is counter-intuitive.
@@ -13,10 +15,12 @@ namespace Tapeti.DataAnnotations.Extensions
         private const string DefaultErrorMessage = "'{0}' does not contain a valid guid";
         private const string InvalidTypeErrorMessage = "'{0}' is not of type Guid";
 
+        /// <inheritdoc />
         public RequiredGuidAttribute() : base(DefaultErrorMessage)
         {
         }
 
+        /// <inheritdoc />
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value == null)

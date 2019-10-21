@@ -6,6 +6,14 @@ using System.Text.RegularExpressions;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// IRoutingKeyStrategy implementation which transforms the class name into a dot-separated routing key based
+    /// on the casing. Accounts for acronyms. If the class name ends with 'Message' it is not included in the routing key.
+    /// </summary>
+    /// <example>
+    /// ExampleClassNameMessage will result in example.class.name
+    /// </example>
     public class TypeNameRoutingKeyStrategy : IRoutingKeyStrategy
     {
         private const string SeparatorPattern = @"
@@ -24,12 +32,17 @@ namespace Tapeti.Default
         private static readonly ConcurrentDictionary<Type, string> RoutingKeyCache = new ConcurrentDictionary<Type, string>();
 
 
+        /// <inheritdoc />
         public string GetRoutingKey(Type messageType)
         {
             return RoutingKeyCache.GetOrAdd(messageType, BuildRoutingKey);
         }
 
 
+        /// <summary>
+        /// Actual implementation of GetRoutingKey, called only when the type has not been cached yet.
+        /// </summary>
+        /// <param name="messageType"></param>
         protected virtual string BuildRoutingKey(Type messageType)
         {
             // Split PascalCase into dot-separated parts. If the class name ends in "Message" leave that out.
@@ -42,6 +55,7 @@ namespace Tapeti.Default
 
             return string.Join(".", words.Select(s => s.ToLower()));
         }
+
 
         private static List<string> SplitPascalCase(string value)
         {

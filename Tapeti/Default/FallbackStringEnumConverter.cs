@@ -4,11 +4,11 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
     /// <summary>
-    /// Converts an <see cref="Enum"/> to and from its name string value. If an unknown string value is encountered
+    /// Converts an <see cref="T:System.Enum" /> to and from its name string value. If an unknown string value is encountered
     /// it will translate to 0xDEADBEEF (-559038737) so it can be gracefully handled.
     /// If you copy this value as-is to another message and try to send it, this converter will throw an exception.
-    ///
     /// This converter is far simpler than the default StringEnumConverter, it assumes both sides use the same
     /// enum and therefore skips the naming strategy.
     /// </summary>
@@ -17,12 +17,14 @@ namespace Tapeti.Default
         private readonly int invalidEnumValue;
 
 
+        /// <inheritdoc />
         public FallbackStringEnumConverter()
         {
             unchecked { invalidEnumValue = (int)0xDEADBEEF; }
         }
 
 
+        /// <inheritdoc />
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             if (value == null)
@@ -39,6 +41,7 @@ namespace Tapeti.Default
         }
 
 
+        /// <inheritdoc />
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             var isNullable = IsNullableType(objectType);
@@ -72,6 +75,7 @@ namespace Tapeti.Default
         }
 
 
+        /// <inheritdoc />
         public override bool CanConvert(Type objectType)
         {
             var actualType = IsNullableType(objectType) ? Nullable.GetUnderlyingType(objectType) : objectType;

@@ -1,10 +1,21 @@
-﻿namespace Tapeti.Flow
+﻿using Tapeti.Config;
+
+namespace Tapeti.Flow
 {
+    /// <summary>
+    /// ITapetiConfigBuilder extension for enabling Flow.
+    /// </summary>
     public static class ConfigExtensions
     {
-        public static TapetiConfig WithFlow(this TapetiConfig config, IFlowRepository flowRepository = null)
+        /// <summary>
+        /// Enables Tapeti Flow.
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="flowRepository">An optional IFlowRepository implementation to persist flow state. If not provided, flow state will be lost when the application restarts.</param>
+        /// <returns></returns>
+        public static ITapetiConfigBuilder WithFlow(this ITapetiConfigBuilder config, IFlowRepository flowRepository = null)
         {
-            config.Use(new FlowMiddleware(flowRepository));
+            config.Use(new FlowExtension(flowRepository));
             return config;
         }
     }

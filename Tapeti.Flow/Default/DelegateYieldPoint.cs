@@ -14,9 +14,9 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public Task Execute(FlowContext context)
+        public async Task Execute(FlowContext context)
         {
-            return onExecute(context);
+            await onExecute(context);
         }
     }
 }

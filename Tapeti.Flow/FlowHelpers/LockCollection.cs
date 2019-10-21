@@ -4,22 +4,30 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.FlowHelpers
 {
+    /// <summary>
+    /// Implementation of an asynchronous locking mechanism.
+    /// </summary>
     public class LockCollection<T>
     {
         private readonly Dictionary<T, LockItem> locks;
 
+        /// <inheritdoc />
         public LockCollection(IEqualityComparer<T> comparer)
         {
             locks = new Dictionary<T, LockItem>(comparer);
         }
 
+        /// <summary>
+        /// Waits for and acquires a lock on the specified key. Dispose the returned value to release the lock.
+        /// </summary>
+        /// <param name="key"></param>
         public Task<IDisposable> GetLock(T key)
         {
             // ReSharper disable once InconsistentlySynchronizedField - by design
-            LockItem nextLi = new LockItem(locks, key);
+            var nextLi = new LockItem(locks, key);
             try
             {
-                bool continueImmediately = false;
+                var continueImmediately = false;
                 lock (locks)
                 {
                     if (!locks.TryGetValue(key, out var li))
@@ -44,6 +52,7 @@ namespace Tapeti.Flow.FlowHelpers
             }
             return nextLi.GetTask();
         }
+
 
         private class LockItem : IDisposable
         {
@@ -83,7 +92,7 @@ namespace Tapeti.Flow.FlowHelpers
 
                     if (li != this)
                     {
-                        // Something is wrong (comparer is not stable?), but we cannot loose the completions sources
+                        // Something is wrong (comparer is not stable?), but we cannot lose the completions sources
                         while (li.Next != null)
                             li = li.Next;
                         li.Next = Next;
