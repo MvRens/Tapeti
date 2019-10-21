@@ -5,14 +5,19 @@ using Tapeti.Config;
 
 namespace Tapeti.DataAnnotations
 {
-    public class DataAnnotationsPublishMiddleware : IPublishMiddleware
+    /// <inheritdoc />
+    /// <summary>
+    /// Validates published messages using System.ComponentModel.DataAnnotations
+    /// </summary>
+    internal class DataAnnotationsPublishMiddleware : IPublishMiddleware
     {
-        public Task Handle(IPublishContext context, Func<Task> next)
+        /// <inheritdoc />
+        public async Task Handle(IPublishContext context, Func<Task> next)
         {
             var validationContext = new ValidationContext(context.Message);
             Validator.ValidateObject(context.Message, validationContext, true);
 
-            return next();
+            await next();
         }
     }
 }

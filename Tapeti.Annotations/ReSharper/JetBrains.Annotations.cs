@@ -30,6 +30,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 using System;
+// ReSharper disable InheritdocConsiderUsage
 
 #pragma warning disable 1591
 // ReSharper disable UnusedMember.Global
@@ -96,9 +97,9 @@ namespace JetBrains.Annotations
             TargetFlags = targetFlags;
         }
 
-        public ImplicitUseKindFlags UseKindFlags { get; private set; }
+        public ImplicitUseKindFlags UseKindFlags { get; }
 
-        public ImplicitUseTargetFlags TargetFlags { get; private set; }
+        public ImplicitUseTargetFlags TargetFlags { get; }
     }
 
     /// <summary>
@@ -142,7 +143,7 @@ namespace JetBrains.Annotations
         /// </summary>
         InstantiatedWithFixedConstructorSignature = 4,
         /// <summary>Indicates implicit instantiation of a type.</summary>
-        InstantiatedNoFixedConstructorSignature = 8,
+        InstantiatedNoFixedConstructorSignature = 8
     }
 
     /// <summary>
@@ -174,6 +175,6 @@ namespace JetBrains.Annotations
             Comment = comment;
         }
 
-        [CanBeNull] public string Comment { get; private set; }
+        [CanBeNull] public string Comment { get; }
     }
 }

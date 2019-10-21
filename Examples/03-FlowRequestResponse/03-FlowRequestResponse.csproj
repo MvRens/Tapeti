@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <RootNamespace>_03_FlowRequestResponse</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SimpleInjector" Version="4.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj" />
+    <ProjectReference Include="..\..\Tapeti.Flow\Tapeti.Flow.csproj" />
+    <ProjectReference Include="..\..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
+    <ProjectReference Include="..\..\Tapeti\Tapeti.csproj" />
+    <ProjectReference Include="..\ExampleLib\ExampleLib.csproj" />
+    <ProjectReference Include="..\Messaging.TapetiExample\Messaging.TapetiExample.csproj" />
+  </ItemGroup>
+
+</Project>

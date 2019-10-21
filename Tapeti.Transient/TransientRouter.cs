@@ -2,26 +2,37 @@
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Threading;
-using RabbitMQ.Client.Framing;
 using Tapeti.Config;
+using Tapeti.Default;
 
 namespace Tapeti.Transient
 {
-    public class TransientRouter
+    /// <summary>
+    /// Manages active requests and responses. For internal use.
+    /// </summary>
+    internal class TransientRouter
     {
         private readonly int defaultTimeoutMs;
-
         private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new ConcurrentDictionary<Guid, TaskCompletionSource<object>>();
 
-
+        /// <summary>
+        /// The generated name of the dynamic queue to which responses should be sent.
+        /// </summary>
         public string TransientResponseQueueName { get; set; }
 
+
+        /// <inheritdoc />
         public TransientRouter(TimeSpan defaultTimeout)
         {
             defaultTimeoutMs = (int)defaultTimeout.TotalMilliseconds;
         }
 
-        public void GenericHandleResponse(object response, IMessageContext context)
+
+        /// <summary>
+        /// Processes incoming messages to complete the corresponding request task.
+        /// </summary>
+        /// <param name="context"></param>
+        public void HandleMessage(IMessageContext context)
         {
             if (context.Properties.CorrelationId == null)
                 return;
@@ -30,9 +41,16 @@ namespace Tapeti.Transient
                 return;
 
             if (map.TryRemove(continuationID, out var tcs))
-                tcs.SetResult(response);
+                tcs.SetResult(context.Message);
         }
 
+
+        /// <summary>
+        /// Sends a request and waits for the response. Do not call directly, instead use ITransientPublisher.RequestResponse.
+        /// </summary>
+        /// <param name="publisher"></param>
+        /// <param name="request"></param>
+        /// <returns></returns>
         public async Task<object> RequestResponse(IPublisher publisher, object request)
         {
             var correlation = Guid.NewGuid();
@@ -40,7 +58,7 @@ namespace Tapeti.Transient
 
             try
             {
-                var properties = new BasicProperties
+                var properties = new MessageProperties
                 {
                     CorrelationId = correlation.ToString(),
                     ReplyTo = TransientResponseQueueName,
@@ -63,6 +81,7 @@ namespace Tapeti.Transient
                 return await tcs.Task;
             }
         }
+
 
         private void TimeoutResponse(object tcs)
         {

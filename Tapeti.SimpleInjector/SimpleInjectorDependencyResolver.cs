@@ -4,12 +4,17 @@ using SimpleInjector;
 
 namespace Tapeti.SimpleInjector
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Dependency resolver and container implementation for SimpleInjector.
+    /// </summary>
     public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
         private readonly Lifestyle defaultsLifestyle;
         private readonly Lifestyle controllersLifestyle;
 
+        /// <inheritdoc />
         public SimpleInjectorDependencyResolver(Container container, Lifestyle defaultsLifestyle = null, Lifestyle controllersLifestyle = null)
         {
             this.container = container;
@@ -17,17 +22,21 @@ namespace Tapeti.SimpleInjector
             this.controllersLifestyle = controllersLifestyle;
         }
 
+
+        /// <inheritdoc />
         public T Resolve<T>() where T : class
         {
             return container.GetInstance<T>();
         }
 
+        /// <inheritdoc />
         public object Resolve(Type type)
         {
             return container.GetInstance(type);
         }
 
 
+        /// <inheritdoc />
         public void RegisterDefault<TService, TImplementation>() where TService : class where TImplementation : class, TService
         {
             if (!CanRegisterDefault<TService>()) 
@@ -39,6 +48,7 @@ namespace Tapeti.SimpleInjector
                 container.Register<TService, TImplementation>();
         }
 
+        /// <inheritdoc />
         public void RegisterDefault<TService>(Func<TService> factory) where TService : class
         {
             if (!CanRegisterDefault<TService>())
@@ -50,24 +60,29 @@ namespace Tapeti.SimpleInjector
                 container.Register(factory);
         }
 
+
+        /// <inheritdoc />
         public void RegisterDefaultSingleton<TService, TImplementation>() where TService : class where TImplementation : class, TService
         {
             if (CanRegisterDefault<TService>())
                 container.RegisterSingleton<TService, TImplementation>();
         }
 
+        /// <inheritdoc />
         public void RegisterDefaultSingleton<TService>(TService instance) where TService : class
         {
             if (CanRegisterDefault<TService>())
                 container.RegisterInstance(instance);
         }
 
+        /// <inheritdoc />
         public void RegisterDefaultSingleton<TService>(Func<TService> factory) where TService : class
         {
             if (CanRegisterDefault<TService>())
                 container.RegisterSingleton(factory);
         }
 
+        /// <inheritdoc />
         public void RegisterController(Type type)
         {
             if (controllersLifestyle != null)                

@@ -7,7 +7,7 @@ namespace Tapeti.Annotations
     /// Can be attached to a message class to specify that the receiver of the message must
     /// provide a response message of the type specified in the Response attribute. This response
     /// must be sent by either returning it from the message handler method or using
-    /// YieldWithResponse when using Tapeti Flow. These methods will respond directly
+    /// EndWithResponse when using Tapeti Flow. These methods will respond directly
     /// to the queue specified in the reply-to header automatically added by Tapeti.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]

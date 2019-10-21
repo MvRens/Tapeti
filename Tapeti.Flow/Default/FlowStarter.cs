@@ -3,42 +3,47 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
-using Tapeti.Default;
 
 namespace Tapeti.Flow.Default
 {
-    public class FlowStarter : IFlowStarter
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation for IFlowStarter.
+    /// </summary>
+    internal class FlowStarter : IFlowStarter
     {
-        private readonly IConfig config;
-        private readonly ILogger logger;
+        private readonly ITapetiConfig config;
 
 
-        public FlowStarter(IConfig config, ILogger logger)
+        /// <inheritdoc />
+        public FlowStarter(ITapetiConfig config)
         {
             this.config = config;
-            this.logger = logger;
         }
 
 
-        public Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
+        /// <inheritdoc />
+        public async Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
         }
 
-
-        public Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
+        /// <inheritdoc />
+        public async Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
         }
 
-        public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
+        /// <inheritdoc />
+        public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
         }
 
-        public Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
+        /// <inheritdoc />
+        public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
         {
-            return CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});
         }
 
 
@@ -47,42 +52,15 @@ namespace Tapeti.Flow.Default
             var controller = config.DependencyResolver.Resolve<TController>();
             var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
 
-            var context = new MessageContext
+            var context = new FlowHandlerContext
             {
-                DependencyResolver = config.DependencyResolver,
-                Controller = controller
+                Config = config,
+                Controller = controller,
+                Method = method
             };
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
-
-            HandlingResultBuilder handlingResult = new HandlingResultBuilder
-            {
-                ConsumeResponse = ConsumeResponse.Nack,
-            };
-            try
-            {
-                await flowHandler.Execute(context, yieldPoint);
-                handlingResult.ConsumeResponse = ConsumeResponse.Ack;
-            }
-            finally
-            {
-                await RunCleanup(context, handlingResult.ToHandlingResult());
-            }
-        }
-
-        private async Task RunCleanup(MessageContext context, HandlingResult handlingResult)
-        {
-            foreach (var handler in config.CleanupMiddleware)
-            {
-                try
-                {
-                    await handler.Handle(context, handlingResult);
-                }
-                catch (Exception eCleanup)
-                {
-                    logger.HandlerException(eCleanup);
-                }
-            }
+            await flowHandler.Execute(context, yieldPoint);
         }
 
 
@@ -97,6 +75,7 @@ namespace Tapeti.Flow.Default
 
             return method;
         }
+
 
         private static MethodInfo GetExpressionMethod<TController, TResult, TParameter>(Expression<Func<TController, Func<TParameter, TResult>>> methodSelector)
         {

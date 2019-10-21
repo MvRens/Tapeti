@@ -4,11 +4,25 @@
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Example exception strategy which requeues all messages that result in an error.
+    /// </summary>
+    /// <remarks>
+    /// You probably do not want to use this strategy as-is in production code, unless
+    /// you are sure that all your exceptions are transient. A better way would be to
+    /// check for exceptions you know are transient. An even better way would be to
+    /// never requeue but retry transient errors internally. See the Tapeti documentation
+    /// for an example of this pattern:
+    /// 
+    /// https://tapeti.readthedocs.io/en/latest/
+    /// </remarks>
     public class RequeueExceptionStrategy : IExceptionStrategy
     {
+        /// <inheritdoc />
         public void HandleException(IExceptionStrategyContext context)
         {
-            context.HandlingResult.ConsumeResponse = ConsumeResponse.Requeue;
+            context.SetConsumeResult(ConsumeResult.Requeue);
         }
     }
 }

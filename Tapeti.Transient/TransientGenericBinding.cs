@@ -1,52 +1,61 @@
 ﻿using System;
-using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
 
 namespace Tapeti.Transient
 {
-    public class TransientGenericBinding : ICustomBinding
+    /// <inheritdoc />
+    /// <summary>
+    /// Implements a binding for transient request response messages.
+    /// Register this binding using the WithTransient config extension method.
+    /// </summary>
+    internal class TransientGenericBinding : IBinding
     {
         private readonly TransientRouter router;
+        private readonly string dynamicQueuePrefix;
 
+        /// <inheritdoc />
+        public string QueueName { get; private set; }
+
+        /// <inheritdoc />
+        public QueueType QueueType => QueueType.Dynamic;
+
+
+        /// <inheritdoc />
         public TransientGenericBinding(TransientRouter router, string dynamicQueuePrefix)
         {
             this.router = router;
-            DynamicQueuePrefix = dynamicQueuePrefix;
-            Method = typeof(TransientRouter).GetMethod("GenericHandleResponse");
+            this.dynamicQueuePrefix = dynamicQueuePrefix;
         }
 
-        public Type Controller => typeof(TransientRouter);
 
-        public MethodInfo Method { get; }
+        /// <inheritdoc />
+        public async Task Apply(IBindingTarget target)
+        {
+            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix);
+            router.TransientResponseQueueName = QueueName;
+        }
 
-        public QueueBindingMode QueueBindingMode => QueueBindingMode.DirectToQueue;
 
-        public string StaticQueueName => null;
-
-        public string DynamicQueuePrefix { get; }
-
-        public Type MessageClass => null;
-
+        /// <inheritdoc />
         public bool Accept(Type messageClass)
         {
             return true;
         }
 
-        public bool Accept(IMessageContext context, object message)
-        {
-            return true;
-        }
 
-        public Task Invoke(IMessageContext context, object message)
+        /// <inheritdoc />
+        public Task Invoke(IMessageContext context)
         {
-            router.GenericHandleResponse(message, context);
+            router.HandleMessage(context);
             return Task.CompletedTask;
         }
 
-        public void SetQueueName(string queueName)
+
+        /// <inheritdoc />
+        public Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            router.TransientResponseQueueName = queueName;
+            return Task.CompletedTask;
         }
     }
 }

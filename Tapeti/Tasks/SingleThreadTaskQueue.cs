@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Tasks
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// An implementation of a queue which runs tasks on a single thread.
+    /// </summary>
     public class SingleThreadTaskQueue : IDisposable
     {
         private readonly object previousTaskLock = new object();
@@ -14,6 +18,10 @@ namespace Tapeti.Tasks
         private readonly Lazy<SingleThreadTaskScheduler> singleThreadScheduler = new Lazy<SingleThreadTaskScheduler>();
 
 
+        /// <summary>
+        /// Add the specified synchronous action to the task queue.
+        /// </summary>
+        /// <param name="action"></param>
         public Task Add(Action action)
         {
             lock (previousTaskLock)
@@ -27,6 +35,10 @@ namespace Tapeti.Tasks
         }
 
 
+        /// <summary>
+        /// Add the specified asynchronous method to the task queue.
+        /// </summary>
+        /// <param name="func"></param>
         public Task Add(Func<Task> func)
         {
             lock (previousTaskLock)
@@ -45,89 +57,90 @@ namespace Tapeti.Tasks
         }
 
 
+        /// <inheritdoc />
         public void Dispose()
         {
             if (singleThreadScheduler.IsValueCreated)
                 singleThreadScheduler.Value.Dispose();
         }
-    }
 
 
-    public class SingleThreadTaskScheduler : TaskScheduler, IDisposable
-    {
-        public override int MaximumConcurrencyLevel => 1;
-
-
-        private readonly Queue<Task> scheduledTasks = new Queue<Task>();
-        private bool disposed;
-
-
-        public SingleThreadTaskScheduler()
+        internal class SingleThreadTaskScheduler : TaskScheduler, IDisposable
         {
-            // ReSharper disable once ObjectCreationAsStatement - fire and forget!
-            new Thread(WorkerThread).Start();
-        }
+            public override int MaximumConcurrencyLevel => 1;
 
 
-        public void Dispose()
-        {
-            lock (scheduledTasks)
+            private readonly Queue<Task> scheduledTasks = new Queue<Task>();
+            private bool disposed;
+
+
+            public SingleThreadTaskScheduler()
             {
-                disposed = true;
-                Monitor.PulseAll(scheduledTasks);
+                // ReSharper disable once ObjectCreationAsStatement - fire and forget!
+                new Thread(WorkerThread).Start();
             }
-        }
 
 
-        protected override void QueueTask(Task task)
-        {
-            if (disposed) return;
-
-            lock (scheduledTasks)
+            public void Dispose()
             {
-                scheduledTasks.Enqueue(task);
-                Monitor.Pulse(scheduledTasks);
-            }
-        }
-
-        protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
-        {
-            return false;
-        }
-
-
-        protected override IEnumerable<Task> GetScheduledTasks()
-        {
-            lock (scheduledTasks)
-            {
-                return scheduledTasks.ToList();
-            }
-        }
-
-
-        private void WorkerThread()
-        {
-            while(true)
-            {
-                Task task;
                 lock (scheduledTasks)
                 {
-                    task = WaitAndDequeueTask();
+                    disposed = true;
+                    Monitor.PulseAll(scheduledTasks);
                 }
-
-                if (task == null)
-                    break;
-
-                TryExecuteTask(task);
             }
-        }
 
-        private Task WaitAndDequeueTask()
-        {
-            while (!scheduledTasks.Any() && !disposed)
-                Monitor.Wait(scheduledTasks);
 
-            return disposed ? null : scheduledTasks.Dequeue();
+            protected override void QueueTask(Task task)
+            {
+                if (disposed) return;
+
+                lock (scheduledTasks)
+                {
+                    scheduledTasks.Enqueue(task);
+                    Monitor.Pulse(scheduledTasks);
+                }
+            }
+
+            protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
+            {
+                return false;
+            }
+
+
+            protected override IEnumerable<Task> GetScheduledTasks()
+            {
+                lock (scheduledTasks)
+                {
+                    return scheduledTasks.ToList();
+                }
+            }
+
+
+            private void WorkerThread()
+            {
+                while (true)
+                {
+                    Task task;
+                    lock (scheduledTasks)
+                    {
+                        task = WaitAndDequeueTask();
+                    }
+
+                    if (task == null)
+                        break;
+
+                    TryExecuteTask(task);
+                }
+            }
+
+            private Task WaitAndDequeueTask()
+            {
+                while (!scheduledTasks.Any() && !disposed)
+                    Monitor.Wait(scheduledTasks);
+
+                return disposed ? null : scheduledTasks.Dequeue();
+            }
         }
     }
 }

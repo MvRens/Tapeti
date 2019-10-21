@@ -3,9 +3,11 @@ Tapeti documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Table of contents
 
    introduction
    gettingstarted
    indepth
+   dataannotations
    flow
+   transient

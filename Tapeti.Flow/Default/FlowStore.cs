@@ -1,16 +1,31 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation of IFlowStore.
+    /// </summary>
     public class FlowStore : IFlowStore
     {
-        private readonly ConcurrentDictionary<Guid, FlowState> flowStates = new ConcurrentDictionary<Guid, FlowState>();
+        private class CachedFlowState
+        {
+            public readonly FlowState FlowState;
+            public readonly bool IsPersistent;
+
+            public CachedFlowState(FlowState flowState, bool isPersistent)
+            {
+                FlowState = flowState;
+                IsPersistent = isPersistent;
+            }
+        }
+
+        private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new ConcurrentDictionary<Guid, CachedFlowState>();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
         private readonly LockCollection<Guid> locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
 
@@ -19,12 +34,15 @@ namespace Tapeti.Flow.Default
         private volatile bool inUse;
         private volatile bool loaded;
 
+
+        /// <inheritdoc />
         public FlowStore(IFlowRepository repository) 
         {
             this.repository = repository;
         }
 
 
+        /// <inheritdoc />
         public async Task Load()
         {
             if (inUse)
@@ -37,7 +55,7 @@ namespace Tapeti.Flow.Default
 
             foreach (var flowStateRecord in await repository.GetStates<FlowState>())
             {
-                flowStates.TryAdd(flowStateRecord.Key, flowStateRecord.Value);
+                flowStates.TryAdd(flowStateRecord.Key, new CachedFlowState(flowStateRecord.Value, true));
 
                 foreach (var continuation in flowStateRecord.Value.Continuations)
                     continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
@@ -47,6 +65,7 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public Task<Guid?> FindFlowID(Guid continuationID)
         {
             if (!loaded)
@@ -56,6 +75,7 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
         public async Task<IFlowStateLock> LockFlowState(Guid flowID)
         {
             if (!loaded)
@@ -67,21 +87,23 @@ namespace Tapeti.Flow.Default
             return flowStatelock;
         }
 
+
         private class FlowStateLock : IFlowStateLock
         {
             private readonly FlowStore owner;
-            private readonly Guid flowID;
             private volatile IDisposable flowLock;
-            private FlowState flowState;
+            private CachedFlowState cachedFlowState;
+
+            public Guid FlowID { get; }
 
 
             public FlowStateLock(FlowStore owner, Guid flowID, IDisposable flowLock)
             {
                 this.owner = owner;
-                this.flowID = flowID;
+                FlowID = flowID;
                 this.flowLock = flowLock;
 
-                owner.flowStates.TryGetValue(flowID, out flowState);
+                owner.flowStates.TryGetValue(flowID, out cachedFlowState);
             }
 
             public void Dispose()
@@ -91,17 +113,15 @@ namespace Tapeti.Flow.Default
                 l?.Dispose();
             }
 
-            public Guid FlowID => flowID;
-
             public Task<FlowState> GetFlowState()
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                return Task.FromResult(flowState?.Clone());
+                return Task.FromResult(cachedFlowState.FlowState?.Clone());
             }
 
-            public async Task StoreFlowState(FlowState newFlowState)
+            public async Task StoreFlowState(FlowState newFlowState, bool persistent)
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
@@ -110,30 +130,41 @@ namespace Tapeti.Flow.Default
                 newFlowState = newFlowState.Clone();
 
                 // Update the lookup dictionary for the ContinuationIDs
-                if (flowState != null)
+                if (cachedFlowState != null)
                 {
-                    foreach (var removedContinuation in flowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
+                    foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
                         owner.continuationLookup.TryRemove(removedContinuation, out _);
                 }
 
-                foreach (var addedContinuation in newFlowState.Continuations.Where(c => flowState == null || !flowState.Continuations.ContainsKey(c.Key)))
+                foreach (var addedContinuation in newFlowState.Continuations.Where(c => cachedFlowState == null || !cachedFlowState.FlowState.Continuations.ContainsKey(c.Key)))
                 {
-                    owner.continuationLookup.TryAdd(addedContinuation.Key, flowID);
+                    owner.continuationLookup.TryAdd(addedContinuation.Key, FlowID);
                 }
 
-                var isNew = flowState == null;
-                flowState = newFlowState;
-                owner.flowStates[flowID] = newFlowState;
+                var isNew = cachedFlowState == null;
+                var wasPersistent = cachedFlowState?.IsPersistent ?? false;
 
-                // Storing the flowstate in the underlying repository
-                if (isNew)
+                cachedFlowState = new CachedFlowState(newFlowState, persistent);
+                owner.flowStates[FlowID] = cachedFlowState;
+
+                if (persistent)
                 {
-                    var now = DateTime.UtcNow;
-                    await owner.repository.CreateState(flowID, flowState, now);
+                    // Storing the flowstate in the underlying repository
+                    if (isNew)
+                    {
+                        var now = DateTime.UtcNow;
+                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, now);
+                    }
+                    else
+                    {
+                        await owner.repository.UpdateState(FlowID, cachedFlowState.FlowState);
+                    }
                 }
-                else
+                else if (wasPersistent)
                 {
-                    await owner.repository.UpdateState(flowID, flowState);
+                    // We transitioned from a durable queue to a dynamic queue,
+                    // remove the persistent state but keep the in-memory version
+                    await owner.repository.DeleteState(FlowID);
                 }
             }
 
@@ -142,18 +173,16 @@ namespace Tapeti.Flow.Default
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                if (flowState != null)
+                if (cachedFlowState != null)
                 {
-                    foreach (var removedContinuation in flowState.Continuations.Keys)
+                    foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys)
                         owner.continuationLookup.TryRemove(removedContinuation, out _);
 
-                    owner.flowStates.TryRemove(flowID, out _);
+                    owner.flowStates.TryRemove(FlowID, out var removedFlowState);
+                    cachedFlowState = null;
 
-                    if (flowState != null)
-                    {
-                        flowState = null;
-                        await owner.repository.DeleteState(flowID);
-                    }
+                    if (removedFlowState.IsPersistent)
+                        await owner.repository.DeleteState(FlowID);
                 }
             }
         }

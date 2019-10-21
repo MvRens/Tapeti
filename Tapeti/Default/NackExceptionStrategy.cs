@@ -2,11 +2,16 @@
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation of an exception strategy which marks the messages as Error.
+    /// </summary>
     public class NackExceptionStrategy : IExceptionStrategy
     {
+        /// <inheritdoc />
         public void HandleException(IExceptionStrategyContext context)
         {
-            context.HandlingResult.ConsumeResponse = ConsumeResponse.Nack;
+            context.SetConsumeResult(ConsumeResult.Error);
         }
     }
 }

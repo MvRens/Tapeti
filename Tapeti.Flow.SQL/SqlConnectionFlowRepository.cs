@@ -7,25 +7,27 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Flow.SQL
 {
-    /*
-        Assumes the following table layout (table name configurable and may include schema):
-         
-     
-        create table Flow
-        (
-	        FlowID uniqueidentifier not null,
-	        CreationTime datetime2(3) not null,
-	        StateJson nvarchar(max) null,
-
-	        constraint PK_Flow primary key clustered (FlowID)
-        );
-    */
+    /// <inheritdoc />
+    /// <summary>
+    /// IFlowRepository implementation for SQL server.
+    /// </summary>
+    /// <remarks>
+    /// Assumes the following table layout (table name configurable and may include schema):
+    /// create table Flow
+    /// (
+    ///     FlowID uniqueidentifier not null,
+    ///     CreationTime datetime2(3) not null,
+    ///     StateJson nvarchar(max) null,
+    ///     constraint PK_Flow primary key clustered(FlowID)
+    /// );
+    /// </remarks>
     public class SqlConnectionFlowRepository : IFlowRepository
     {
         private readonly string connectionString;
         private readonly string tableName;
 
 
+        /// <inheritdoc />
         public SqlConnectionFlowRepository(string connectionString, string tableName = "Flow")
         {
             this.connectionString = connectionString;
@@ -33,6 +35,7 @@ namespace Tapeti.Flow.SQL
         }
 
 
+        /// <inheritdoc />
         public async Task<List<KeyValuePair<Guid, T>>> GetStates<T>()
         {
             return await SqlRetryHelper.Execute(async () =>
@@ -58,6 +61,7 @@ namespace Tapeti.Flow.SQL
             });
         }
 
+        /// <inheritdoc />
         public async Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
             await SqlRetryHelper.Execute(async () =>
@@ -81,6 +85,7 @@ namespace Tapeti.Flow.SQL
             });
         }
 
+        /// <inheritdoc />
         public async Task UpdateState<T>(Guid flowID, T state)
         {
             await SqlRetryHelper.Execute(async () =>
@@ -100,6 +105,7 @@ namespace Tapeti.Flow.SQL
             });
         }
 
+        /// <inheritdoc />
         public async Task DeleteState(Guid flowID)
         {
             await SqlRetryHelper.Execute(async () =>

@@ -1,24 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace Tapeti.Transient
 {
-    public class TransientPublisher : ITransientPublisher
+    /// <inheritdoc />
+    /// <summary>
+    /// Default implementation of ITransientPublisher
+    /// </summary>
+    internal class TransientPublisher : ITransientPublisher
     {
         private readonly TransientRouter router;
         private readonly IPublisher publisher;
 
+
+        /// <inheritdoc />
         public TransientPublisher(TransientRouter router, IPublisher publisher)
         {
             this.router = router;
             this.publisher = publisher;
         }
 
+
+        /// <inheritdoc />
         public async Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request)
         {
-            return (TResponse)(await router.RequestResponse(publisher, request));
+            return (TResponse)await router.RequestResponse(publisher, request);
         }
     }
 }

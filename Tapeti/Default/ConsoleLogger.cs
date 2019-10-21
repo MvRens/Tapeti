@@ -1,27 +1,63 @@
 ﻿using System;
+using Tapeti.Config;
 
 namespace Tapeti.Default
 {
+    /// <inheritdoc />
+    /// <summary>
+    /// Default ILogger implementation for console applications.
+    /// </summary>
     public class ConsoleLogger : ILogger
     {
-        public void Connect(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void Connect(IConnectContext connectContext)
         {
-            Console.WriteLine($"[Tapeti] Connecting to {connectionParams.HostName}:{connectionParams.Port}{connectionParams.VirtualHost}");
+            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnecting" : "Connecting")} to {connectContext.ConnectionParams.HostName}:{connectContext.ConnectionParams.Port}{connectContext.ConnectionParams.VirtualHost}");
         }
 
-        public void ConnectFailed(TapetiConnectionParams connectionParams, Exception exception)
+        /// <inheritdoc />
+        public void ConnectFailed(IConnectFailedContext connectContext)
         {
-            Console.WriteLine($"[Tapeti] Connection failed: {exception}");
+            Console.WriteLine($"[Tapeti] Connection failed: {connectContext.Exception}");
         }
 
-        public void ConnectSuccess(TapetiConnectionParams connectionParams)
+        /// <inheritdoc />
+        public void ConnectSuccess(IConnectSuccessContext connectContext)
         {
-            Console.WriteLine("[Tapeti] Connected");
+            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnected" : "Connected")} using local port {connectContext.LocalPort}");
         }
 
-        public void HandlerException(Exception e)
+        /// <inheritdoc />
+        public void Disconnect(IDisconnectContext disconnectContext)
         {
-            Console.WriteLine(e.ToString());
+            Console.WriteLine($"[Tapeti] Connection closed: {(!string.IsNullOrEmpty(disconnectContext.ReplyText) ? disconnectContext.ReplyText : "<no reply text>")} (reply code: {disconnectContext.ReplyCode})");
+        }
+
+        /// <inheritdoc />
+        public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
+        {
+            Console.WriteLine("[Tapeti] Exception while handling message");
+            Console.WriteLine($"  Result     : {consumeResult}");
+            Console.WriteLine($"  Exchange   : {messageContext.Exchange}");
+            Console.WriteLine($"  Queue      : {messageContext.Queue}");
+            Console.WriteLine($"  RoutingKey : {messageContext.RoutingKey}");
+
+            if (messageContext is IControllerMessageContext controllerMessageContext)
+            {
+                Console.WriteLine($"  Controller : {controllerMessageContext.Binding.Controller.FullName}");
+                Console.WriteLine($"  Method     : {controllerMessageContext.Binding.Method.Name}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine(exception);
+        }
+
+        /// <inheritdoc />
+        public void QueueObsolete(string queueName, bool deleted, uint messageCount)
+        {
+            Console.WriteLine(deleted 
+                ? $"[Tapeti] Obsolete queue was deleted: {queueName}" 
+                : $"[Tapeti] Obsolete queue bindings removed: {queueName}, {messageCount} messages remaining");
         }
     }
 }
