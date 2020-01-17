@@ -184,7 +184,7 @@ namespace Tapeti.Default
         {
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,
-                async (handler, next) => await handler.Cleanup(context, ConsumeResult.Success, next),
+                async (handler, next) => await handler.Cleanup(context, consumeResult, next),
                 () => Task.CompletedTask);
         }
 
