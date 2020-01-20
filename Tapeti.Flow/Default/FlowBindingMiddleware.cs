@@ -83,6 +83,9 @@ namespace Tapeti.Flow.Default
 
         private static Task HandleParallelResponse(IControllerMessageContext context)
         {
+            if (context.Get<object>(ContextItems.FlowIsConverging, out _))
+                return Task.CompletedTask;
+
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>
             {
