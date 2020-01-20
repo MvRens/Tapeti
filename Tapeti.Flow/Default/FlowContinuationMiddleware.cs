@@ -57,7 +57,9 @@ namespace Tapeti.Flow.Default
 
             if (flowContext?.FlowStateLock != null)
             {
-                if (consumeResult == ConsumeResult.Error)
+                if (!flowContext.IsStoredOrDeleted())
+                    // The exception strategy can set the consume result to Success. Instead, check if the yield point
+                    // was handled. The flow provider ensures we only end up here in case of an exception.
                     await flowContext.FlowStateLock.DeleteFlowState();
 
                 flowContext.FlowStateLock.Dispose();
