@@ -36,9 +36,14 @@ namespace Tapeti.Flow.Default
                 await FlowStateLock.DeleteFlowState();
         }
 
+        public bool IsStoredOrDeleted()
+        {
+            return storeCalled || deleteCalled;
+        }
+
         public void EnsureStoreOrDeleteIsCalled()
         {
-            if (!storeCalled && !deleteCalled)
+            if (!IsStoredOrDeleted())
                 throw new InvalidProgramException("Neither Store nor Delete are called for the state of the current flow. FlowID = " + FlowStateLock?.FlowID);
         }
 
