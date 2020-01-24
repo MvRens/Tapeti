@@ -14,7 +14,7 @@ namespace Tapeti.Cmd
             [Option('h', "host", HelpText = "Hostname of the RabbitMQ server.", Default = "localhost")]
             public string Host { get; set; }
 
-            [Option('p', "port", HelpText = "AMQP port of the RabbitMQ server.", Default = 5672)]
+            [Option("port", HelpText = "AMQP port of the RabbitMQ server.", Default = 5672)]
             public int Port { get; set; }
 
             [Option('v', "virtualhost", HelpText = "Virtual host used for the RabbitMQ connection.", Default = "/")]

@@ -36,6 +36,10 @@ namespace Tapeti.Flow.Default
                 var converge = flowContext.FlowState.Continuations.Count == 0 &&
                                flowContext.ContinuationMetadata.ConvergeMethodName != null;
 
+                if (converge)
+                    // Indicate to the FlowBindingMiddleware that the state must not to be stored
+                    context.Store(ContextItems.FlowIsConverging, null);
+
                 await next();
 
                 if (converge)
@@ -57,7 +61,10 @@ namespace Tapeti.Flow.Default
 
             if (flowContext?.FlowStateLock != null)
             {
-                if (consumeResult == ConsumeResult.Error)
+                // TODO do not call when the controller method was filtered, if the same message has two methods
+                if (!flowContext.IsStoredOrDeleted())
+                    // The exception strategy can set the consume result to Success. Instead, check if the yield point
+                    // was handled. The flow provider ensures we only end up here in case of an exception.
                     await flowContext.FlowStateLock.DeleteFlowState();
 
                 flowContext.FlowStateLock.Dispose();
