@@ -63,6 +63,10 @@ namespace Tapeti
                 };
 
 
+                if (method.GetCustomAttribute<ResponseHandlerAttribute>() != null)
+                    context.SetBindingTargetMode(BindingTargetMode.Direct);
+
+
                 var allowBinding = false;
                 builderAccess.ApplyBindingMiddleware(context, () => { allowBinding = true; });
 
@@ -97,7 +101,6 @@ namespace Tapeti
                     MessageMiddleware = context.Middleware.Where(m => m is IControllerMessageMiddleware).Cast<IControllerMessageMiddleware>().ToList(),
                     CleanupMiddleware = context.Middleware.Where(m => m is IControllerCleanupMiddleware).Cast<IControllerCleanupMiddleware>().ToList()
                 }));
-
             }
 
             return builder;

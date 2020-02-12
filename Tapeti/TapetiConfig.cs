@@ -299,6 +299,12 @@ namespace Tapeti
             }
 
 
+            public IControllerMethodBinding ForMethod(MethodInfo method)
+            {
+                return methodLookup.TryGetValue(method, out var binding) ? binding : null;
+            }
+
+
             public void Lock()
             {
                 methodLookup = this
