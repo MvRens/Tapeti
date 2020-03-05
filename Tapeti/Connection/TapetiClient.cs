@@ -237,22 +237,29 @@ namespace Tapeti.Connection
         {
             var existingBindings = (await GetQueueBindings(queueName)).ToList();
             var currentBindings = bindings.ToList();
+            var bindingLogger = logger as IBindingLogger;
 
             await Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
+                bindingLogger?.QueueDeclare(queueName, true, false);
                 channel.QueueDeclare(queueName, true, false, false);
+
 
                 foreach (var binding in currentBindings.Except(existingBindings))
                 {
                     DeclareExchange(channel, binding.Exchange);
+                    bindingLogger?.QueueBind(queueName, true, binding.Exchange, binding.RoutingKey);
                     channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
                 }
 
                 foreach (var deletedBinding in existingBindings.Except(currentBindings))
+                {
+                    bindingLogger?.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
                     channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
+                }
             });
         }
 
@@ -264,6 +271,7 @@ namespace Tapeti.Connection
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
+                (logger as IBindingLogger)?.QueueDeclare(queueName, true, true);
                 channel.QueueDeclarePassive(queueName);
             });
         }
@@ -285,7 +293,7 @@ namespace Tapeti.Connection
                 });
 
                 deletedQueues.Add(queueName);
-                logger.QueueObsolete(queueName, true, deletedMessages);
+                (logger as IBindingLogger)?.QueueObsolete(queueName, true, deletedMessages);
                 return;
             }
 
@@ -321,7 +329,7 @@ namespace Tapeti.Connection
                             channel.QueueDelete(queueName, false, true);
 
                             deletedQueues.Add(queueName);
-                            logger.QueueObsolete(queueName, true, 0);
+                            (logger as IBindingLogger)?.QueueObsolete(queueName, true, 0);
                         }
                         catch (OperationInterruptedException e)
                         {
@@ -344,7 +352,7 @@ namespace Tapeti.Connection
                                 channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
                         }
 
-                        logger.QueueObsolete(queueName, false, queueInfo.Messages);
+                        (logger as IBindingLogger)?.QueueObsolete(queueName, false, queueInfo.Messages);
                     }
                 } while (retry);
             });
@@ -355,6 +363,7 @@ namespace Tapeti.Connection
         public async Task<string> DynamicQueueDeclare(CancellationToken cancellationToken, string queuePrefix = null)
         {
             string queueName = null;
+            var bindingLogger = logger as IBindingLogger;
 
             await Queue(channel =>
             {
@@ -364,10 +373,14 @@ namespace Tapeti.Connection
                 if (!string.IsNullOrEmpty(queuePrefix))
                 {
                     queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
+                    bindingLogger?.QueueDeclare(queueName, false, false);
                     channel.QueueDeclare(queueName);
                 }
                 else
+                {
                     queueName = channel.QueueDeclare().QueueName;
+                    bindingLogger?.QueueDeclare(queueName, false, false);
+                }
             });
 
             return queueName;
@@ -381,8 +394,9 @@ namespace Tapeti.Connection
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
-                DeclareExchange(channel, binding.Exchange); 
-                channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);                    
+                DeclareExchange(channel, binding.Exchange);
+                (logger as IBindingLogger)?.QueueBind(queueName, false, binding.Exchange, binding.RoutingKey);
+                channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
             });
         }
 
@@ -554,6 +568,7 @@ namespace Tapeti.Connection
             if (declaredExchanges.Contains(exchange))
                 return;
 
+            (logger as IBindingLogger)?.ExchangeDeclare(exchange);
             channel.ExchangeDeclare(exchange, "topic", true);
             declaredExchanges.Add(exchange);
         }

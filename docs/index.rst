@@ -11,3 +11,4 @@ Tapeti documentation
    dataannotations
    flow
    transient
+   tapeticmd
