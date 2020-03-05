@@ -44,7 +44,6 @@ namespace Tapeti.Default
         public IBindingResult Result => result;
 
 
-        /// <inheritdoc />
         public ControllerBindingContext(IEnumerable<ParameterInfo> parameters, ParameterInfo result)
         {
             this.parameters = parameters.Select(parameter => new ControllerBindingParameter(parameter)).ToList();

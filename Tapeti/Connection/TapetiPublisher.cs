@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
@@ -18,7 +19,6 @@ namespace Tapeti.Connection
         private readonly IMessageSerializer messageSerializer;
 
 
-        /// <inheritdoc />
         public TapetiPublisher(ITapetiConfig config, Func<ITapetiClient> clientFactory)
         {
             this.config = config;
@@ -34,6 +34,65 @@ namespace Tapeti.Connection
         public async Task Publish(object message)
         {
             await Publish(message, null, IsMandatory(message));
+        }
+
+
+        /// <inheritdoc />
+        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class
+        {
+            await PublishRequest(message, responseMethodSelector.Body);
+        }
+
+
+        /// <inheritdoc />
+        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class
+        {
+            await PublishRequest(message, responseMethodSelector.Body);
+        }
+
+
+        private async Task PublishRequest(object message, Expression responseMethodBody)
+        {
+            var callExpression = (responseMethodBody as UnaryExpression)?.Operand as MethodCallExpression;
+            var targetMethodExpression = callExpression?.Object as ConstantExpression;
+
+            var responseHandler = targetMethodExpression?.Value as MethodInfo;
+            if (responseHandler == null)
+                throw new ArgumentException("Unable to determine the response method", nameof(responseMethodBody));
+
+
+            var requestAttribute = message.GetType().GetCustomAttribute<RequestAttribute>();
+            if (requestAttribute?.Response == null)
+                throw new ArgumentException($"Request message {message.GetType().Name} must be marked with the Request attribute and a valid Response type", nameof(message));
+
+            var binding = config.Bindings.ForMethod(responseHandler);
+            if (binding == null)
+                throw new ArgumentException("responseHandler must be a registered message handler", nameof(responseHandler));
+
+            if (!binding.Accept(requestAttribute.Response))
+                throw new ArgumentException($"responseHandler must accept message of type {requestAttribute.Response}", nameof(responseHandler));
+
+            var responseHandleAttribute = binding.Method.GetCustomAttribute<ResponseHandlerAttribute>();
+            if (responseHandleAttribute == null)
+                throw new ArgumentException("responseHandler must be marked with the ResponseHandler attribute", nameof(responseHandler));
+
+            if (binding.QueueName == null)
+                throw new ArgumentException("responseHandler is not yet subscribed to a queue, TapetiConnection.Subscribe must be called before starting a request", nameof(responseHandler));
+
+
+            var properties = new MessageProperties
+            {
+                ReplyTo = binding.QueueName
+            };
+
+            await Publish(message, properties, IsMandatory(message));
+        }
+
+
+        /// <inheritdoc />
+        public async Task SendToQueue(string queueName, object message)
+        {
+            await PublishDirect(message, queueName, null, IsMandatory(message));
         }
 
 

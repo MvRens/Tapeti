@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace Tapeti.Config
 {
@@ -81,6 +82,13 @@ namespace Tapeti.Config
         /// <param name="method"></param>
         /// <returns>The binding if found, null otherwise</returns>
         IControllerMethodBinding ForMethod(Delegate method);
+
+        /// <summary>
+        /// Searches for a binding linked to the specified method.
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns>The binding if found, null otherwise</returns>
+        IControllerMethodBinding ForMethod(MethodInfo method);
     }
 
 

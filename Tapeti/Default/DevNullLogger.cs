@@ -33,10 +33,5 @@ namespace Tapeti.Default
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
         }
-
-        /// <inheritdoc />
-        public void QueueObsolete(string queueName, bool deleted, uint messageCount)
-        {
-        }
     }
 }

@@ -46,7 +46,7 @@ The start method can have any name, but must be annotated with the ``[Start]`` a
       public DateTime RequestStart { get; set; }
 
       [Start]
-      IYieldPoint StartFlow()
+      public IYieldPoint StartFlow()
       {
           RequestStart = DateTime.UtcNow();
       }
@@ -67,7 +67,7 @@ Often you'll want to pass some initial information to the flow. The Start method
       public DateTime RequestStart { get; set; }
 
       [Start]
-      IYieldPoint StartFlow(string colorFilter)
+      public IYieldPoint StartFlow(string colorFilter)
       {
           RequestStart = DateTime.UtcNow();
       }
@@ -103,7 +103,7 @@ If the response handler is not asynchronous, use ``YieldWithRequestSync`` instea
       }
 
       [Start]
-      IYieldPoint StartFlow(string colorFilter)
+      public IYieldPoint StartFlow(string colorFilter)
       {
           RequestStart = DateTime.UtcNow();
 
