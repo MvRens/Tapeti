@@ -7,7 +7,7 @@ namespace Tapeti.Default
     /// <summary>
     /// Default ILogger implementation for console applications.
     /// </summary>
-    public class ConsoleLogger : ILogger
+    public class ConsoleLogger : IBindingLogger
     {
         /// <inheritdoc />
         public void Connect(IConnectContext connectContext)
@@ -50,6 +50,32 @@ namespace Tapeti.Default
 
             Console.WriteLine();
             Console.WriteLine(exception);
+        }
+
+        /// <inheritdoc />
+        public void QueueDeclare(string queueName, bool durable, bool passive)
+        {
+            Console.WriteLine(passive 
+                ? $"[Tapeti] Declaring {(durable ? "durable" : "dynamic")} queue {queueName}" 
+                : $"[Tapeti] Verifying durable queue {queueName}");
+        }
+
+        /// <inheritdoc />
+        public void QueueBind(string queueName, bool durable, string exchange, string routingKey)
+        {
+            Console.WriteLine($"[Tapeti] Binding {queueName} to exchange {exchange} with routing key {routingKey}");
+        }
+
+        /// <inheritdoc />
+        public void QueueUnbind(string queueName, string exchange, string routingKey)
+        {
+            Console.WriteLine($"[Tapeti] Removing binding for {queueName} to exchange {exchange} with routing key {routingKey}");
+        }
+
+        /// <inheritdoc />
+        public void ExchangeDeclare(string exchange)
+        {
+            Console.WriteLine($"[Tapeti] Declaring exchange {exchange}");
         }
 
         /// <inheritdoc />

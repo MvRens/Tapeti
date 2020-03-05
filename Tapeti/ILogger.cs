@@ -110,6 +110,48 @@ namespace Tapeti
         /// <param name="messageContext"></param>
         /// <param name="consumeResult">Indicates the action taken by the exception handler</param>
         void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult);
+    }
+
+
+    /// <summary>
+    /// Optional interface which can be implemented by an ILogger implementation to log all operations
+    /// related to declaring queues and bindings.
+    /// </summary>
+    public interface IBindingLogger : ILogger
+    {
+        /// <summary>
+        /// Called before a queue is declared for durable queues and dynamic queues with a prefix. Called after
+        /// a queue is declared for dynamic queues without a name with the queue name as determined by the RabbitMQ server.
+        /// Will always be called even if the queue already existed, as that information is not returned by the RabbitMQ server/client.
+        /// </summary>
+        /// <param name="queueName">The name of the queue that is declared</param>
+        /// <param name="durable">Indicates if the queue is durable or dynamic</param>
+        /// <param name="passive">Indicates whether the queue was declared as passive (to verify durable queues)</param>
+        void QueueDeclare(string queueName, bool durable, bool passive);
+
+        /// <summary>
+        /// Called before a binding is added to a queue.
+        /// </summary>
+        /// <param name="queueName">The name of the queue the binding is created for</param>
+        /// <param name="durable">Indicates if the queue is durable or dynamic</param>
+        /// <param name="exchange">The exchange for the binding</param>
+        /// <param name="routingKey">The routing key for the binding</param>
+        void QueueBind(string queueName, bool durable, string exchange, string routingKey);
+
+        /// <summary>
+        /// Called before a binding is removed from a durable queue.
+        /// </summary>
+        /// <param name="queueName">The name of the queue the binding is removed from</param>
+        /// <param name="exchange">The exchange of the binding</param>
+        /// <param name="routingKey">The routing key of the binding</param>
+        void QueueUnbind(string queueName, string exchange, string routingKey);
+
+        /// <summary>
+        /// Called before an exchange is declared. Will always be called once for each exchange involved in a dynamic queue,
+        /// durable queue with auto-declare bindings enabled or published messages, even if the exchange already existed.
+        /// </summary>
+        /// <param name="exchange">The name of the exchange that is declared</param>
+        void ExchangeDeclare(string exchange);
 
         /// <summary>
         /// Called when a queue is determined to be obsolete.

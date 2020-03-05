@@ -6,16 +6,18 @@ using ISerilogLogger = Serilog.ILogger;
 
 namespace Tapeti.Serilog
 {
-    /// <inheritdoc />
     /// <summary>
     /// Implements the Tapeti ILogger interface for Serilog output.
     /// </summary>
-    public class TapetiSeriLogger: ILogger
+    public class TapetiSeriLogger: IBindingLogger
     {
         private readonly ISerilogLogger seriLogger;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Create a Tapeti ILogger implementation to output to the specified Serilog.ILogger interface
+        /// </summary>
+        /// <param name="seriLogger">The Serilog.ILogger implementation to output Tapeti log message to</param>
         public TapetiSeriLogger(ISerilogLogger seriLogger)
         {
             this.seriLogger = seriLogger;
@@ -80,6 +82,39 @@ namespace Tapeti.Serilog
             }
             
             contextLogger.Error(exception, "Tapeti: exception in message handler");
+        }
+
+        /// <inheritdoc />
+        public void QueueDeclare(string queueName, bool durable, bool passive)
+        {
+            if (passive)
+                seriLogger.Information("Tapeti: verifying durable queue {queueName}", queueName);
+            else 
+                seriLogger.Information("Tapeti: declaring {queueType} queue {queueName}", durable ? "durable" : "dynamic", queueName);
+        }
+
+        /// <inheritdoc />
+        public void QueueBind(string queueName, bool durable, string exchange, string routingKey)
+        {
+            seriLogger.Information("Tapeti: binding {queueName} to exchange {exchange} with routing key {routingKey}",
+                queueName,
+                exchange,
+                routingKey);
+        }
+
+        /// <inheritdoc />
+        public void QueueUnbind(string queueName, string exchange, string routingKey)
+        {
+            seriLogger.Information("Tapeti: removing binding for {queueName} to exchange {exchange} with routing key {routingKey}",
+                queueName,
+                exchange,
+                routingKey);
+        }
+
+        /// <inheritdoc />
+        public void ExchangeDeclare(string exchange)
+        {
+            seriLogger.Information("Tapeti: declaring exchange {exchange}", exchange);
         }
 
         /// <inheritdoc />
