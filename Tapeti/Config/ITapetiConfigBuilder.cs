@@ -92,6 +92,24 @@ namespace Tapeti.Config
         /// feature to work, since AMQP does not provide a way to query existing bindings.
         /// </remarks>
         ITapetiConfigBuilder SetDeclareDurableQueues(bool enabled);
+
+
+        /// <summary>
+        /// Disables verifying durable queues at startup. Enabled by default.
+        /// Disable if you have queues with additional properties like a deadletter
+        /// exchange, which do not correspond to Tapeti's configuration, as these will cause an error
+        /// while verifying.
+        /// </summary>
+        ITapetiConfigBuilder DisableVerifyDurableQueues();
+
+
+        /// <summary>
+        /// Determines if durable queues are verified at startup if DeclareDurableQueues is disabled.
+        /// Defaults to true. Disable if you have queues with additional properties like a deadletter
+        /// exchange, which do not correspond to Tapeti's configuration, as these will cause an error
+        /// while verifying.
+        /// </summary>
+        ITapetiConfigBuilder SetVerifyDurableQueues(bool enabled);
     }
 
 

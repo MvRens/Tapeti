@@ -50,6 +50,15 @@ namespace Tapeti.Config
         /// already be present when the connection is made.
         /// </summary>
         bool DeclareDurableQueues { get; }
+
+
+        /// <summary>
+        /// Determines if durable queues are verified at startup if DeclareDurableQueues is disabled.
+        /// Defaults to true. Disable if you have queues with additional properties like a deadletter
+        /// exchange, which do not correspond to Tapeti's configuration, as these will cause an error
+        /// while verifying.
+        /// </summary>
+        bool VerifyDurableQueues { get; }
     }
 
 

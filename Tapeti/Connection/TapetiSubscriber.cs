@@ -97,9 +97,14 @@ namespace Tapeti.Connection
             var routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
             var exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
 
-            var bindingTarget = config.Features.DeclareDurableQueues
-                ? (CustomBindingTarget)new DeclareDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
-                : new PassiveDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+            CustomBindingTarget bindingTarget;
+
+            if (config.Features.DeclareDurableQueues)
+                bindingTarget = new DeclareDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+            else if (config.Features.VerifyDurableQueues)
+                bindingTarget = new PassiveDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+            else
+                bindingTarget = new NoVerifyBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
 
             await Task.WhenAll(config.Bindings.Select(binding => binding.Apply(bindingTarget)));
             await bindingTarget.Apply();
@@ -356,6 +361,30 @@ namespace Tapeti.Connection
                     await ClientFactory().DurableQueueVerify(CancellationToken, queueName);
                     durableQueues.Add(queueName);
                 }
+            }
+        }
+
+
+        private class NoVerifyBindingTarget : CustomBindingTarget
+        {
+            public NoVerifyBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
+            {
+            }
+
+
+            public override Task BindDurable(Type messageClass, string queueName)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override Task BindDurableDirect(string queueName)
+            {
+                return Task.CompletedTask;
+            }
+
+            public override Task BindDurableObsolete(string queueName)
+            {
+                return Task.CompletedTask;
             }
         }
     }
