@@ -7,7 +7,7 @@ The Tapeti command-line tool provides various operations for managing messages. 
 Common parameters
 -----------------
 
-All operations support the following parameters. All are optional.
+Most operations support the following parameters. All are optional.
 
 -h <hostname>, --host <hostname>
   Specifies the hostname of the RabbitMQ server. Default is localhost.
@@ -65,8 +65,14 @@ Import
 
 Read messages from disk as previously exported and publish them to a queue.
 
--i <source>
-  *Required*. Path or filename (depending on the chosen serialization method) where the messages will be read from.
+-i <source>, --input <source>
+  Path or filename (depending on the chosen serialization method) where the messages will be read from.
+
+-m <message>, --message <message>
+  Single message to be sent, in the same format as used for SingleFileJSON. Serialization argument has no effect when using this input. Be sure to quote the entire message, and escape quotes within the message with another quote.
+
+-c, --pipe
+  Messages are read from the standard input pipe, in the same format as used for SingleFileJSON. Serialization argument has no effect when using  this input.
 
 -e, --exchange
   If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.
@@ -74,6 +80,7 @@ Read messages from disk as previously exported and publish them to a queue.
 -s <method>, --serialization <method>
   The method used to serialize the message for import or export. Valid options: SingleFileJSON, EasyNetQHosepipe. Defaults to SingleFileJSON. See Serialization methods below for more information.
 
+Either input, message or pipe is required.
 
 Example:
 ::
@@ -175,3 +182,21 @@ EasyNetQHosepipe
 Provides compatibility with the EasyNetQ Hosepipe's dump/insert format. The source or target parameter must be a path. Each message consists of 3 files, ending in .message.txt, .properties.txt and .info.txt.
 
 As this is only provided for emergency situations, see the source code if you want to know more about the format specification.
+
+
+
+Generating an example
+---------------------
+
+The "example" operation is available to generate an example message in SingleFileJSON format.
+
+::
+
+  .\Tapeti.Cmd.exe example
+
+
+To save the output to a file:
+
+::
+
+  .\Tapeti.Cmd.exe example > example.json
