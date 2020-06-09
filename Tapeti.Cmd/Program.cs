@@ -1,7 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
 using CommandLine;
+using CommandLine.Text;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Framing;
 using Tapeti.Cmd.Commands;
 using Tapeti.Cmd.Serialization;
 
@@ -63,8 +68,14 @@ namespace Tapeti.Cmd
         [Verb("import", HelpText = "Read messages from disk as previously exported and publish them to a queue.")]
         public class ImportOptions : MessageSerializerOptions
         {
-            [Option('i', "input", Required = true, HelpText = "Path or filename (depending on the chosen serialization method) where the messages will be read from.")]
-            public string Input { get; set; }
+            [Option('i', "input", Group = "Input", HelpText = "Path or filename (depending on the chosen serialization method) where the messages will be read from.")]
+            public string InputFile { get; set; }
+
+            [Option('m', "message", Group = "Input", HelpText = "Single message to be sent, in the same format as used for SingleFileJSON. Serialization argument has no effect when using this input.")]
+            public string InputMessage { get; set; }
+
+            [Option('c', "pipe", Group = "Input", HelpText = "Messages are read from STDIN, in the same format as used for SingleFileJSON. Serialization argument has no effect when using this input.")]
+            public bool InputPipe { get; set; }
 
             [Option('e', "exchange", HelpText = "If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.")]
             public bool PublishToExchange { get; set; }
@@ -103,15 +114,21 @@ namespace Tapeti.Cmd
         }
 
 
+        [Verb("example", HelpText = "Output an example SingleFileJSON formatted message.")]
+        public class ExampleOptions
+        {
+        }
+
 
 
         public static int Main(string[] args)
         {
-            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions>(args)
+            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions, ExampleOptions>(args)
                 .MapResult(
                     (ExportOptions o) => ExecuteVerb(o, RunExport),
                     (ImportOptions o) => ExecuteVerb(o, RunImport),
                     (ShovelOptions o) => ExecuteVerb(o, RunShovel),
+                    (ExampleOptions o) => ExecuteVerb(o, RunExample),
                     errs =>
                     {
                         if (!Debugger.IsAttached) 
@@ -155,15 +172,18 @@ namespace Tapeti.Cmd
         }
 
 
-        private static IMessageSerializer GetMessageSerializer(MessageSerializerOptions options, string path)
+        private static IMessageSerializer GetMessageSerializer(ImportOptions options)
         {
             switch (options.SerializationMethod)
             {
                 case SerializationMethod.SingleFileJSON:
-                    return new SingleFileJSONMessageSerializer(path);
+                    return new SingleFileJSONMessageSerializer(GetInputStream(options, out var disposeStream), disposeStream, Encoding.UTF8);
 
                 case SerializationMethod.EasyNetQHosepipe:
-                    return new EasyNetQMessageSerializer(path);
+                    if (string.IsNullOrEmpty(options.InputFile))
+                        throw new ArgumentException("An input path must be provided when using EasyNetQHosepipe serialization");
+
+                    return new EasyNetQMessageSerializer(options.InputFile);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(options.SerializationMethod), options.SerializationMethod, "Invalid SerializationMethod");
@@ -171,11 +191,56 @@ namespace Tapeti.Cmd
         }
 
 
+        private static Stream GetInputStream(ImportOptions options, out bool disposeStream)
+        {
+            if (options.InputPipe)
+            {
+                disposeStream = false;
+                return Console.OpenStandardInput();
+            }
+
+            if (!string.IsNullOrEmpty(options.InputMessage))
+            {
+                disposeStream = true;
+                return new MemoryStream(Encoding.UTF8.GetBytes(options.InputMessage));
+            }
+
+            disposeStream = true;
+            return new FileStream(options.InputFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        }
+
+
+        private static IMessageSerializer GetMessageSerializer(ExportOptions options)
+        {
+            switch (options.SerializationMethod)
+            {
+                case SerializationMethod.SingleFileJSON:
+                    return new SingleFileJSONMessageSerializer(GetOutputStream(options, out var disposeStream), disposeStream, Encoding.UTF8);
+
+                case SerializationMethod.EasyNetQHosepipe:
+                    if (string.IsNullOrEmpty(options.OutputPath))
+                        throw new ArgumentException("An output path must be provided when using EasyNetQHosepipe serialization");
+
+                    return new EasyNetQMessageSerializer(options.OutputPath);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(options.SerializationMethod), options.SerializationMethod, "Invalid SerializationMethod");
+            }
+        }
+
+
+        private static Stream GetOutputStream(ExportOptions options, out bool disposeStream)
+        {
+            disposeStream = true;
+            return new FileStream(options.OutputPath, FileMode.Create, FileAccess.Write, FileShare.Read);
+        }
+
+
         private static void RunExport(ExportOptions options)
         {
             int messageCount;
 
-            using (var messageSerializer = GetMessageSerializer(options, options.OutputPath))
+            using (var messageSerializer = GetMessageSerializer(options))
             using (var connection = GetConnection(options))
             using (var channel = connection.CreateModel())
             {
@@ -197,7 +262,7 @@ namespace Tapeti.Cmd
         {
             int messageCount;
 
-            using (var messageSerializer = GetMessageSerializer(options, options.Input))
+            using (var messageSerializer = GetMessageSerializer(options))
             using (var connection = GetConnection(options))
             using (var channel = connection.CreateModel())
             {
@@ -288,6 +353,33 @@ namespace Tapeti.Cmd
             };
 
             return factory.CreateConnection();
+        }
+
+
+        private static void RunExample(ExampleOptions options)
+        {
+            using (var messageSerializer = new SingleFileJSONMessageSerializer(Console.OpenStandardOutput(), false, new UTF8Encoding(false)))
+            {
+                messageSerializer.Serialize(new Message
+                {
+                    Exchange = "example",
+                    Queue = "example.queue",
+                    RoutingKey = "example.routing.key",
+                    DeliveryTag = 42,
+                    Properties = new BasicProperties
+                    {
+                        ContentType = "application/json",
+                        DeliveryMode = 2,
+                        Headers = new Dictionary<string, object>
+                        {
+                            { "classType", Encoding.UTF8.GetBytes("Tapeti.Cmd.Example:Tapeti.Cmd") }
+                        },
+                        ReplyTo = "reply.queue",
+                        Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds())
+                    },
+                    Body = Encoding.UTF8.GetBytes("{ \"Hello\": \"world!\" }")
+                });
+            }
         }
     }
 }
