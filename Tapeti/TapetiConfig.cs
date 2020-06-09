@@ -167,6 +167,22 @@ namespace Tapeti
         }
 
 
+        /// <inheritdoc />
+        public ITapetiConfigBuilder DisableVerifyDurableQueues()
+        {
+            GetConfig().SetVerifyDurableQueues(false);
+            return this;
+        }
+
+
+        /// <inheritdoc />
+        public ITapetiConfigBuilder SetVerifyDurableQueues(bool enabled)
+        {
+            GetConfig().SetVerifyDurableQueues(enabled);
+            return this;
+        }
+
+
         /// <summary>
         /// Registers the default implementation of various Tapeti interfaces into the IoC container.
         /// </summary>
@@ -256,13 +272,19 @@ namespace Tapeti
             {
                 features.DeclareDurableQueues = enabled;
             }
+
+            public void SetVerifyDurableQueues(bool enabled)
+            {
+                features.VerifyDurableQueues = enabled;
+            }
         }
 
 
         internal class ConfigFeatures : ITapetiConfigFeatues
         {
             public bool PublisherConfirms { get; internal set; } = true;
-            public bool DeclareDurableQueues { get; internal set; } = true;
+            public bool DeclareDurableQueues { get; internal set; }
+            public bool VerifyDurableQueues { get; internal set; } = true;
         }
 
 

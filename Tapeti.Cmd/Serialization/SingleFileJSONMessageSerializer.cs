@@ -11,7 +11,9 @@ namespace Tapeti.Cmd.Serialization
 {
     public class SingleFileJSONMessageSerializer : IMessageSerializer
     {
-        private readonly string path;
+        private readonly Stream stream;
+        private readonly bool disposeStream;
+        private readonly Encoding encoding;
 
 
         private static readonly JsonSerializerSettings SerializerSettings = new JsonSerializerSettings
@@ -22,10 +24,13 @@ namespace Tapeti.Cmd.Serialization
         private readonly Lazy<StreamWriter> exportFile;
 
 
-        public SingleFileJSONMessageSerializer(string path)
+        public SingleFileJSONMessageSerializer(Stream stream, bool disposeStream, Encoding encoding)
         {
-            this.path = path;
-            exportFile = new Lazy<StreamWriter>(() => new StreamWriter(path, false, Encoding.UTF8));
+            this.stream = stream;
+            this.disposeStream = disposeStream;
+            this.encoding = encoding;
+
+            exportFile = new Lazy<StreamWriter>(() => new StreamWriter(stream, encoding));
         }
 
 
@@ -39,11 +44,11 @@ namespace Tapeti.Cmd.Serialization
 
         public IEnumerable<Message> Deserialize()
         {
-            using (var file = new StreamReader(path))
+            using (var reader = new StreamReader(stream, encoding))
             {
-                while (!file.EndOfStream)
+                while (!reader.EndOfStream)
                 {
-                    var serialized = file.ReadLine();
+                    var serialized = reader.ReadLine();
                     if (string.IsNullOrEmpty(serialized))
                         continue;
 
@@ -61,6 +66,9 @@ namespace Tapeti.Cmd.Serialization
         {
             if (exportFile.IsValueCreated)
                 exportFile.Value.Dispose();
+
+            if (disposeStream)
+                stream.Dispose();
         }
 
 

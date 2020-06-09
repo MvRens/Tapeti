@@ -24,7 +24,7 @@ namespace Tapeti.Connection
     internal class TapetiClient : ITapetiClient
     {
         private const int ReconnectDelay = 5000;
-        private const int MandatoryReturnTimeout = 30000;
+        private const int MandatoryReturnTimeout = 300000;
         private const int MinimumConnectedReconnectDelay = 1000;
 
         private readonly TapetiConnectionParams connectionParams;
