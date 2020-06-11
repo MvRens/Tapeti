@@ -7,7 +7,7 @@
     public interface IControllerMessageContext : IMessageContext
     {
         /// <summary>
-        /// An instance of the controller referenced by the binding.
+        /// An instance of the controller referenced by the binding. Note: is null during Cleanup.
         /// </summary>
         object Controller { get; }
 

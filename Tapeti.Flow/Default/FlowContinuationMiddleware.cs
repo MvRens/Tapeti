@@ -52,16 +52,19 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next)
+        public async Task Cleanup(IControllerMessageContext context, ConsumeResult consumeResult, Func<Task> next)
         {
             await next();
 
             if (!context.Get(ContextItems.FlowContext, out FlowContext flowContext))
                 return;
 
+            if (flowContext.ContinuationMetadata.MethodName != MethodSerializer.Serialize(context.Binding.Method))
+                // Do not call when the controller method was filtered, if the same message has two methods
+                return;
+
             if (flowContext?.FlowStateLock != null)
             {
-                // TODO do not call when the controller method was filtered, if the same message has two methods
                 if (!flowContext.IsStoredOrDeleted())
                     // The exception strategy can set the consume result to Success. Instead, check if the yield point
                     // was handled. The flow provider ensures we only end up here in case of an exception.
