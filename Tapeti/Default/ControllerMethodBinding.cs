@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -182,10 +182,16 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            await MiddlewareHelper.GoAsync(
-                bindingInfo.CleanupMiddleware,
-                async (handler, next) => await handler.Cleanup(context, consumeResult, next),
-                () => Task.CompletedTask);
+            using (var controllerContext = new ControllerMessageContext(context)
+            {
+                Controller = null
+            })
+            {
+                await MiddlewareHelper.GoAsync(
+                    bindingInfo.CleanupMiddleware,
+                    async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
+                    () => Task.CompletedTask);
+            }
         }
 
 
