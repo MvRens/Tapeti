@@ -47,14 +47,7 @@ namespace Tapeti
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
-                var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
-                if (methodQueueInfo == null || !methodQueueInfo.IsValid)
-                    throw new TopologyConfigurationException(
-                        $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
-
-
                 var methodIsObsolete = controllerIsObsolete || method.GetCustomAttribute<ObsoleteAttribute>() != null;
-
 
                 var context = new ControllerBindingContext(method.GetParameters(), method.ReturnParameter)
                 {
@@ -85,6 +78,10 @@ namespace Tapeti
                     throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} has unknown parameters: {parameterNames}");
                 }
 
+                var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
+                if (methodQueueInfo == null || !methodQueueInfo.IsValid)
+                    throw new TopologyConfigurationException(
+                        $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 
                 builder.RegisterBinding(new ControllerMethodBinding(builderAccess.DependencyResolver, new ControllerMethodBinding.BindingInfo
                 {
