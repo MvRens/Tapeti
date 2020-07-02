@@ -6,7 +6,7 @@ namespace Tapeti.Config
     /// <summary>
     /// Denotes middleware that runs for controller methods.
     /// </summary>
-    public interface IControllerMessageMiddleware
+    public interface IControllerMessageMiddleware : IControllerMiddlewareBase
     {
         /// <summary>
         /// Called after the message has passed any filter middleware and the controller has been instantiated,
