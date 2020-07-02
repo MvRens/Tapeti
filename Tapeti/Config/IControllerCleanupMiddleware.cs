@@ -6,7 +6,7 @@ namespace Tapeti.Config
     /// <summary>
     /// Denotes middleware that runs after controller methods.
     /// </summary>
-    public interface IControllerCleanupMiddleware
+    public interface IControllerCleanupMiddleware : IControllerMiddlewareBase
     {
         /// <summary>
         /// Called after the message handler method, even if exceptions occured.
