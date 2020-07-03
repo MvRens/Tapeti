@@ -1,5 +1,6 @@
 ﻿using RabbitMQ.Client;
- 
+using Tapeti.Cmd.RateLimiter;
+
 namespace Tapeti.Cmd.Commands
 {
     public class ShovelCommand
@@ -10,7 +11,7 @@ namespace Tapeti.Cmd.Commands
         public int? MaxCount { get; set; }
 
 
-        public int Execute(IModel sourceChannel, IModel targetChannel)
+        public int Execute(IModel sourceChannel, IModel targetChannel, IRateLimiter rateLimiter)
         {
             var messageCount = 0;
 
@@ -22,13 +23,14 @@ namespace Tapeti.Cmd.Commands
                     break;
 
 
-                targetChannel.BasicPublish("", TargetQueueName, result.BasicProperties, result.Body);
+                rateLimiter.Execute(() =>
+                {
+                    targetChannel.BasicPublish("", TargetQueueName, result.BasicProperties, result.Body);
+                    messageCount++;
 
-
-                messageCount++;
-
-                if (RemoveMessages)
-                    sourceChannel.BasicAck(result.DeliveryTag, false);
+                    if (RemoveMessages)
+                        sourceChannel.BasicAck(result.DeliveryTag, false);
+                });
             }
 
             return messageCount;

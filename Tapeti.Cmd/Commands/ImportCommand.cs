@@ -1,4 +1,5 @@
 ﻿using RabbitMQ.Client;
+using Tapeti.Cmd.RateLimiter;
 using Tapeti.Cmd.Serialization;
 
 namespace Tapeti.Cmd.Commands
@@ -10,17 +11,20 @@ namespace Tapeti.Cmd.Commands
         public bool DirectToQueue { get; set; }
 
 
-        public int Execute(IModel channel)
+        public int Execute(IModel channel, IRateLimiter rateLimiter)
         {
             var messageCount = 0;
 
             foreach (var message in MessageSerializer.Deserialize())
             {
-                var exchange = DirectToQueue ? "" : message.Exchange;
-                var routingKey = DirectToQueue ? message.Queue : message.RoutingKey;
+                rateLimiter.Execute(() =>
+                {
+                    var exchange = DirectToQueue ? "" : message.Exchange;
+                    var routingKey = DirectToQueue ? message.Queue : message.RoutingKey;
 
-                channel.BasicPublish(exchange, routingKey, message.Properties, message.Body);
-                messageCount++;
+                    channel.BasicPublish(exchange, routingKey, message.Properties, message.Body);
+                    messageCount++;
+                });
             }
 
             return messageCount;

@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using CommandLine;
-using CommandLine.Text;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Framing;
 using Tapeti.Cmd.Commands;
+using Tapeti.Cmd.RateLimiter;
 using Tapeti.Cmd.Serialization;
 
 namespace Tapeti.Cmd
@@ -79,6 +79,9 @@ namespace Tapeti.Cmd
 
             [Option('e', "exchange", HelpText = "If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.")]
             public bool PublishToExchange { get; set; }
+
+            [Option("maxrate", HelpText = "The maximum amount of messages per second to import.")]
+            public int? MaxRate { get; set; }
         }
 
 
@@ -111,6 +114,9 @@ namespace Tapeti.Cmd
 
             [Option("targetpassword", HelpText = "Password used to connect to the target RabbitMQ server. Defaults to the source password.")]
             public string TargetPassword { get; set; }
+
+            [Option("maxrate", HelpText = "The maximum amount of messages per second to shovel.")]
+            public int? MaxRate { get; set; }
         }
 
 
@@ -236,6 +242,15 @@ namespace Tapeti.Cmd
         }
 
 
+        private static IRateLimiter GetRateLimiter(int? maxRate)
+        {
+            if (maxRate.GetValueOrDefault() <= 0)
+                return new NoRateLimiter();
+
+            return new SpreadRateLimiter(maxRate.Value, TimeSpan.FromSeconds(1));
+        }
+
+
         private static void RunExport(ExportOptions options)
         {
             int messageCount;
@@ -271,7 +286,7 @@ namespace Tapeti.Cmd
                     MessageSerializer = messageSerializer,
 
                     DirectToQueue = !options.PublishToExchange
-                }.Execute(channel);
+                }.Execute(channel, GetRateLimiter(options.MaxRate));
             }
 
             Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} published.");
@@ -299,11 +314,11 @@ namespace Tapeti.Cmd
                     using (var targetConnection = GetTargetConnection(options))
                     using (var targetChannel = targetConnection.CreateModel())
                     {
-                        messageCount = shovelCommand.Execute(sourceChannel, targetChannel);
+                        messageCount = shovelCommand.Execute(sourceChannel, targetChannel, GetRateLimiter(options.MaxRate));
                     }
                 }
                 else
-                    messageCount = shovelCommand.Execute(sourceChannel, sourceChannel);
+                    messageCount = shovelCommand.Execute(sourceChannel, sourceChannel, GetRateLimiter(options.MaxRate));
             }
 
             Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} shoveled.");

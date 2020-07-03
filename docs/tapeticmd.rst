@@ -80,6 +80,10 @@ Read messages from disk as previously exported and publish them to a queue.
 -s <method>, --serialization <method>
   The method used to serialize the message for import or export. Valid options: SingleFileJSON, EasyNetQHosepipe. Defaults to SingleFileJSON. See Serialization methods below for more information.
 
+--maxrate <messages per second>
+  The maximum amount of messages per second to import.
+
+
 Either input, message or pipe is required.
 
 Example:
@@ -121,6 +125,8 @@ Reads messages from a queue and publishes them to another queue, optionally to a
 --targetpassword <password>
   Password used to connect to the target RabbitMQ server. Defaults to the source password.
 
+--maxrate <messages per second>
+  The maximum amount of messages per second to shovel.
 
 
 Example:
