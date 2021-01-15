@@ -13,5 +13,10 @@ namespace Tapeti
         /// Starts consuming from the subscribed queues if not already started.
         /// </summary>
         Task Resume();
+
+        /// <summary>
+        /// Stops consuming from the subscribed queues.
+        /// </summary>
+        Task Stop();
     }
 }

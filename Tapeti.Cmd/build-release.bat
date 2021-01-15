@@ -1,3 +1,4 @@
+@Echo Off
 mkdir publish
 
 REM Executable is generated using self-contained=true, which is just a wrapper for "dotnet Tapeti.Cmd.dll".

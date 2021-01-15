@@ -77,8 +77,14 @@ namespace Tapeti.Connection
         /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName"></param>
         /// <param name="consumer">The consumer implementation which will receive the messages from the queue</param>
-        Task Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer);
+        /// <returns>The consumer tag as returned by BasicConsume.</returns>
+        Task<string> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer);
 
+        /// <summary>
+        /// Stops the consumer with the specified tag.
+        /// </summary>
+        /// <param name="consumerTag">The consumer tag as returned by Consume.</param>
+        Task Cancel(string consumerTag);
 
         /// <summary>
         /// Creates a durable queue if it does not already exist, and updates the bindings.
@@ -117,7 +123,6 @@ namespace Tapeti.Connection
         /// <param name="queueName">The name of the dynamic queue previously created using DynamicQueueDeclare</param>
         /// <param name="binding">The binding to add to the dynamic queue</param>
         Task DynamicQueueBind(CancellationToken cancellationToken, string queueName, QueueBinding binding);
-
 
         /// <summary>
         /// Closes the connection to RabbitMQ gracefully.

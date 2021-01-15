@@ -80,6 +80,10 @@ Read messages from disk as previously exported and publish them to a queue.
 -s <method>, --serialization <method>
   The method used to serialize the message for import or export. Valid options: SingleFileJSON, EasyNetQHosepipe. Defaults to SingleFileJSON. See Serialization methods below for more information.
 
+--maxrate <messages per second>
+  The maximum amount of messages per second to import.
+
+
 Either input, message or pipe is required.
 
 Example:
@@ -121,6 +125,8 @@ Reads messages from a queue and publishes them to another queue, optionally to a
 --targetpassword <password>
   Password used to connect to the target RabbitMQ server. Defaults to the source password.
 
+--maxrate <messages per second>
+  The maximum amount of messages per second to shovel.
 
 
 Example:
@@ -138,7 +144,7 @@ SingleFileJSON
 ''''''''''''''
 The default serialization method. All messages are contained in a single file, where each line is a JSON document describing the message properties and it's content.
 
-An example message (formatted as multi-line to be more readable, but keep in mind that it must be a single line in the export file to be imported properly):
+An example message (formatted as multi-line to be more readable, but keep in mind that it **must be a single line** in the export file to be imported properly):
 
 ::
 
@@ -175,6 +181,29 @@ An example message (formatted as multi-line to be more readable, but keep in min
 The properties correspond to the RabbitMQ client's IBasicProperties and can be omitted if empty.
 
 Either Body or RawBody is present. Body is used if the ContentType is set to application/json, and will contain the original message as an inline JSON object for easy manipulation. For other content types, the RawBody contains the original encoded body.
+
+Below is a bare minimum example, assuming Tapeti style messages and the default direct-to-queue import (no --exchange parameter). Again, keep in mind that it **must be a single line** in the export file to be imported properly.
+
+::
+
+  {
+    "Queue": "tapeti.example.01",
+    "Properties": {
+      "ContentType": "application/json",
+      "Headers": {
+        "classType": "Messaging.TapetiExample.QuoteRequestMessage:Messaging.TapetiExample"
+      }
+    },
+    "Body": {
+      "Amount": 2
+    }
+  }
+
+Actual file contents will thus look like:
+
+::
+
+  { "Queue": "tapeti.example.01", "Properties": { "ContentType": "application/json", "Headers": { "classType": "Messaging.TapetiExample.QuoteRequestMessage:Messaging.TapetiExample" } }, "Body": { "Amount": 2 } }
 
 
 EasyNetQHosepipe
