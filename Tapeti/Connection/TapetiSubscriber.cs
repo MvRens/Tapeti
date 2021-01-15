@@ -13,6 +13,7 @@ namespace Tapeti.Connection
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
+        private readonly List<string> consumerTags = new List<string>();
 
         private CancellationTokenSource initializeCancellationTokenSource;
 
@@ -50,6 +51,8 @@ namespace Tapeti.Connection
         {
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = null;
+
+            consumerTags.Clear();
         }
 
 
@@ -64,6 +67,8 @@ namespace Tapeti.Connection
 
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = new CancellationTokenSource();
+
+            consumerTags.Clear();
 
             cancellationToken = initializeCancellationTokenSource.Token;
 
@@ -91,6 +96,21 @@ namespace Tapeti.Connection
         }
 
 
+        /// <inheritdoc />
+        public async Task Stop()
+        {
+            if (!consuming)
+                return;
+
+            initializeCancellationTokenSource?.Cancel();
+            initializeCancellationTokenSource = null;
+
+            await Task.WhenAll(consumerTags.Select(async tag => await clientFactory().Cancel(tag)));
+
+            consumerTags.Clear();
+            consuming = false;
+        }
+
 
         private async Task ApplyBindings(CancellationToken cancellationToken)
         {
@@ -115,13 +135,13 @@ namespace Tapeti.Connection
         {
             var queues = config.Bindings.GroupBy(binding => binding.QueueName);
 
-            await Task.WhenAll(queues.Select(async group =>
+            consumerTags.AddRange(await Task.WhenAll(queues.Select(async group =>
             {
                 var queueName = group.Key;
                 var consumer = new TapetiConsumer(config, queueName, group);
 
-                await clientFactory().Consume(cancellationToken, queueName, consumer);
-            }));
+                return await clientFactory().Consume(cancellationToken, queueName, consumer);
+            })));
         }
 
 

@@ -72,7 +72,6 @@ namespace Tapeti.Connection
         }
 
 
-        /// <inheritdoc />
         public TapetiClient(ITapetiConfig config, TapetiConnectionParams connectionParams)
         {
             this.config = config;
@@ -184,14 +183,16 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer)
+        public async Task<string> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer)
         {
             if (deletedQueues.Contains(queueName))
-                return;
+                return null;
 
             if (string.IsNullOrEmpty(queueName))
                 throw new ArgumentNullException(nameof(queueName));
 
+
+            string consumerTag = null;
 
             await QueueWithRetryableChannel(channel =>
             {
@@ -199,14 +200,31 @@ namespace Tapeti.Connection
                     return;
 
                 var basicConsumer = new TapetiBasicConsumer(consumer, Respond);
-                channel.BasicConsume(queueName, false, basicConsumer);
+                consumerTag = channel.BasicConsume(queueName, false, basicConsumer);
+            });
+
+            return consumerTag;
+        }
+
+
+        /// <inheritdoc />
+        public async Task Cancel(string consumerTag)
+        {
+            if (isClosing || string.IsNullOrEmpty(consumerTag))
+                return;
+
+            // No need for a retryable channel here, if the connection is lost
+            // so is the consumer.
+            await Queue(channel =>
+            {
+                channel.BasicCancel(consumerTag);
             });
         }
 
 
         private async Task Respond(ulong deliveryTag, ConsumeResult result)
         {
-            await taskQueue.Value.Add(() =>
+            await Queue(channel =>
             {
                 // No need for a retryable channel here, if the connection is lost we can't
                 // use the deliveryTag anymore.
@@ -214,15 +232,15 @@ namespace Tapeti.Connection
                 {
                     case ConsumeResult.Success:
                     case ConsumeResult.ExternalRequeue:
-                        GetChannel().BasicAck(deliveryTag, false);
+                        channel.BasicAck(deliveryTag, false);
                         break;
 
                     case ConsumeResult.Error:
-                        GetChannel().BasicNack(deliveryTag, false, false);
+                        channel.BasicNack(deliveryTag, false, false);
                         break;
 
                     case ConsumeResult.Requeue:
-                        GetChannel().BasicNack(deliveryTag, false, true);
+                        channel.BasicNack(deliveryTag, false, true);
                         break;
 
                     default:
