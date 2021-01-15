@@ -138,7 +138,7 @@ namespace Tapeti.Connection
             consumerTags.AddRange(await Task.WhenAll(queues.Select(async group =>
             {
                 var queueName = group.Key;
-                var consumer = new TapetiConsumer(config, queueName, group);
+                var consumer = new TapetiConsumer(cancellationToken, config, queueName, group);
 
                 return await clientFactory().Consume(cancellationToken, queueName, consumer);
             })));
