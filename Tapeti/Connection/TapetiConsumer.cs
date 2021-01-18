@@ -134,7 +134,7 @@ namespace Tapeti.Connection
 
         private void HandleException(ExceptionStrategyContext exceptionContext)
         {
-            if (cancellationToken.IsCancellationRequested && IsTaskCanceledException(exceptionContext.Exception))
+            if (cancellationToken.IsCancellationRequested && IgnoreExceptionDuringShutdown(exceptionContext.Exception))
             {
                 // The service is most likely stopping, and the connection is gone anyways.
                 exceptionContext.SetConsumeResult(ConsumeResult.Requeue);
@@ -156,18 +156,19 @@ namespace Tapeti.Connection
         }
 
 
-        private static bool IsTaskCanceledException(Exception e)
+        private static bool IgnoreExceptionDuringShutdown(Exception e)
         {
             switch (e)
             {
                 case AggregateException aggregateException:
-                    return aggregateException.InnerExceptions.Any(IsTaskCanceledException);
+                    return aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown);
 
                 case TaskCanceledException _:
+                case OperationCanceledException _:  // thrown by CancellationTokenSource.ThrowIfCancellationRequested
                     return true;
 
                 default:
-                    return e.InnerException != null && IsTaskCanceledException(e.InnerException);
+                    return e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException);
             }
         }
 

@@ -155,7 +155,6 @@ namespace Tapeti.Default
         public bool HasHandler => Handler != null;
 
 
-        /// <inheritdoc />
         public ControllerBindingResult(ParameterInfo info)
         {
             Info = info;
