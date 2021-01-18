@@ -120,6 +120,17 @@ namespace Tapeti.Cmd
         }
 
 
+        [Verb("purge", HelpText = "Removes all messages from a queue destructively.")]
+        public class PurgeOptions : CommonOptions
+        {
+            [Option('q', "queue", Required = true, HelpText = "The queue to purge.")]
+            public string QueueName { get; set; }
+
+            [Option("confirm", HelpText = "Confirms the purging of the specified queue. If not provided, an interactive prompt will ask for confirmation.", Default = false)]
+            public bool Confirm { get; set; }
+        }
+
+
         [Verb("example", HelpText = "Output an example SingleFileJSON formatted message.")]
         public class ExampleOptions
         {
@@ -129,11 +140,12 @@ namespace Tapeti.Cmd
 
         public static int Main(string[] args)
         {
-            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions, ExampleOptions>(args)
+            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions, PurgeOptions, ExampleOptions>(args)
                 .MapResult(
                     (ExportOptions o) => ExecuteVerb(o, RunExport),
                     (ImportOptions o) => ExecuteVerb(o, RunImport),
                     (ShovelOptions o) => ExecuteVerb(o, RunShovel),
+                    (PurgeOptions o) => ExecuteVerb(o, RunPurge),
                     (ExampleOptions o) => ExecuteVerb(o, RunExample),
                     errs =>
                     {
@@ -368,6 +380,30 @@ namespace Tapeti.Cmd
             };
 
             return factory.CreateConnection();
+        }
+
+
+        private static void RunPurge(PurgeOptions options)
+        {
+            if (!options.Confirm)
+            {
+                Console.Write($"Do you want to purge the queue '{options.QueueName}'? (Y/N) ");
+                var answer = Console.ReadLine();
+
+                if (string.IsNullOrEmpty(answer) || !answer.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
+                    return;
+            }
+
+            uint messageCount;
+
+            using (var connection = GetConnection(options))
+            using (var channel = connection.CreateModel())
+            {
+                messageCount = channel.QueuePurge(options.QueueName);
+            }
+
+            Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} purged from '{options.QueueName}'.");
+
         }
 
 

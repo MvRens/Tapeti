@@ -99,7 +99,6 @@ namespace Tapeti.Default
         public MethodInfo Method => bindingInfo.Method;
 
 
-        /// <inheritdoc />
         public ControllerMethodBinding(IDependencyResolver dependencyResolver, BindingInfo bindingInfo)
         {
             this.dependencyResolver = dependencyResolver;
