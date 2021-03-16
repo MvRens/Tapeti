@@ -64,10 +64,31 @@ namespace _03_FlowRequestResponse
             Console.WriteLine("[SimpleFlowController] Response time: " + DateTime.Now.ToLongTimeString());
             Console.WriteLine("[SimpleFlowController] Quote: " + message.Quote);
 
+            
+            // Test for issue #21: Same request/response twice in flow does not continue
+            return flowProvider.YieldWithRequestSync<QuoteRequestMessage, QuoteResponseMessage>(
+                new QuoteRequestMessage
+                {
+                    Amount = 42
+                },
+                HandleQuoteResponse2);
+
+            
+            //exampleState.Done();
+            //return flowProvider.End();
+        }
+
+
+
+        [Continuation]
+        public IYieldPoint HandleQuoteResponse2(QuoteResponseMessage message)
+        {
+            Console.WriteLine("[SimpleFlowController] Quote 2: " + message.Quote);
 
             exampleState.Done();
 
             return flowProvider.End();
         }
+
     }
 }
