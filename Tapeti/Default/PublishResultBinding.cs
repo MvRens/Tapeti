@@ -30,6 +30,7 @@ namespace Tapeti.Default
 
             // Verify the return type matches with the Request attribute of the message class. This is a backwards incompatible change in
             // Tapeti 1.2: if you just want to publish another message as a result of the incoming message, explicitly call IPublisher.Publish.
+            // ReSharper disable once ConvertIfStatementToSwitchStatement
             if (!hasClassResult && expectedClassResult != null || hasClassResult && expectedClassResult != actualType)
                throw new ArgumentException($"Message handler must return type {expectedClassResult?.FullName ?? "void"} in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}, found: {actualType?.FullName ?? "void"}");
 

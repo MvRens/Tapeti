@@ -10,7 +10,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Defines a queue binding to an exchange using a routing key
     /// </summary>
-    public struct QueueBinding : IEquatable<QueueBinding>
+    public readonly struct QueueBinding : IEquatable<QueueBinding>
     {
         /// <summary></summary>
         public readonly string Exchange;

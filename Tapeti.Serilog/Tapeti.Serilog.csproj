@@ -3,6 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Hans Mulder, Mark van Renswoude</Authors>
+    <Company />
+    <Description>Serilog integration package for Tapeti</Description>
+    <PackageTags>rabbitmq tapeti serilog</PackageTags>
+    <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
+    <PackageIcon>Tapeti.Serilog.png</PackageIcon>
     <Version>2.0.0</Version>
   </PropertyGroup>
 
@@ -11,11 +18,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serilog" Version="2.9.0" />
+    <PackageReference Include="Serilog" Version="2.10.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\resources\icons\Tapeti.Serilog.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

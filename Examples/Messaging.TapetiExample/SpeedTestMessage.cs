@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace Messaging.TapetiExample
+﻿namespace Messaging.TapetiExample
 {
     public class SpeedTestMessage
     {

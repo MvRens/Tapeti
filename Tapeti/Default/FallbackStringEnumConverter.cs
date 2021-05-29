@@ -60,7 +60,7 @@ namespace Tapeti.Default
             if (reader.TokenType != JsonToken.String)
                 throw new JsonSerializationException($"Unexpected token {reader.TokenType} when parsing enum");
 
-            var enumText = reader.Value.ToString();
+            var enumText = reader.Value?.ToString() ?? "";
             if (enumText == string.Empty && isNullable)
                 return null;
 

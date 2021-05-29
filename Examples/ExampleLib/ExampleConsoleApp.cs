@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Tapeti;
 
@@ -21,13 +22,18 @@ namespace ExampleLib
     public class ExampleConsoleApp 
     {
         private readonly IDependencyContainer dependencyResolver;
+        private readonly int expectedDoneCount;
+        private int doneCount;
         private readonly TaskCompletionSource<bool> doneSignal = new TaskCompletionSource<bool>();
 
 
         /// <param name="dependencyResolver">Uses Tapeti's IDependencyContainer interface so you can easily switch an example to your favourite IoC container</param>
-        public ExampleConsoleApp(IDependencyContainer dependencyResolver)
+        /// <param name="expectedDoneCount"></param>
+        public ExampleConsoleApp(IDependencyContainer dependencyResolver, int expectedDoneCount = 1)
         {
             this.dependencyResolver = dependencyResolver;
+            this.expectedDoneCount = expectedDoneCount;
+            
             dependencyResolver.RegisterDefault<IExampleState>(() => new ExampleState(this));
         }
 
@@ -85,7 +91,8 @@ namespace ExampleLib
 
         internal void Done()
         {
-            doneSignal.TrySetResult(true);
+            if (Interlocked.Increment(ref doneCount) == expectedDoneCount)
+                doneSignal.TrySetResult(true);
         }
 
 

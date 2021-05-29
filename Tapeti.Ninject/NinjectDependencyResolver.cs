@@ -13,7 +13,8 @@ namespace Tapeti.Ninject
         private readonly IKernel kernel;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public NinjectDependencyResolver(IKernel kernel)
         {
             this.kernel = kernel;

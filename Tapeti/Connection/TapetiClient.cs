@@ -351,7 +351,7 @@ namespace Tapeti.Connection
                         }
                         catch (OperationInterruptedException e)
                         {
-                            if (e.ShutdownReason.ReplyCode == RabbitMQ.Client.Framing.Constants.PreconditionFailed)
+                            if (e.ShutdownReason.ReplyCode == Constants.PreconditionFailed)
                                 retry = true;
                             else
                                 throw;
@@ -519,9 +519,10 @@ namespace Tapeti.Connection
                 var bindings = JsonConvert.DeserializeObject<IEnumerable<ManagementBinding>>(content);
 
                 // Filter out the binding to an empty source, which is always present for direct-to-queue routing
-                return bindings
+                return bindings?
                     .Where(binding => !string.IsNullOrEmpty(binding.Source))
-                    .Select(binding => new QueueBinding(binding.Source, binding.RoutingKey));
+                    .Select(binding => new QueueBinding(binding.Source, binding.RoutingKey)) 
+                       ?? Enumerable.Empty<QueueBinding>();
             });
         }
 
@@ -655,7 +656,7 @@ namespace Tapeti.Connection
                 Password = connectionParams.Password,
                 AutomaticRecoveryEnabled = false,
                 TopologyRecoveryEnabled = false,
-                RequestedHeartbeat = 30
+                RequestedHeartbeat = TimeSpan.FromSeconds(30)
             };
 
             if (connectionParams.ClientProperties != null)

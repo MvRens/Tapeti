@@ -19,7 +19,7 @@ namespace _03_FlowRequestResponse
 
             container.Register<ILogger, ConsoleLogger>();
 
-            var helper = new ExampleConsoleApp(dependencyResolver);
+            var helper = new ExampleConsoleApp(dependencyResolver, 2);
             helper.Run(MainAsync);
         }
 

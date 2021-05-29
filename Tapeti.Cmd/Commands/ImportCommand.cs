@@ -15,7 +15,7 @@ namespace Tapeti.Cmd.Commands
         {
             var messageCount = 0;
 
-            foreach (var message in MessageSerializer.Deserialize())
+            foreach (var message in MessageSerializer.Deserialize(channel))
             {
                 rateLimiter.Execute(() =>
                 {

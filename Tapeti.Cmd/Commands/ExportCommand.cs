@@ -33,7 +33,7 @@ namespace Tapeti.Cmd.Commands
                     RoutingKey = result.RoutingKey,
                     Queue = QueueName,
                     Properties = result.BasicProperties,
-                    Body = result.Body
+                    Body = result.Body.ToArray()
                 });
 
                 if (RemoveMessages)

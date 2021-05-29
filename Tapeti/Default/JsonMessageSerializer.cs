@@ -21,7 +21,8 @@ namespace Tapeti.Default
         private readonly JsonSerializerSettings serializerSettings;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public JsonMessageSerializer()
         {
             serializerSettings = new JsonSerializerSettings

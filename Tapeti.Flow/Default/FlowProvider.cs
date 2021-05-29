@@ -22,7 +22,8 @@ namespace Tapeti.Flow.Default
         private readonly IInternalPublisher publisher;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowProvider(ITapetiConfig config, IPublisher publisher)
         {
             this.config = config;

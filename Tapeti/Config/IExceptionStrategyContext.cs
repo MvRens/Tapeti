@@ -1,6 +1,7 @@
 ﻿using System;
 
 // ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMemberInSuper.Global
 
 namespace Tapeti.Config
 {

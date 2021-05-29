@@ -12,7 +12,8 @@ namespace Tapeti.Transient
         private readonly IPublisher publisher;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public TransientPublisher(TransientRouter router, IPublisher publisher)
         {
             this.router = router;

@@ -11,7 +11,8 @@ namespace Tapeti.Transient
         private readonly TransientRouter router;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public TransientExtension(TimeSpan defaultTimeout, string dynamicQueuePrefix)
         {
             this.dynamicQueuePrefix = dynamicQueuePrefix;
