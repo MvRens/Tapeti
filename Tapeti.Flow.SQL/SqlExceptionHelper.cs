@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Text;
+using System.Linq;
+
+// ReSharper disable UnusedMember.Global
 
 namespace Tapeti.Flow.SQL
 {
@@ -24,16 +26,8 @@ namespace Tapeti.Flow.SQL
 
                 case Exception exception:
                     {
-                        var sqlExceptions = ExtractSqlExceptions(e);
-                        foreach (var sqlException in sqlExceptions)
-                        {
-                            var sqlErrors = UnwrapSqlErrors(sqlException);
-
-                            if (IsRecoverableSQLError(sqlErrors))
-                                return true;
-                        }
-
-                        return false;
+                        var sqlExceptions = ExtractSqlExceptions(exception);
+                        return sqlExceptions.Select(UnwrapSqlErrors).Any(IsRecoverableSQLError);
                     }
 
                 default:

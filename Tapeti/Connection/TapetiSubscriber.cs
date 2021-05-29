@@ -18,7 +18,6 @@ namespace Tapeti.Connection
         private CancellationTokenSource initializeCancellationTokenSource;
 
 
-        /// <inheritdoc />
         public TapetiSubscriber(Func<ITapetiClient> clientFactory, ITapetiConfig config)
         {
             this.clientFactory = clientFactory;

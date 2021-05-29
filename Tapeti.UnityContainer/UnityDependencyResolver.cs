@@ -13,7 +13,8 @@ namespace Tapeti.UnityContainer
         private readonly IUnityContainer container;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public UnityDependencyResolver(IUnityContainer container)
         {
             this.container = container;

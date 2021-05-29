@@ -35,7 +35,8 @@ namespace Tapeti.Flow.Default
         private volatile bool loaded;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowStore(IFlowRepository repository) 
         {
             this.repository = repository;

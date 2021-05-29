@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Framing;
 
 namespace Tapeti.Cmd.Serialization
 {
@@ -61,7 +60,7 @@ namespace Tapeti.Cmd.Serialization
         }
 
 
-        public IEnumerable<Message> Deserialize()
+        public IEnumerable<Message> Deserialize(IModel channel)
         {
             foreach (var file in Directory.GetFiles(path, "*.*.message.txt"))
             {
@@ -80,8 +79,13 @@ namespace Tapeti.Cmd.Serialization
                 var infoJson = File.ReadAllText(infoFileName);
                 var info = JsonConvert.DeserializeObject<EasyNetQMessageReceivedInfo>(infoJson);
 
+                if (info == null)
+                    continue;
+
                 var message = info.ToMessage();
-                message.Properties = properties.ToBasicProperties();
+                if (properties != null)
+                    message.Properties = properties.ToBasicProperties(channel);
+                
                 message.Body = Encoding.UTF8.GetBytes(body);
 
                 yield return message;
@@ -117,13 +121,13 @@ namespace Tapeti.Cmd.Serialization
                 if (!basicProperties.IsHeadersPresent()) 
                     return;
 
-                foreach (var header in basicProperties.Headers)
-                    Headers.Add(header.Key, (byte[])header.Value);
+                foreach (var (key, value) in basicProperties.Headers)
+                    Headers.Add(key, (byte[])value);
             }
 
-            public IBasicProperties ToBasicProperties()
+            public IBasicProperties ToBasicProperties(IModel channel)
             {
-                var basicProperties = new BasicProperties();
+                var basicProperties = channel.CreateBasicProperties();
 
                 if (ContentTypePresent) basicProperties.ContentType = ContentType;
                 if (ContentEncodingPresent) basicProperties.ContentEncoding = ContentEncoding;
@@ -169,6 +173,7 @@ namespace Tapeti.Cmd.Serialization
             public IDictionary<string, byte[]> Headers
             {
                 get => headers;
+                // ReSharper disable once UnusedMember.Local
                 set { headers = value; HeadersPresent = true; }
             }
 
@@ -268,6 +273,7 @@ namespace Tapeti.Cmd.Serialization
 
         private class EasyNetQMessageReceivedInfo
         {
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local - used by JSON deserialization
             public string ConsumerTag { get; set; }
             public ulong DeliverTag { get; set; }
             public bool Redelivered { get; set; }

@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Tapeti.Config;
 
-// ReSharper disable once UnusedMember.Global
+// ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {

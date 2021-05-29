@@ -5,7 +5,6 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Framing;
 
 namespace Tapeti.Cmd.Serialization
 {
@@ -42,7 +41,7 @@ namespace Tapeti.Cmd.Serialization
         }
 
 
-        public IEnumerable<Message> Deserialize()
+        public IEnumerable<Message> Deserialize(IModel channel)
         {
             using (var reader = new StreamReader(stream, encoding))
             {
@@ -56,7 +55,7 @@ namespace Tapeti.Cmd.Serialization
                     if (serializableMessage == null)
                         continue;
 
-                    yield return serializableMessage.ToMessage();
+                    yield return serializableMessage.ToMessage(channel);
                 }
             }
         }
@@ -134,7 +133,7 @@ namespace Tapeti.Cmd.Serialization
             }
 
 
-            public Message ToMessage()
+            public Message ToMessage(IModel channel)
             {
                 return new Message
                 {
@@ -143,7 +142,7 @@ namespace Tapeti.Cmd.Serialization
                     Exchange = Exchange,
                     RoutingKey = RoutingKey,
                     Queue = Queue,
-                    Properties = Properties.ToBasicProperties(),
+                    Properties = Properties.ToBasicProperties(channel),
                     Body = Body != null
                         ? Encoding.UTF8.GetBytes(Body.ToString(Formatting.None))
                         : RawBody
@@ -198,17 +197,17 @@ namespace Tapeti.Cmd.Serialization
                     Headers = new Dictionary<string, string>();
 
                     // This assumes header values are UTF-8 encoded strings. This is true for Tapeti.
-                    foreach (var pair in fromProperties.Headers)
-                        Headers.Add(pair.Key, Encoding.UTF8.GetString((byte[])pair.Value));
+                    foreach (var (key, value) in fromProperties.Headers)
+                        Headers.Add(key, Encoding.UTF8.GetString((byte[])value));
                 }
                 else
                     Headers = null;
             }
 
 
-            public IBasicProperties ToBasicProperties()
+            public IBasicProperties ToBasicProperties(IModel channel)
             {
-                var properties = new BasicProperties();
+                var properties = channel.CreateBasicProperties();
 
                 if (!string.IsNullOrEmpty(AppId)) properties.AppId = AppId;
                 if (!string.IsNullOrEmpty(ClusterId)) properties.ClusterId = ClusterId;
@@ -228,8 +227,8 @@ namespace Tapeti.Cmd.Serialization
                 {
                     properties.Headers = new Dictionary<string, object>();
 
-                    foreach (var pair in Headers)
-                        properties.Headers.Add(pair.Key, Encoding.UTF8.GetBytes(pair.Value));
+                    foreach (var (key, value) in Headers)
+                        properties.Headers.Add(key, Encoding.UTF8.GetBytes(value));
                 }
 
                 return properties;

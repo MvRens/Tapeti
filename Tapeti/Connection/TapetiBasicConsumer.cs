@@ -24,13 +24,19 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
+        public override void HandleBasicDeliver(string consumerTag,
+            ulong deliveryTag,
+            bool redelivered,
+            string exchange,
+            string routingKey,
+            IBasicProperties properties,
+            ReadOnlyMemory<byte> body)
         {
             Task.Run(async () =>
             {
                 try
                 {
-                    var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), body);
+                    var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), body.ToArray());
                     await onRespond(deliveryTag, response);
                 }
                 catch

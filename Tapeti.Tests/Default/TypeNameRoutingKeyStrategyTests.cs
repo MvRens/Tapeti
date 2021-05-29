@@ -60,7 +60,8 @@ namespace Tapeti.Tests.Default
             AssertRoutingKey("acr.test.mixed.case", typeof(ACRTestMIXEDCaseMESSAGE));
         }
 
-        private void AssertRoutingKey(string expected, Type messageType)
+        // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
+        private static void AssertRoutingKey(string expected, Type messageType)
         {
             if (expected == null) throw new ArgumentNullException(nameof(expected));
             if (messageType == null) throw new ArgumentNullException(nameof(messageType));

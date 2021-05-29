@@ -32,7 +32,6 @@ namespace Tapeti.Default
         IControllerMethodBinding IControllerMessageContext.Binding => decoratedContext.Binding as IControllerMethodBinding;
 
 
-        /// <inheritdoc />
         public ControllerMessageContext(IMessageContext decoratedContext)
         {
             this.decoratedContext = decoratedContext;

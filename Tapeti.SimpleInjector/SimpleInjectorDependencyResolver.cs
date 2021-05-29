@@ -14,7 +14,8 @@ namespace Tapeti.SimpleInjector
         private readonly Lifestyle defaultsLifestyle;
         private readonly Lifestyle controllersLifestyle;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public SimpleInjectorDependencyResolver(Container container, Lifestyle defaultsLifestyle = null, Lifestyle controllersLifestyle = null)
         {
             this.container = container;

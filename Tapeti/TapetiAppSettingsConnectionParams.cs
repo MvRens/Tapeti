@@ -1,6 +1,8 @@
 ﻿using System.Configuration;
 using System.Linq;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti
 {
     /// <inheritdoc />
@@ -23,6 +25,7 @@ namespace Tapeti
     public class TapetiAppSettingsConnectionParams : TapetiConnectionParams
     {
         private const string DefaultPrefix = "rabbitmq:";
+        // ReSharper disable InconsistentNaming
         private const string KeyHostname = "hostname";
         private const string KeyPort = "port";
         private const string KeyVirtualHost = "virtualhost";
@@ -31,9 +34,10 @@ namespace Tapeti
         private const string KeyPrefetchCount = "prefetchcount";
         private const string KeyManagementPort = "managementport";
         private const string KeyClientProperty = "clientproperty:";
+        // ReSharper restore InconsistentNaming
 
 
-        private struct AppSettingsKey
+        private readonly struct AppSettingsKey
         {
             public readonly string Entry;
             public readonly string Parameter;

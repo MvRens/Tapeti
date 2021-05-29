@@ -5,8 +5,8 @@ using System.IO;
 using System.Text;
 using CommandLine;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Framing;
 using Tapeti.Cmd.Commands;
+using Tapeti.Cmd.Mock;
 using Tapeti.Cmd.RateLimiter;
 using Tapeti.Cmd.Serialization;
 
@@ -256,7 +256,7 @@ namespace Tapeti.Cmd
 
         private static IRateLimiter GetRateLimiter(int? maxRate)
         {
-            if (maxRate.GetValueOrDefault() <= 0)
+            if (!maxRate.HasValue || maxRate.Value <= 0)
                 return new NoRateLimiter();
 
             return new SpreadRateLimiter(maxRate.Value, TimeSpan.FromSeconds(1));
@@ -376,7 +376,7 @@ namespace Tapeti.Cmd
                 Port = options.TargetPort ?? options.Port,
                 VirtualHost = !string.IsNullOrEmpty(options.TargetVirtualHost) ? options.TargetVirtualHost : options.VirtualHost,
                 UserName = !string.IsNullOrEmpty(options.TargetUsername) ? options.TargetUsername : options.Username,
-                Password = !string.IsNullOrEmpty(options.TargetPassword) ? options.TargetPassword : options.Password,
+                Password = !string.IsNullOrEmpty(options.TargetPassword) ? options.TargetPassword : options.Password
             };
 
             return factory.CreateConnection();
@@ -417,7 +417,7 @@ namespace Tapeti.Cmd
                     Queue = "example.queue",
                     RoutingKey = "example.routing.key",
                     DeliveryTag = 42,
-                    Properties = new BasicProperties
+                    Properties = new MockBasicProperties
                     {
                         ContentType = "application/json",
                         DeliveryMode = 2,
