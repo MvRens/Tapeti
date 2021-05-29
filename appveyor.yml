@@ -1,4 +1,4 @@
-image: Visual Studio 2017
+image: Visual Studio 2019
 
 
 install:
@@ -11,45 +11,44 @@ before_build:
 
 after_build:
   # Tapeti
-  - cmd: ECHO nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: nuget pack Tapeti\Tapeti.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti\Tapeti.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Annotations
-  - cmd: nuget pack Tapeti.Annotations\Tapeti.Annotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Annotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Annotations\Tapeti.Annotations.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Annotations.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.DataAnnotations
-  - cmd: nuget pack Tapeti.DataAnnotations\Tapeti.DataAnnotations.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.DataAnnotations.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.DataAnnotations.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.DataAnnotations.Extensions
-  - cmd: nuget pack Tapeti.DataAnnotations.Extensions\Tapeti.DataAnnotations.Extensions.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.DataAnnotations.Extensions.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.DataAnnotations.Extensions\Tapeti.DataAnnotations.Extensions.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.DataAnnotations.Extensions.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Flow
-  - cmd: nuget pack Tapeti.Flow\Tapeti.Flow.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Flow\Tapeti.Flow.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Flow.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Flow.SQL
-  - cmd: nuget pack Tapeti.Flow.SQL\Tapeti.Flow.SQL.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Flow.SQL.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Flow.SQL\Tapeti.Flow.SQL.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Flow.SQL.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Transient
-  - cmd: nuget pack Tapeti.Transient\Tapeti.Transient.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Transient.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Transient\Tapeti.Transient.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Transient.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Serilog
-  - cmd: nuget pack Tapeti.Serilog\Tapeti.Serilog.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Serilog.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Serilog\Tapeti.Serilog.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Serilog.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.SimpleInjector
-  - cmd: nuget pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.SimpleInjector.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Autofac
-  - cmd: nuget pack Tapeti.Autofac\Tapeti.Autofac.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Autofac.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Autofac\Tapeti.Autofac.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Autofac.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.CastleWindsor
-  - cmd: nuget pack Tapeti.CastleWindsor\Tapeti.CastleWindsor.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.CastleWindsor.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.CastleWindsor.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.Ninject
-  - cmd: nuget pack Tapeti.Ninject\Tapeti.Ninject.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.Ninject.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.Ninject\Tapeti.Ninject.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.Ninject.%GitVersion_NuGetVersion%.nupkg"
   # Tapeti.UnityContainer
-  - cmd: nuget pack Tapeti.UnityContainer\Tapeti.UnityContainer.nuspec -version "%GitVersion_NuGetVersion%" -prop "target=%CONFIGURATION%"
-  - cmd: appveyor PushArtifact "Tapeti.UnityContainer.%GitVersion_NuGetVersion%.nupkg"
+  - cmd: dotnet pack --output output Tapeti.UnityContainer\Tapeti.UnityContainer.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: appveyor PushArtifact "output\Tapeti.UnityContainer.%GitVersion_NuGetVersion%.nupkg"
 
 build:
   project: Tapeti.sln

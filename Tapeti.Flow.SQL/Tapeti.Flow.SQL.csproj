@@ -3,6 +3,13 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Mark van Renswoude</Authors>
+    <Company />
+    <Description>SQL backing repository for the Tapeti Flow package</Description>
+    <PackageTags>rabbitmq tapeti flow sql</PackageTags>
+    <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
+    <PackageIcon>Tapeti.Flow.SQL.png</PackageIcon>
     <Version>2.0.0</Version>
   </PropertyGroup>
 
@@ -25,6 +32,13 @@
   <ItemGroup>
     <ProjectReference Include="..\Tapeti.Flow\Tapeti.Flow.csproj" />
     <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\resources\icons\Tapeti.Flow.SQL.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
