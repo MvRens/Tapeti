@@ -29,13 +29,15 @@ namespace Tapeti.Default
         public DateTime? Timestamp { get; set; }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public MessageProperties()
         {
         }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public MessageProperties(IMessageProperties source)
         {
             if (source == null)

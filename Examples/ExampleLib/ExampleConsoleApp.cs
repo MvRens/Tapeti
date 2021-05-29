@@ -23,11 +23,12 @@ namespace ExampleLib
     {
         private readonly IDependencyContainer dependencyResolver;
         private readonly int expectedDoneCount;
-        private int doneCount = 0;
+        private int doneCount;
         private readonly TaskCompletionSource<bool> doneSignal = new TaskCompletionSource<bool>();
 
 
         /// <param name="dependencyResolver">Uses Tapeti's IDependencyContainer interface so you can easily switch an example to your favourite IoC container</param>
+        /// <param name="expectedDoneCount"></param>
         public ExampleConsoleApp(IDependencyContainer dependencyResolver, int expectedDoneCount = 1)
         {
             this.dependencyResolver = dependencyResolver;

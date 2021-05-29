@@ -13,7 +13,8 @@ namespace Tapeti.CastleWindsor
         private readonly IWindsorContainer container;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public WindsorDependencyResolver(IWindsorContainer container)
         {
             this.container = container;
@@ -51,7 +52,7 @@ namespace Tapeti.CastleWindsor
             container.Register(
                 Component
                     .For<TService>()
-                    .UsingFactoryMethod(() => factory())
+                    .UsingFactoryMethod(factory)
             );
         }
 
@@ -83,7 +84,7 @@ namespace Tapeti.CastleWindsor
             container.Register(
                 Component
                     .For<TService>()
-                    .UsingFactoryMethod(() => factory())
+                    .UsingFactoryMethod(factory)
                     .LifestyleSingleton()
             );
         }

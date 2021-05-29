@@ -12,7 +12,8 @@ namespace Tapeti.Flow
     {
         private readonly IFlowRepository flowRepository;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowExtension(IFlowRepository flowRepository)
         {
             this.flowRepository = flowRepository;

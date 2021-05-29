@@ -63,7 +63,7 @@ namespace Tapeti.Flow.Default
                 // Do not call when the controller method was filtered, if the same message has two methods
                 return;
 
-            if (flowContext?.FlowStateLock != null)
+            if (flowContext.FlowStateLock != null)
             {
                 if (!flowContext.IsStoredOrDeleted())
                     // The exception strategy can set the consume result to Success. Instead, check if the yield point

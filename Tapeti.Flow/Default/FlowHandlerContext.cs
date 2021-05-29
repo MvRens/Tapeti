@@ -9,13 +9,15 @@ namespace Tapeti.Flow.Default
     /// </summary>
     internal class FlowHandlerContext : IFlowHandlerContext
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowHandlerContext()
         {
         }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowHandlerContext(IControllerMessageContext source)
         {
             if (source == null)

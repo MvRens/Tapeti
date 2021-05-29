@@ -17,6 +17,8 @@ using Tapeti.UnityContainer;
 using Unity;
 using Container = SimpleInjector.Container;
 
+// ReSharper disable UnusedMember.Global
+
 namespace _01_PublishSubscribe
 {
     public class Program

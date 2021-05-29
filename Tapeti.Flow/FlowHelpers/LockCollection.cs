@@ -11,7 +11,8 @@ namespace Tapeti.Flow.FlowHelpers
     {
         private readonly Dictionary<T, LockItem> locks;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public LockCollection(IEqualityComparer<T> comparer)
         {
             locks = new Dictionary<T, LockItem>(comparer);

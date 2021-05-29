@@ -15,7 +15,8 @@ namespace Tapeti.Flow.Default
         private readonly ITapetiConfig config;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public FlowStarter(ITapetiConfig config)
         {
             this.config = config;

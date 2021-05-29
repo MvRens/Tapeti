@@ -27,7 +27,8 @@ namespace Tapeti.Flow.SQL
         private readonly string tableName;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public SqlConnectionFlowRepository(string connectionString, string tableName = "Flow")
         {
             this.connectionString = connectionString;

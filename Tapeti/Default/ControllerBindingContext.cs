@@ -118,7 +118,10 @@ namespace Tapeti.Default
         public bool HasBinding => Binding != null;
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Creates a new default implementation for IBindingParameter
+        /// </summary>
+        /// <param name="info"></param>
         public ControllerBindingParameter(ParameterInfo info)
         {
             Info = info;
@@ -155,6 +158,10 @@ namespace Tapeti.Default
         public bool HasHandler => Handler != null;
 
 
+        /// <summary>
+        /// Creates a new default implementation for IBindingResult
+        /// </summary>
+        /// <param name="info"></param>
         public ControllerBindingResult(ParameterInfo info)
         {
             Info = info;

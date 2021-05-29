@@ -33,7 +33,8 @@ namespace Tapeti.Autofac
         }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public AutofacDependencyResolver(ContainerBuilder containerBuilder)
         {
             this.containerBuilder = containerBuilder;

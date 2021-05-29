@@ -65,7 +65,8 @@ namespace Tapeti
         }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public TapetiConnectionParams()
         {
         }

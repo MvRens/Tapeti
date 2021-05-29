@@ -21,7 +21,8 @@ namespace Tapeti.Transient
         public string TransientResponseQueueName { get; set; }
 
 
-        /// <inheritdoc />
+        /// <summary>
+        /// </summary>
         public TransientRouter(TimeSpan defaultTimeout)
         {
             defaultTimeoutMs = (int)defaultTimeout.TotalMilliseconds;

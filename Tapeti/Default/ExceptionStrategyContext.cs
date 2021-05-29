@@ -18,7 +18,6 @@ namespace Tapeti.Default
         public Exception Exception { get; }
 
         
-        /// <inheritdoc />
         public ExceptionStrategyContext(IMessageContext messageContext, Exception exception)
         {
             MessageContext = messageContext;
