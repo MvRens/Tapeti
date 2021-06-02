@@ -2,11 +2,10 @@
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides information about the message currently being handled.
     /// </summary>
-    public interface IMessageContext : IDisposable
+    public interface IMessageContext : IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// Provides access to the Tapeti config.
@@ -49,7 +48,7 @@ namespace Tapeti.Config
         /// middleware stages (mostly for IControllerMiddlewareBase descendants).
         /// </summary>
         /// <param name="key">A unique key. It is recommended to prefix it with the package name which hosts the middleware to prevent conflicts</param>
-        /// <param name="value">Will be disposed if the value implements IDisposable</param>
+        /// <param name="value">Will be disposed if the value implements IDisposable or IAsyncDisposable</param>
         void Store(string key, object value);
 
         /// <summary>

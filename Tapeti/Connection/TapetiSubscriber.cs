@@ -25,8 +25,17 @@ namespace Tapeti.Connection
         }
 
 
+        public async ValueTask DisposeAsync()
+        {
+            if (consuming)
+                await Stop();
+        }
+
+
         public void Dispose()
         {
+            if (consuming)
+                Stop().GetAwaiter().GetResult();
         }
 
 

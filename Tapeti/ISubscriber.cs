@@ -5,11 +5,10 @@ using System.Threading.Tasks;
 
 namespace Tapeti
 {
-    /// <inheritdoc />
     /// <summary>
     /// Manages subscriptions to queues as configured by the bindings.
     /// </summary>
-    public interface ISubscriber : IDisposable
+    public interface ISubscriber : IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// Starts consuming from the subscribed queues if not already started.
