@@ -78,4 +78,4 @@ deploy:
     secure: 3WCSZAzan66vEmHZ1q3XzfOfucuAQiA+SiCDChO/gswbxfIXUpiM1eMNASDa3qWH
 
   skip_symbols: false
-  artifact: /.*\.nupkg/
+  artifact: /.*(\.|\.s)nupkg/
