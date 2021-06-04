@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
@@ -45,15 +46,18 @@ namespace Tapeti.Default
         /// <param name="messageType"></param>
         protected virtual string BuildRoutingKey(Type messageType)
         {
-            // Split PascalCase into dot-separated parts. If the class name ends in "Message" leave that out.
-            var words = SplitPascalCase(messageType.Name);
-            if (words == null)
-                return "";
+            return RoutingKeyHelper.Decorate(messageType, () =>
+            {
+                // Split PascalCase into dot-separated parts. If the class name ends in "Message" leave that out.
+                var words = SplitPascalCase(messageType.Name);
+                if (words == null)
+                    return "";
 
-            if (words.Count > 1 && words.Last().Equals("Message", StringComparison.InvariantCultureIgnoreCase))
-                words.RemoveAt(words.Count - 1);
+                if (words.Count > 1 && words.Last().Equals("Message", StringComparison.InvariantCultureIgnoreCase))
+                    words.RemoveAt(words.Count - 1);
 
-            return string.Join(".", words.Select(s => s.ToLower()));
+                return string.Join(".", words.Select(s => s.ToLower()));
+            });
         }
 
 
