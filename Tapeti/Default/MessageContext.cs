@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Tapeti.Config;
 
 namespace Tapeti.Default
@@ -37,6 +38,18 @@ namespace Tapeti.Default
             foreach (var item in items.Values)
                 (item as IDisposable)?.Dispose();
         }
+
+
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
+        {
+            foreach (var item in items.Values)
+            {
+                if (item is IAsyncDisposable asyncDisposable)
+                    await asyncDisposable.DisposeAsync();
+            }
+        }
+
 
 
         /// <inheritdoc />

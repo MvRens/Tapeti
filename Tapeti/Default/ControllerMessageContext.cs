@@ -1,4 +1,5 @@
-﻿using Tapeti.Config;
+﻿using System.Threading.Tasks;
+using Tapeti.Config;
 
 namespace Tapeti.Default
 {
@@ -41,7 +42,17 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public void Dispose()
         {
+            // Do not call decoratedContext.Dispose - by design
         }
+
+
+        /// <inheritdoc />
+        public ValueTask DisposeAsync()
+        {
+            // Do not call decoratedContext.DisposeAsync - by design
+            return default;
+        }
+
 
 
         /// <inheritdoc />

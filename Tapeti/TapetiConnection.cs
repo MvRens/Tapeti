@@ -30,6 +30,8 @@ namespace Tapeti
         private readonly Lazy<ITapetiClient> client;
         private TapetiSubscriber subscriber;
 
+        private bool disposed;
+
         /// <summary>
         /// Creates a new instance of a TapetiConnection and registers a default IPublisher
         /// in the IoC container as provided in the config.
@@ -97,10 +99,24 @@ namespace Tapeti
         /// <inheritdoc />
         public void Dispose()
         {
-            Close().Wait();
-
-            subscriber?.Dispose();
+            if (!disposed)
+                DisposeAsync().GetAwaiter().GetResult();
         }
+
+
+        /// <inheritdoc />
+        public async ValueTask DisposeAsync()
+        {
+            if (disposed)
+                return;
+
+            if (subscriber != null)
+                await subscriber.DisposeAsync();
+
+            await Close();
+            disposed = true;
+        }
+
 
 
         private class ConnectionEventListener: IConnectionEventListener
