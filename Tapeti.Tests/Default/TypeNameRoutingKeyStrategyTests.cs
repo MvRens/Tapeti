@@ -1,4 +1,6 @@
 ﻿using System;
+using FluentAssertions;
+using Tapeti.Annotations;
 using Tapeti.Default;
 using Xunit;
 
@@ -60,13 +62,54 @@ namespace Tapeti.Tests.Default
             AssertRoutingKey("acr.test.mixed.case", typeof(ACRTestMIXEDCaseMESSAGE));
         }
 
+
+        [RoutingKey(Prefix = "prefix.")]
+        private class PrefixAttributeTestMessage { }
+
+        [Fact]
+        public void Prefix()
+        {
+            AssertRoutingKey("prefix.prefix.attribute.test", typeof(PrefixAttributeTestMessage));
+        }
+
+
+        [RoutingKey(Postfix = ".postfix")]
+        private class PostfixAttributeTestMessage { }
+
+        [Fact]
+        public void Postfix()
+        {
+            AssertRoutingKey("postfix.attribute.test.postfix", typeof(PostfixAttributeTestMessage));
+        }
+
+
+
+        [RoutingKey(Prefix = "prefix.", Postfix = ".postfix")]
+        private class PrefixPostfixAttributeTestMessage { }
+
+        [Fact]
+        public void PrefixPostfix()
+        {
+            AssertRoutingKey("prefix.prefix.postfix.attribute.test.postfix", typeof(PrefixPostfixAttributeTestMessage));
+        }
+
+
+        [RoutingKey(Full = "andnowforsomethingcompletelydifferent", Prefix = "ignore.", Postfix = ".me")]
+        private class FullAttributeTestMessage { }
+
+        [Fact]
+        public void Full()
+        {
+            AssertRoutingKey("andnowforsomethingcompletelydifferent", typeof(FullAttributeTestMessage));
+        }
+
+
+
         // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
         private static void AssertRoutingKey(string expected, Type messageType)
         {
-            if (expected == null) throw new ArgumentNullException(nameof(expected));
-            if (messageType == null) throw new ArgumentNullException(nameof(messageType));
-
-            Assert.Equal(expected, new TypeNameRoutingKeyStrategy().GetRoutingKey(messageType));
+            var routingKey = new TypeNameRoutingKeyStrategy().GetRoutingKey(messageType);
+            routingKey.Should().Be(expected);
         }
     }
     // ReSharper restore InconsistentNaming

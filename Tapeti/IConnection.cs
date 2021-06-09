@@ -47,11 +47,10 @@ namespace Tapeti
     public delegate void DisconnectedEventHandler(object sender, DisconnectedEventArgs e);
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Represents a connection to a RabbitMQ server
     /// </summary>
-    public interface IConnection : IDisposable
+    public interface IConnection : IAsyncDisposable, IDisposable
     {
         /// <summary>
         /// Creates a subscriber to consume messages from the bound queues.
