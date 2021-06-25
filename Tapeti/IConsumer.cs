@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Tapeti.Config;
 
 namespace Tapeti
@@ -17,6 +16,6 @@ namespace Tapeti
         /// <param name="properties">Metadata included in the message</param>
         /// <param name="body">The raw body of the message</param>
         /// <returns></returns>
-        Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, ReadOnlyMemory<byte> body);
+        Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body);
     }
 }

@@ -39,12 +39,12 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, ReadOnlyMemory<byte> body)
+        public async Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body)
         {
             object message = null;
             try
             {
-                message = messageSerializer.Deserialize(body.ToArray(), properties);
+                message = messageSerializer.Deserialize(body, properties);
                 if (message == null)
                     throw new ArgumentException("Message body could not be deserialized into a message object", nameof(body));
 

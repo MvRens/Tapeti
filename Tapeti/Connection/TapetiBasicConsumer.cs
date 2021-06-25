@@ -9,7 +9,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
     /// </summary>
-    internal class TapetiBasicConsumer : AsyncDefaultBasicConsumer
+    internal class TapetiBasicConsumer : DefaultBasicConsumer
     {
         private readonly IConsumer consumer;
         private readonly Func<ulong, ConsumeResult, Task> onRespond;
@@ -24,7 +24,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public override async Task HandleBasicDeliver(string consumerTag,
+        public override void HandleBasicDeliver(string consumerTag,
             ulong deliveryTag,
             bool redelivered,
             string exchange,
@@ -32,15 +32,18 @@ namespace Tapeti.Connection
             IBasicProperties properties,
             ReadOnlyMemory<byte> body)
         {
-            try
+            Task.Run(async () =>
             {
-                var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), body);
-                await onRespond(deliveryTag, response);
-            }
-            catch
-            {
-                await onRespond(deliveryTag, ConsumeResult.Error);
-            }
+                try
+                {
+                    var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), body.ToArray());
+                    await onRespond(deliveryTag, response);
+                }
+                catch
+                {
+                    await onRespond(deliveryTag, ConsumeResult.Error);
+                }
+            });
         }
     }
 }
