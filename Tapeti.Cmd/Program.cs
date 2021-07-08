@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -153,7 +154,7 @@ namespace Tapeti.Cmd
         [Verb("removequeue", HelpText = "Removes a durable queue.")]
         public class RemoveQueueOptions : CommonOptions
         {
-            [Option('q', "queue", Required = true, HelpText = "The name of the queue to declare.")]
+            [Option('q', "queue", Required = true, HelpText = "The name of the queue to remove.")]
             public string QueueName { get; set; }
             
             [Option("confirm", HelpText = "Confirms the removal of the specified queue. If not provided, an interactive prompt will ask for confirmation.", Default = false)]
@@ -164,10 +165,32 @@ namespace Tapeti.Cmd
         }
 
 
+        [Verb("bindqueue", HelpText = "Add a binding to a queue.")]
+        public class BindQueueOptions : CommonOptions
+        {
+            [Option('q', "queue", Required = true, HelpText = "The name of the queue to add the binding(s) to.")]
+            public string QueueName { get; set; }
+
+            [Option('b', "bindings", Required = false, HelpText = "One or more bindings to add to the queue. Format: <exchange>:<routingKey>")]
+            public IEnumerable<string> Bindings { get; set; }
+        }
+
+
+        [Verb("unbindqueue", HelpText = "Remove a binding from a queue.")]
+        public class UnbindQueueOptions : CommonOptions
+        {
+            [Option('q', "queue", Required = true, HelpText = "The name of the queue to remove the binding(s) from.")]
+            public string QueueName { get; set; }
+
+            [Option('b', "bindings", Required = false, HelpText = "One or more bindings to remove from the queue. Format: <exchange>:<routingKey>")]
+            public IEnumerable<string> Bindings { get; set; }
+        }
+
 
         public static int Main(string[] args)
         {
-            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions, PurgeOptions, ExampleOptions, DeclareQueueOptions, RemoveQueueOptions>(args)
+            return Parser.Default.ParseArguments<ExportOptions, ImportOptions, ShovelOptions, PurgeOptions, ExampleOptions, 
+                    DeclareQueueOptions, RemoveQueueOptions, BindQueueOptions, UnbindQueueOptions>(args)
                 .MapResult(
                     (ExportOptions o) => ExecuteVerb(o, RunExport),
                     (ImportOptions o) => ExecuteVerb(o, RunImport),
@@ -176,6 +199,8 @@ namespace Tapeti.Cmd
                     (PurgeOptions o) => ExecuteVerb(o, RunPurge),
                     (DeclareQueueOptions o) => ExecuteVerb(o, RunDeclareQueue),
                     (RemoveQueueOptions o) => ExecuteVerb(o, RunRemoveQueue),
+                    (BindQueueOptions o) => ExecuteVerb(o, RunBindQueue),
+                    (UnbindQueueOptions o) => ExecuteVerb(o, RunUnbindQueue),
                     errs =>
                     {
                         if (!Debugger.IsAttached) 
@@ -465,16 +490,7 @@ namespace Tapeti.Cmd
         private static void RunDeclareQueue(DeclareQueueOptions options)
         {
             // Parse early to fail early
-            var bindings = options.Bindings
-                .Select(b =>
-                {
-                    var parts = b.Split(':');
-                    if (parts.Length != 2)
-                        throw new InvalidOperationException($"Invalid binding format: {b}");
-
-                    return new Tuple<string, string>(parts[0], parts[1]);
-                })
-                .ToArray();
+            var bindings = ParseBindings(options.Bindings);
             
             using (var connection = GetConnection(options))
             using (var channel = connection.CreateModel())
@@ -536,6 +552,52 @@ namespace Tapeti.Cmd
             Console.WriteLine(messageCount == 0 
                 ? $"Empty or non-existent queue '{options.QueueName}' removed." 
                 : $"{messageCount} message{(messageCount != 1 ? "s" : "")} purged while removing '{options.QueueName}'.");
+        }
+
+
+        private static void RunBindQueue(BindQueueOptions options)
+        {
+            var bindings = ParseBindings(options.Bindings);
+
+            using (var connection = GetConnection(options))
+            using (var channel = connection.CreateModel())
+            {
+                foreach (var (exchange, routingKey) in bindings)
+                    channel.QueueBind(options.QueueName, exchange, routingKey);
+            }
+
+            Console.WriteLine($"{bindings.Length} binding{(bindings.Length != 1 ? "s" : "")} added to queue {options.QueueName}.");
+        }
+
+
+        private static void RunUnbindQueue(UnbindQueueOptions options)
+        {
+            var bindings = ParseBindings(options.Bindings);
+
+            using (var connection = GetConnection(options))
+            using (var channel = connection.CreateModel())
+            {
+                foreach (var (exchange, routingKey) in bindings)
+                    channel.QueueUnbind(options.QueueName, exchange, routingKey);
+            }
+
+            Console.WriteLine($"{bindings.Length} binding{(bindings.Length != 1 ? "s" : "")} removed from queue {options.QueueName}.");
+        }
+
+
+
+        private static Tuple<string, string>[] ParseBindings(IEnumerable<string> bindings)
+        {
+            return bindings
+                .Select(b =>
+                {
+                    var parts = b.Split(':');
+                    if (parts.Length != 2)
+                        throw new InvalidOperationException($"Invalid binding format: {b}");
+
+                    return new Tuple<string, string>(parts[0], parts[1]);
+                })
+                .ToArray();
         }
     }
 }
