@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace Tapeti.Flow.FlowHelpers
 {
@@ -14,6 +16,36 @@ namespace Tapeti.Flow.FlowHelpers
         public static string Serialize(MethodInfo method)
         {
             return method.Name + '@' + method.DeclaringType?.Assembly.GetName().Name + ':' + method.DeclaringType?.FullName;
+        }
+
+
+        private static readonly Regex DeserializeRegex = new Regex("^(?<method>.+?)@(?<assembly>.+?):(?<type>.+?)$");
+
+        
+        /// <summary>
+        /// Deserializes the serialized method representation back into it's MethodInfo, or null if not found.
+        /// </summary>
+        /// <param name="serializedMethod"></param>
+        public static MethodInfo Deserialize(string serializedMethod)
+        {
+            var match = DeserializeRegex.Match(serializedMethod);
+            if (!match.Success)
+                return null;
+
+            Assembly assembly;
+            try
+            {
+                assembly = Assembly.Load(match.Groups["assembly"].Value);
+                if (assembly == null)
+                    return null;
+            }
+            catch
+            {
+                return null;
+            }
+
+            var declaringType = assembly.GetType(match.Groups["type"].Value);
+            return declaringType?.GetMethod(match.Groups["method"].Value);
         }
     }
 }

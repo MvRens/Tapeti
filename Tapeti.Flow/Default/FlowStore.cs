@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Tapeti.Config;
 using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
@@ -28,8 +30,10 @@ namespace Tapeti.Flow.Default
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new ConcurrentDictionary<Guid, CachedFlowState>();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
         private readonly LockCollection<Guid> locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
+        private HashSet<string> validatedMethods = null;
 
         private readonly IFlowRepository repository;
+        private readonly ITapetiConfig config;
 
         private volatile bool inUse;
         private volatile bool loaded;
@@ -37,9 +41,10 @@ namespace Tapeti.Flow.Default
 
         /// <summary>
         /// </summary>
-        public FlowStore(IFlowRepository repository) 
+        public FlowStore(IFlowRepository repository, ITapetiConfig config)
         {
             this.repository = repository;
+            this.config = config;
         }
 
 
@@ -54,15 +59,54 @@ namespace Tapeti.Flow.Default
             flowStates.Clear();
             continuationLookup.Clear();
 
-            foreach (var flowStateRecord in await repository.GetStates<FlowState>())
+            validatedMethods = new HashSet<string>();
+            try
             {
-                flowStates.TryAdd(flowStateRecord.Key, new CachedFlowState(flowStateRecord.Value, true));
+                foreach (var flowStateRecord in await repository.GetStates<FlowState>())
+                {
+                    flowStates.TryAdd(flowStateRecord.Key, new CachedFlowState(flowStateRecord.Value, true));
 
-                foreach (var continuation in flowStateRecord.Value.Continuations)
-                    continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
+                    foreach (var continuation in flowStateRecord.Value.Continuations)
+                    {
+                        ValidateContinuation(flowStateRecord.Key, continuation.Key, continuation.Value);
+                        continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
+                    }
+                }
+            }
+            finally
+            {
+                validatedMethods = null;
             }
 
             loaded = true;
+        }
+        
+
+        private void ValidateContinuation(Guid flowId, Guid continuationId, ContinuationMetadata metadata)
+        {
+            // We could check all the things that are required for a continuation or converge method, but this should suffice
+            // for the common scenario where you change code without realizing that it's signature has been persisted
+            if (validatedMethods.Add(metadata.MethodName))
+            {
+                var methodInfo = MethodSerializer.Deserialize(metadata.MethodName);
+                if (methodInfo == null)
+                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer exists (continuation Id = {continuationId})");
+
+                var binding = config.Bindings.ForMethod(methodInfo);
+                if (binding == null)
+                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
+            }
+
+            if (string.IsNullOrEmpty(metadata.ConvergeMethodName) || !validatedMethods.Add(metadata.ConvergeMethodName))
+                return;
+            
+            var convergeMethodInfo = MethodSerializer.Deserialize(metadata.ConvergeMethodName);
+            if (convergeMethodInfo == null)
+                throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer exists (continuation Id = {continuationId})");
+
+            var convergeBinding = config.Bindings.ForMethod(convergeMethodInfo);
+            if (convergeBinding == null)
+                throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
         }
 
 
