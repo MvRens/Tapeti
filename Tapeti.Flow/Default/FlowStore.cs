@@ -104,9 +104,7 @@ namespace Tapeti.Flow.Default
             if (convergeMethodInfo == null)
                 throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer exists (continuation Id = {continuationId})");
 
-            var convergeBinding = config.Bindings.ForMethod(convergeMethodInfo);
-            if (convergeBinding == null)
-                throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
+            // Converge methods are not message handlers themselves
         }
 
 
