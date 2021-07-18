@@ -72,14 +72,16 @@ namespace _07_ParallelizationTest
 
 
             var publisher = dependencyResolver.Resolve<IPublisher>();
-            Console.WriteLine($"Publishing {MessageCount * RepeatBatch} messages...");
+            Console.WriteLine($"Publishing first {MessageCount} of {MessageCount * RepeatBatch} messages...");
 
-            await PublishMessages(publisher, MessageCount * RepeatBatch);
+            await PublishMessages(publisher, MessageCount);
 
 
-
-            Console.WriteLine("Consuming messages...");
+            Console.WriteLine("Consuming messages while publishing the rest...");
             await subscriber.Resume();
+
+            await PublishMessages(publisher, MessageCount * (RepeatBatch - 1));
+
             await waitForDone();
         }
 

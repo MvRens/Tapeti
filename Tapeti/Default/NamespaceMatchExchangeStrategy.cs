@@ -13,7 +13,7 @@ namespace Tapeti.Default
     /// </example>
     public class NamespaceMatchExchangeStrategy : IExchangeStrategy
     {
-        private static readonly Regex NamespaceRegex = new Regex("^(Messaging\\.)?(?<exchange>[^\\.]+)", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex NamespaceRegex = new("^(Messaging\\.)?(?<exchange>[^\\.]+)", RegexOptions.Compiled | RegexOptions.Singleline);
 
 
         /// <inheritdoc />

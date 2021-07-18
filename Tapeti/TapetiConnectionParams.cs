@@ -60,7 +60,7 @@ namespace Tapeti
         /// will be overwritten. See DefaultClientProperties in Connection.cs in the RabbitMQ .NET client source for the default values.
         /// </remarks>
         public IDictionary<string, string> ClientProperties { 
-            get => clientProperties ?? (clientProperties = new Dictionary<string, string>());
+            get => clientProperties ??= new Dictionary<string, string>();
             set => clientProperties = value;
         }
 

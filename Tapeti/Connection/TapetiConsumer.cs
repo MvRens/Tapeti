@@ -57,7 +57,7 @@ namespace Tapeti.Connection
             }
             catch (Exception dispatchException)
             {
-                using (var emptyContext = new MessageContext
+                await using var emptyContext = new MessageContext
                 {
                     Config = config,
                     Queue = queueName,
@@ -66,12 +66,11 @@ namespace Tapeti.Connection
                     Message = message,
                     Properties = properties,
                     Binding = null
-                })
-                {
-                    var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
-                    HandleException(exceptionContext);
-                    return exceptionContext.ConsumeResult;
-                }
+                };
+                
+                var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
+                HandleException(exceptionContext);
+                return exceptionContext.ConsumeResult;
             }
         }
 
@@ -100,7 +99,7 @@ namespace Tapeti.Connection
 
         private async Task<ConsumeResult> InvokeUsingBinding(object message, MessageContextData messageContextData, IBinding binding)
         {
-            using (var context = new MessageContext
+            await using var context = new MessageContext
             {
                 Config = config,
                 Queue = queueName,
@@ -109,25 +108,24 @@ namespace Tapeti.Connection
                 Message = message,
                 Properties = messageContextData.Properties,
                 Binding = binding
-            })
+            };
+            
+            try
             {
-                try
-                {
-                    await MiddlewareHelper.GoAsync(config.Middleware.Message,
-                        async (handler, next) => await handler.Handle(context, next),
-                        async () => { await binding.Invoke(context); });
+                await MiddlewareHelper.GoAsync(config.Middleware.Message,
+                    async (handler, next) => await handler.Handle(context, next),
+                    async () => { await binding.Invoke(context); });
 
-                    await binding.Cleanup(context, ConsumeResult.Success);
-                    return ConsumeResult.Success;
-                }
-                catch (Exception invokeException)
-                {
-                    var exceptionContext = new ExceptionStrategyContext(context, invokeException);
-                    HandleException(exceptionContext);
+                await binding.Cleanup(context, ConsumeResult.Success);
+                return ConsumeResult.Success;
+            }
+            catch (Exception invokeException)
+            {
+                var exceptionContext = new ExceptionStrategyContext(context, invokeException);
+                HandleException(exceptionContext);
 
-                    await binding.Cleanup(context, exceptionContext.ConsumeResult);
-                    return exceptionContext.ConsumeResult;
-                }
+                await binding.Cleanup(context, exceptionContext.ConsumeResult);
+                return exceptionContext.ConsumeResult;
             }
         }
 
@@ -158,18 +156,12 @@ namespace Tapeti.Connection
 
         private static bool IgnoreExceptionDuringShutdown(Exception e)
         {
-            switch (e)
+            return e switch
             {
-                case AggregateException aggregateException:
-                    return aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown);
-
-                case TaskCanceledException _:
-                case OperationCanceledException _:  // thrown by CancellationTokenSource.ThrowIfCancellationRequested
-                    return true;
-
-                default:
-                    return e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException);
-            }
+                AggregateException aggregateException => aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown),
+                TaskCanceledException or OperationCanceledException => true,
+                _ => e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException)
+            };
         }
 
 

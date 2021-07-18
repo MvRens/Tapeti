@@ -13,10 +13,16 @@ using RabbitMQ.Client.Exceptions;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Exceptions;
-using Tapeti.Tasks;
 
 namespace Tapeti.Connection
 {
+    internal enum TapetiChannelType
+    {
+        Consume,
+        Publish
+    }
+    
+    
     /// <inheritdoc />
     /// <summary>
     /// Implementation of ITapetiClient for the RabbitMQ Client library
@@ -39,23 +45,27 @@ namespace Tapeti.Connection
         public IConnectionEventListener ConnectionEventListener { get; set; }
 
 
-        private readonly Lazy<SingleThreadTaskQueue> taskQueue = new Lazy<SingleThreadTaskQueue>();
+        private readonly TapetiChannel consumeChannel;
+        private readonly TapetiChannel publishChannel;
+        private readonly HttpClient managementClient;
 
-        
-        // These fields are for use in the taskQueue only!
+        // These fields must be locked using connectionLock
+        private readonly object connectionLock = new();
         private RabbitMQ.Client.IConnection connection;
+        private IModel consumeChannelModel;
+        private IModel publishChannelModel;
         private bool isClosing;
         private bool isReconnect;
-        private IModel channelInstance;
-        private ulong lastDeliveryTag;
         private DateTime connectedDateTime;
-        private readonly HttpClient managementClient;
-        private readonly HashSet<string> deletedQueues = new HashSet<string>();
 
-        // These fields must be locked, since the callbacks for BasicAck/BasicReturn can run in a different thread
-        private readonly object confirmLock = new object();
-        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new Dictionary<ulong, ConfirmMessageInfo>();
-        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new Dictionary<string, ReturnInfo>();
+        // These fields are for use in a single TapetiChannel's queue only!
+        private ulong lastDeliveryTag;
+        private readonly HashSet<string> deletedQueues = new();
+
+        // These fields must be locked using confirmLock, since the callbacks for BasicAck/BasicReturn can run in a different thread
+        private readonly object confirmLock = new();
+        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new();
+        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new();
 
 
         private class ConfirmMessageInfo
@@ -79,6 +89,9 @@ namespace Tapeti.Connection
 
             logger = config.DependencyResolver.Resolve<ILogger>();
 
+            consumeChannel = new TapetiChannel(() => GetModel(TapetiChannelType.Consume));
+            publishChannel = new TapetiChannel(() => GetModel(TapetiChannelType.Publish));
+
 
             var handler = new HttpClientHandler
             {
@@ -100,7 +113,8 @@ namespace Tapeti.Connection
             if (string.IsNullOrEmpty(routingKey))
                 throw new ArgumentNullException(nameof(routingKey));
 
-            await taskQueue.Value.Add(async () =>
+
+            await GetTapetiChannel(TapetiChannelType.Publish).QueueWithProvider(async channelProvider =>
             {
                 Task<int> publishResultTask = null;
                 var messageInfo = new ConfirmMessageInfo
@@ -110,7 +124,7 @@ namespace Tapeti.Connection
                 };
 
 
-                WithRetryableChannel(channel =>
+                channelProvider.WithRetryableChannel(channel =>
                 {
                     DeclareExchange(channel, exchange);
 
@@ -169,15 +183,18 @@ namespace Tapeti.Connection
 
                 var replyCode = publishResultTask.Result;
 
-                // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
-                // at the time of writing...
-                if (replyCode == 312)
-                    throw new NoRouteException(
-                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
-
-                if (replyCode > 0)
-                    throw new NoRouteException(
-                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
+                switch (replyCode)
+                {
+                    // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                    // at the time of writing...
+                    case 312:
+                        throw new NoRouteException(
+                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
+                    
+                    case > 0:
+                        throw new NoRouteException(
+                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
+                }
             });
         }
 
@@ -194,7 +211,7 @@ namespace Tapeti.Connection
 
             string consumerTag = null;
 
-            await QueueWithRetryableChannel(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).QueueRetryable(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -215,7 +232,7 @@ namespace Tapeti.Connection
 
             // No need for a retryable channel here, if the connection is lost
             // so is the consumer.
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 channel.BasicCancel(consumerTag);
             });
@@ -224,7 +241,7 @@ namespace Tapeti.Connection
 
         private async Task Respond(ulong deliveryTag, ConsumeResult result)
         {
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 // No need for a retryable channel here, if the connection is lost we can't
                 // use the deliveryTag anymore.
@@ -257,7 +274,7 @@ namespace Tapeti.Connection
             var currentBindings = bindings.ToList();
             var bindingLogger = logger as IBindingLogger;
 
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -284,7 +301,7 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DurableQueueVerify(CancellationToken cancellationToken, string queueName)
         {
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -302,7 +319,7 @@ namespace Tapeti.Connection
             {
                 uint deletedMessages = 0;
 
-                await Queue(channel =>
+                await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
                 {
                     if (cancellationToken.IsCancellationRequested)
                         return;
@@ -316,7 +333,7 @@ namespace Tapeti.Connection
             }
 
 
-            await taskQueue.Value.Add(async () =>
+            await GetTapetiChannel(TapetiChannelType.Consume).QueueWithProvider(async channelProvider =>
             {
                 bool retry;
                 do
@@ -343,8 +360,10 @@ namespace Tapeti.Connection
                         // includes the GetQueueInfo, the next time around it should have Messages > 0
                         try
                         {
-                            var channel = GetChannel();
-                            channel.QueueDelete(queueName, false, true);
+                            channelProvider.WithChannel(channel =>
+                            {
+                                channel.QueueDelete(queueName, false, true);
+                            });
 
                             deletedQueues.Add(queueName);
                             (logger as IBindingLogger)?.QueueObsolete(queueName, true, 0);
@@ -364,10 +383,11 @@ namespace Tapeti.Connection
 
                         if (existingBindings.Count > 0)
                         {
-                            var channel = GetChannel();
-
-                            foreach (var binding in existingBindings)
-                                channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
+                            channelProvider.WithChannel(channel =>
+                            {
+                                foreach (var binding in existingBindings)
+                                    channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
+                            });
                         }
 
                         (logger as IBindingLogger)?.QueueObsolete(queueName, false, queueInfo.Messages);
@@ -383,7 +403,7 @@ namespace Tapeti.Connection
             string queueName = null;
             var bindingLogger = logger as IBindingLogger;
 
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -407,7 +427,7 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DynamicQueueBind(CancellationToken cancellationToken, string queueName, QueueBinding binding)
         {
-            await Queue(channel =>
+            await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -422,32 +442,46 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task Close()
         {
-            if (!taskQueue.IsValueCreated)
-                return;
+            IModel capturedConsumeModel;
+            IModel capturedPublishModel;
+            RabbitMQ.Client.IConnection capturedConnection;
 
-            await taskQueue.Value.Add(() =>
+            lock (connectionLock)
             {
                 isClosing = true;
+                capturedConsumeModel = consumeChannelModel;
+                capturedPublishModel = publishChannelModel;
+                capturedConnection = connection;
 
-                if (channelInstance != null)
+                consumeChannelModel = null;
+                publishChannelModel = null;
+                connection = null;
+            }
+
+            // Empty the queue
+            await consumeChannel.Reset();
+            await publishChannel.Reset();
+
+            // No need to close the channels as the connection will be closed
+            capturedConsumeModel.Dispose();
+            capturedPublishModel.Dispose();
+
+            // ReSharper disable once InvertIf
+            if (capturedConnection != null)
+            {
+                try
                 {
-                    channelInstance.Dispose();
-                    channelInstance = null;
+                    capturedConnection.Close();
                 }
-
-                // ReSharper disable once InvertIf
-                if (connection != null)
+                finally
                 {
-                    connection.Dispose();
-                    connection = null;
+                    capturedConnection.Dispose();
                 }
-
-                taskQueue.Value.Dispose();
-            });
+            }
         }
 
 
-        private static readonly List<HttpStatusCode> TransientStatusCodes = new List<HttpStatusCode>
+        private static readonly List<HttpStatusCode> TransientStatusCodes = new()
         {
             HttpStatusCode.GatewayTimeout,
             HttpStatusCode.RequestTimeout,
@@ -545,39 +579,37 @@ namespace Tapeti.Connection
         {
             var requestUri = new Uri($"http://{connectionParams.HostName}:{connectionParams.ManagementPort}/api/{path}");
 
-            using (var request = new HttpRequestMessage(HttpMethod.Get, requestUri))
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+            var retryDelayIndex = 0;
+
+            while (true)
             {
-                var retryDelayIndex = 0;
-
-                while (true)
+                try
                 {
-                    try
-                    {
-                        var response = await managementClient.SendAsync(request);
-                        return await handleResponse(response);
-                    }
-                    catch (TimeoutException)
-                    {
-                    }
-                    catch (WebException e)
-                    {
-                        if (!(e.Response is HttpWebResponse response))
-                            throw;
-
-                        if (!TransientStatusCodes.Contains(response.StatusCode))
-                            throw;
-                    }
-
-                    await Task.Delay(ExponentialBackoff[retryDelayIndex]);
-
-                    if (retryDelayIndex < ExponentialBackoff.Length - 1)
-                        retryDelayIndex++;
+                    var response = await managementClient.SendAsync(request);
+                    return await handleResponse(response);
                 }
+                catch (TimeoutException)
+                {
+                }
+                catch (WebException e)
+                {
+                    if (!(e.Response is HttpWebResponse response))
+                        throw;
+
+                    if (!TransientStatusCodes.Contains(response.StatusCode))
+                        throw;
+                }
+
+                await Task.Delay(ExponentialBackoff[retryDelayIndex]);
+
+                if (retryDelayIndex < ExponentialBackoff.Length - 1)
+                    retryDelayIndex++;
             }
         }
 
 
-        private readonly HashSet<string> declaredExchanges = new HashSet<string>();
+        private readonly HashSet<string> declaredExchanges = new();
 
         private void DeclareExchange(IModel channel, string exchange)
         {
@@ -593,163 +625,182 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task Queue(Action<IModel> operation)
+        private TapetiChannel GetTapetiChannel(TapetiChannelType channelType)
         {
-            await taskQueue.Value.Add(() =>
-            {
-                var channel = GetChannel();
-                operation(channel);
-            });
+            return channelType == TapetiChannelType.Publish
+                ? publishChannel
+                : consumeChannel;
         }
 
-
-        private async Task QueueWithRetryableChannel(Action<IModel> operation)
-        {
-            await taskQueue.Value.Add(() =>
-            {
-                WithRetryableChannel(operation);
-            });
-        }
-
-
+        
         /// <remarks>
         /// Only call this from a task in the taskQueue to ensure IModel is only used 
         /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
         /// </remarks>
-        private void WithRetryableChannel(Action<IModel> operation)
+        private IModel GetModel(TapetiChannelType channelType)
         {
-            while (true)
+            lock (connectionLock)
             {
-                try
+                var channel = channelType == TapetiChannelType.Publish
+                    ? publishChannelModel
+                    : consumeChannelModel;
+
+                if (channel != null && channel.IsOpen)
+                    return channel;
+
+                // If the Disconnect quickly follows the Connect (when an error occurs that is reported back by RabbitMQ
+                // not related to the connection), wait for a bit to avoid spamming the connection
+                if ((DateTime.UtcNow - connectedDateTime).TotalMilliseconds <= MinimumConnectedReconnectDelay)
+                    Thread.Sleep(ReconnectDelay);
+
+
+                var connectionFactory = new ConnectionFactory
                 {
-                    operation(GetChannel());
-                    break;
-                }
-                catch (AlreadyClosedException)
-                {
-                }
-            }
-        }
+                    HostName = connectionParams.HostName,
+                    Port = connectionParams.Port,
+                    VirtualHost = connectionParams.VirtualHost,
+                    UserName = connectionParams.Username,
+                    Password = connectionParams.Password,
+                    AutomaticRecoveryEnabled = false,
+                    TopologyRecoveryEnabled = false,
+                    RequestedHeartbeat = TimeSpan.FromSeconds(30)
+                };
 
-
-        /// <remarks>
-        /// Only call this from a task in the taskQueue to ensure IModel is only used 
-        /// by a single thread, as is recommended in the RabbitMQ .NET Client documentation.
-        /// </remarks>
-        private IModel GetChannel()
-        {
-            if (channelInstance != null && channelInstance.IsOpen)
-                return channelInstance;
-
-            // If the Disconnect quickly follows the Connect (when an error occurs that is reported back by RabbitMQ
-            // not related to the connection), wait for a bit to avoid spamming the connection
-            if ((DateTime.UtcNow - connectedDateTime).TotalMilliseconds <= MinimumConnectedReconnectDelay)
-                Thread.Sleep(ReconnectDelay);
-
-
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = connectionParams.HostName,
-                Port = connectionParams.Port,
-                VirtualHost = connectionParams.VirtualHost,
-                UserName = connectionParams.Username,
-                Password = connectionParams.Password,
-                AutomaticRecoveryEnabled = false,
-                TopologyRecoveryEnabled = false,
-                RequestedHeartbeat = TimeSpan.FromSeconds(30)
-            };
-
-            if (connectionParams.ClientProperties != null)
-                foreach (var pair in connectionParams.ClientProperties)
-                {
-                    if (connectionFactory.ClientProperties.ContainsKey(pair.Key))
-                        connectionFactory.ClientProperties[pair.Key] = Encoding.UTF8.GetBytes(pair.Value);
-                    else
-                        connectionFactory.ClientProperties.Add(pair.Key, Encoding.UTF8.GetBytes(pair.Value));
-                }
-
-
-            while (true)
-            {
-                try
-                {
-                    logger.Connect(new ConnectContext(connectionParams, isReconnect));
-
-                    connection = connectionFactory.CreateConnection();
-                    channelInstance = connection.CreateModel();
-
-                    if (channelInstance == null)
-                        throw new BrokerUnreachableException(null);
-
-                    if (config.Features.PublisherConfirms)
+                if (connectionParams.ClientProperties != null)
+                    foreach (var pair in connectionParams.ClientProperties)
                     {
-                        lastDeliveryTag = 0;
-
-                        Monitor.Enter(confirmLock);
-                        try
-                        {
-                            foreach (var pair in confirmMessages)
-                                pair.Value.CompletionSource.SetCanceled();
-
-                            confirmMessages.Clear();
-                        }
-                        finally
-                        {
-                            Monitor.Exit(confirmLock);
-                        }
-
-                        channelInstance.ConfirmSelect();
+                        if (connectionFactory.ClientProperties.ContainsKey(pair.Key))
+                            connectionFactory.ClientProperties[pair.Key] = Encoding.UTF8.GetBytes(pair.Value);
+                        else
+                            connectionFactory.ClientProperties.Add(pair.Key, Encoding.UTF8.GetBytes(pair.Value));
                     }
 
-                    if (connectionParams.PrefetchCount > 0)
-                        channelInstance.BasicQos(0, connectionParams.PrefetchCount, false);
 
-                    channelInstance.ModelShutdown += (sender, e) =>
-                    {
-                        ConnectionEventListener?.Disconnected(new DisconnectedEventArgs
-                        {
-                            ReplyCode = e.ReplyCode,
-                            ReplyText = e.ReplyText
-                        });
-
-                        logger.Disconnect(new DisconnectContext(connectionParams, e.ReplyCode, e.ReplyText));
-
-                        channelInstance = null;
-
-                        if (!isClosing)
-                            taskQueue.Value.Add(() => WithRetryableChannel(channel => { }));
-                    };
-
-                    channelInstance.BasicReturn += HandleBasicReturn;
-                    channelInstance.BasicAcks += HandleBasicAck;
-                    channelInstance.BasicNacks += HandleBasicNack;
-
-                    connectedDateTime = DateTime.UtcNow;
-
-                    var connectedEventArgs = new ConnectedEventArgs
-                    {
-                        ConnectionParams = connectionParams,
-                        LocalPort = connection.LocalPort
-                    };
-
-                    if (isReconnect)
-                        ConnectionEventListener?.Reconnected(connectedEventArgs);
-                    else
-                        ConnectionEventListener?.Connected(connectedEventArgs);
-
-                    logger.ConnectSuccess(new ConnectContext(connectionParams, isReconnect, connection.LocalPort));
-                    isReconnect = true;
-
-                    break;
-                }
-                catch (BrokerUnreachableException e)
+                while (true)
                 {
-                    logger.ConnectFailed(new ConnectContext(connectionParams, isReconnect, exception: e));
-                    Thread.Sleep(ReconnectDelay);
-                }
-            }
+                    try
+                    {
+                        if (connection != null)
+                        {
+                            try
+                            {
+                                connection.Close();
+                            }
+                            finally
+                            {
+                                connection.Dispose();
+                            }
 
-            return channelInstance;
+                            connection = null;
+                        }
+
+                        logger.Connect(new ConnectContext(connectionParams, isReconnect));
+
+                        connection = connectionFactory.CreateConnection();
+                        consumeChannelModel = connection.CreateModel();
+                        if (consumeChannel == null)
+                            throw new BrokerUnreachableException(null);
+
+                        publishChannelModel = connection.CreateModel();
+                        if (publishChannel == null)
+                            throw new BrokerUnreachableException(null);
+
+
+                        if (config.Features.PublisherConfirms)
+                        {
+                            lastDeliveryTag = 0;
+
+                            Monitor.Enter(confirmLock);
+                            try
+                            {
+                                foreach (var pair in confirmMessages)
+                                    pair.Value.CompletionSource.SetCanceled();
+
+                                confirmMessages.Clear();
+                            }
+                            finally
+                            {
+                                Monitor.Exit(confirmLock);
+                            }
+
+                            publishChannelModel.ConfirmSelect();
+                        }
+
+                        if (connectionParams.PrefetchCount > 0)
+                            consumeChannelModel.BasicQos(0, connectionParams.PrefetchCount, false);
+
+                        var capturedConsumeChannelModel = consumeChannelModel;
+                        consumeChannelModel.ModelShutdown += (_, e) =>
+                        {
+                            lock (connectionLock)
+                            {
+                                if (consumeChannelModel == null || consumeChannelModel != capturedConsumeChannelModel)
+                                    return;
+
+                                consumeChannelModel = null;
+                            }
+
+                            ConnectionEventListener?.Disconnected(new DisconnectedEventArgs
+                            {
+                                ReplyCode = e.ReplyCode,
+                                ReplyText = e.ReplyText
+                            });
+
+                            logger.Disconnect(new DisconnectContext(connectionParams, e.ReplyCode, e.ReplyText));
+
+                            // Reconnect if the disconnect was unexpected
+                            if (!isClosing)
+                                GetTapetiChannel(TapetiChannelType.Consume).QueueRetryable(_ => { });
+                        };
+
+                        var capturedPublishChannelModel = publishChannelModel;
+                        publishChannelModel.ModelShutdown += (_, _) =>
+                        {
+                            lock (connectionLock)
+                            {
+                                if (publishChannelModel == null || publishChannelModel != capturedPublishChannelModel)
+                                    return;
+
+                                publishChannelModel = null;
+                            }
+
+                            // No need to reconnect, the next Publish will
+                        };
+
+
+                        publishChannelModel.BasicReturn += HandleBasicReturn;
+                        publishChannelModel.BasicAcks += HandleBasicAck;
+                        publishChannelModel.BasicNacks += HandleBasicNack;
+
+                        connectedDateTime = DateTime.UtcNow;
+
+                        var connectedEventArgs = new ConnectedEventArgs
+                        {
+                            ConnectionParams = connectionParams,
+                            LocalPort = connection.LocalPort
+                        };
+
+                        if (isReconnect)
+                            ConnectionEventListener?.Reconnected(connectedEventArgs);
+                        else
+                            ConnectionEventListener?.Connected(connectedEventArgs);
+
+                        logger.ConnectSuccess(new ConnectContext(connectionParams, isReconnect, connection.LocalPort));
+                        isReconnect = true;
+
+                        break;
+                    }
+                    catch (BrokerUnreachableException e)
+                    {
+                        logger.ConnectFailed(new ConnectContext(connectionParams, isReconnect, exception: e));
+                        Thread.Sleep(ReconnectDelay);
+                    }
+                }
+                
+                return channelType == TapetiChannelType.Publish
+                    ? publishChannelModel
+                    : consumeChannelModel;
+            }
         }
 
 

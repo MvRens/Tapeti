@@ -160,37 +160,35 @@ namespace Tapeti.Default
         public async Task Invoke(IMessageContext context)
         {
             var controller = dependencyResolver.Resolve(bindingInfo.ControllerType);
-            
-            using (var controllerContext = new ControllerMessageContext(context)
+
+            await using var controllerContext = new ControllerMessageContext(context)
             {
                 Controller = controller
-            })
-            {
-                if (!await FilterAllowed(controllerContext))
-                    return;
+            };
+            
+            if (!await FilterAllowed(controllerContext))
+                return;
 
 
-                await MiddlewareHelper.GoAsync(
-                    bindingInfo.MessageMiddleware,
-                    async (handler, next) => await handler.Handle(controllerContext, next),
-                    async () => await messageHandler(controllerContext));
-            }
+            await MiddlewareHelper.GoAsync(
+                bindingInfo.MessageMiddleware,
+                async (handler, next) => await handler.Handle(controllerContext, next),
+                async () => await messageHandler(controllerContext));
         }
 
 
         /// <inheritdoc />
         public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            using (var controllerContext = new ControllerMessageContext(context)
+            await using var controllerContext = new ControllerMessageContext(context)
             {
                 Controller = null
-            })
-            {
-                await MiddlewareHelper.GoAsync(
-                    bindingInfo.CleanupMiddleware,
-                    async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
-                    () => Task.CompletedTask);
-            }
+            };
+            
+            await MiddlewareHelper.GoAsync(
+                bindingInfo.CleanupMiddleware,
+                async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
+                () => Task.CompletedTask);
         }
 
 

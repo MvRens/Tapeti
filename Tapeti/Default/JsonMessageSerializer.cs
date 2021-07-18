@@ -16,8 +16,8 @@ namespace Tapeti.Default
         private const string ClassTypeHeader = "classType";
 
 
-        private readonly ConcurrentDictionary<string, Type> deserializedTypeNames = new ConcurrentDictionary<string, Type>();
-        private readonly ConcurrentDictionary<Type, string> serializedTypeNames = new ConcurrentDictionary<Type, string>();
+        private readonly ConcurrentDictionary<string, Type> deserializedTypeNames = new();
+        private readonly ConcurrentDictionary<Type, string> serializedTypeNames = new();
         private readonly JsonSerializerSettings serializerSettings;
 
 

@@ -13,7 +13,7 @@ namespace Tapeti.Connection
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
-        private readonly List<string> consumerTags = new List<string>();
+        private readonly List<string> consumerTags = new();
 
         private CancellationTokenSource initializeCancellationTokenSource;
 
@@ -166,7 +166,7 @@ namespace Tapeti.Connection
                 public List<Type> MessageClasses;
             }
 
-            private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new Dictionary<string, List<DynamicQueueInfo>>();
+            private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new();
 
 
             protected CustomBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken)
@@ -277,8 +277,8 @@ namespace Tapeti.Connection
 
         private class DeclareDurableQueuesBindingTarget : CustomBindingTarget
         {
-            private readonly Dictionary<string, List<Type>> durableQueues = new Dictionary<string, List<Type>>();
-            private readonly HashSet<string> obsoleteDurableQueues = new HashSet<string>();
+            private readonly Dictionary<string, List<Type>> durableQueues = new();
+            private readonly HashSet<string> obsoleteDurableQueues = new();
 
 
             public DeclareDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
@@ -358,7 +358,7 @@ namespace Tapeti.Connection
 
         private class PassiveDurableQueuesBindingTarget : CustomBindingTarget
         {
-            private readonly List<string> durableQueues = new List<string>();
+            private readonly List<string> durableQueues = new();
 
 
             public PassiveDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)

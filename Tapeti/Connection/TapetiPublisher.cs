@@ -118,9 +118,7 @@ namespace Tapeti.Connection
         {
             var writableProperties = new MessageProperties(properties);
 
-            if (!writableProperties.Timestamp.HasValue)
-                writableProperties.Timestamp = DateTime.UtcNow;
-
+            writableProperties.Timestamp ??= DateTime.UtcNow;
             writableProperties.Persistent = true;
 
 

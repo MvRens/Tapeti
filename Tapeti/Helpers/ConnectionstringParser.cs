@@ -8,7 +8,7 @@ namespace Tapeti.Helpers
     /// </summary>
     public class ConnectionStringParser
     {
-        private readonly TapetiConnectionParams result = new TapetiConnectionParams();
+        private readonly TapetiConnectionParams result = new();
 
         private readonly string connectionstring;
         private int pos = -1;
