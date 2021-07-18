@@ -44,9 +44,16 @@ namespace Tapeti.Connection
             object message = null;
             try
             {
-                message = messageSerializer.Deserialize(body, properties);
-                if (message == null)
-                    throw new ArgumentException("Message body could not be deserialized into a message object", nameof(body));
+                try
+                {
+                    message = messageSerializer.Deserialize(body, properties);
+                    if (message == null)
+                        throw new ArgumentException($"Message body for routing key '{routingKey}' could not be deserialized into a message object", nameof(body));
+                }
+                catch (Exception e)
+                {
+                    throw new ArgumentException($"Message body for routing key '{routingKey}' could not be deserialized into a message object: {e.Message}", nameof(body), e);
+                }
 
                 return await DispatchMessage(message, new MessageContextData
                 {
