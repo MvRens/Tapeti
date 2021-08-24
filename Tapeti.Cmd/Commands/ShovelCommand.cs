@@ -22,10 +22,14 @@ namespace Tapeti.Cmd.Commands
                     // No more messages on the queue
                     break;
 
+                // Since RabbitMQ client 6 we need to copy the body before calling another channel method
+                // like BasicPublish, or the published body will be corrupted
+                var bodyCopy = result.Body.ToArray();
+
 
                 rateLimiter.Execute(() =>
                 {
-                    targetChannel.BasicPublish("", TargetQueueName, result.BasicProperties, result.Body);
+                    targetChannel.BasicPublish("", TargetQueueName, result.BasicProperties, bodyCopy);
                     messageCount++;
 
                     if (RemoveMessages)
