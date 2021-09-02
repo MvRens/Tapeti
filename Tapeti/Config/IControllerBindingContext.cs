@@ -11,7 +11,7 @@ namespace Tapeti.Config
     /// Injects a value for a controller method parameter.
     /// </summary>
     /// <param name="context"></param>
-    public delegate object ValueFactory(IControllerMessageContext context);
+    public delegate object ValueFactory(IMessageContext context);
 
 
     /// <summary>
@@ -19,7 +19,7 @@ namespace Tapeti.Config
     /// </summary>
     /// <param name="context"></param>
     /// <param name="value"></param>
-    public delegate Task ResultHandler(IControllerMessageContext context, object value);
+    public delegate Task ResultHandler(IMessageContext context, object value);
 
 
     /// <summary>

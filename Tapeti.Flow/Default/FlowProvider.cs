@@ -162,16 +162,16 @@ namespace Tapeti.Flow.Default
 
         private static ReplyMetadata GetReply(IFlowHandlerContext context)
         {
-            var requestAttribute = context.ControllerMessageContext?.Message?.GetType().GetCustomAttribute<RequestAttribute>();
+            var requestAttribute = context.MessageContext?.Message?.GetType().GetCustomAttribute<RequestAttribute>();
             if (requestAttribute?.Response == null)
                 return null;
 
             return new ReplyMetadata
             {
-                CorrelationId = context.ControllerMessageContext.Properties.CorrelationId,
-                ReplyTo = context.ControllerMessageContext.Properties.ReplyTo,
+                CorrelationId = context.MessageContext.Properties.CorrelationId,
+                ReplyTo = context.MessageContext.Properties.ReplyTo,
                 ResponseTypeName = requestAttribute.Response.FullName,
-                Mandatory = context.ControllerMessageContext.Properties.Persistent.GetValueOrDefault(true)
+                Mandatory = context.MessageContext.Properties.Persistent.GetValueOrDefault(true)
             };
         }
 
@@ -206,8 +206,8 @@ namespace Tapeti.Flow.Default
 
             try
             {
-                var messageContext = context.ControllerMessageContext;
-                if (messageContext == null || !messageContext.Get(ContextItems.FlowContext, out flowContext))
+                var messageContext = context.MessageContext;
+                if (messageContext == null || !messageContext.TryGet<FlowMessageContextPayload>(out var flowPayload))
                 {
                     flowContext = new FlowContext
                     {
@@ -218,7 +218,9 @@ namespace Tapeti.Flow.Default
                     // in the messageContext as the yield point is the last to execute.
                     disposeFlowContext = true;
                 }
-
+                else
+                    flowContext = flowPayload.FlowContext;
+                
                 try
                 {
                     await executableYieldPoint.Execute(flowContext);

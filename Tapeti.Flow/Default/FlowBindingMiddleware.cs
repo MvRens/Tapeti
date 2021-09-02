@@ -74,16 +74,16 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static Task HandleYieldPoint(IControllerMessageContext context, IYieldPoint yieldPoint)
+        private static Task HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
 
 
-        private static Task HandleParallelResponse(IControllerMessageContext context)
+        private static Task HandleParallelResponse(IMessageContext context)
         {
-            if (context.Get<object>(ContextItems.FlowIsConverging, out _))
+            if (context.TryGet<FlowMessageContextPayload>(out var flowPayload) && flowPayload.FlowIsConverging)
                 return Task.CompletedTask;
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using Tapeti.Config;
 using ISerilogLogger = Serilog.ILogger;
 
@@ -12,6 +13,21 @@ namespace Tapeti.Serilog
     /// </summary>
     public class TapetiSeriLogger: IBindingLogger
     {
+        /// <summary>
+        /// Implements the Tapeti ILogger interface for Serilog output. This version
+        /// includes the message body and information if available when an error occurs.
+        /// </summary>
+        public class WithMessageLogging : TapetiSeriLogger
+        {
+            /// <inheritdoc />
+            public WithMessageLogging(ISerilogLogger seriLogger) : base(seriLogger) { }
+
+            internal override bool IncludeMessageInfo() => true;
+        }
+
+        
+        
+        
         private readonly ISerilogLogger seriLogger;
 
 
@@ -69,20 +85,38 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
+            var message = new StringBuilder("Tapeti: exception in message handler");
+            var messageParams = new List<object>();
+            
             var contextLogger = seriLogger
                 .ForContext("consumeResult", consumeResult)
                 .ForContext("exchange", messageContext.Exchange)
                 .ForContext("queue", messageContext.Queue)
                 .ForContext("routingKey", messageContext.RoutingKey);
 
-            if (messageContext is IControllerMessageContext controllerMessageContext)
+            if (messageContext.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
             {
                 contextLogger = contextLogger
-                    .ForContext("controller", controllerMessageContext.Binding.Controller.FullName)
-                    .ForContext("method", controllerMessageContext.Binding.Method.Name);
+                    .ForContext("controller", controllerPayload.Binding.Controller.FullName)
+                    .ForContext("method", controllerPayload.Binding.Method.Name);
+
+                message.Append(" {controller}.{method}");
+                messageParams.Add(controllerPayload.Binding.Controller.FullName);
+                messageParams.Add(controllerPayload.Binding.Method.Name);
+            }
+
+            if (IncludeMessageInfo())
+            {
+                message.Append(" on exchange {exchange}, queue {queue}, routingKey {routingKey}, replyTo {replyTo}, correlationId {correlationId} with body {body}");
+                messageParams.Add(messageContext.Exchange);
+                messageParams.Add(messageContext.Queue);
+                messageParams.Add(messageContext.RoutingKey);
+                messageParams.Add(messageContext.Properties.ReplyTo);
+                messageParams.Add(messageContext.Properties.CorrelationId);
+                messageParams.Add(messageContext.RawBody != null ? Encoding.UTF8.GetString(messageContext.RawBody) : null);
             }
             
-            contextLogger.Error(exception, "Tapeti: exception in message handler");
+            contextLogger.Error(exception, message.ToString(), messageParams.ToArray());
         }
 
         /// <inheritdoc />
@@ -134,5 +168,7 @@ namespace Tapeti.Serilog
             else
                 seriLogger.Information("Tapeti: obsolete queue {queue} has been unbound but not yet deleted, {messageCount} messages remaining", queueName, messageCount);
         }
+
+        internal virtual bool IncludeMessageInfo() => false;
     }
 }

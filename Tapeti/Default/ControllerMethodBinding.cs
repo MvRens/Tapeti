@@ -160,39 +160,30 @@ namespace Tapeti.Default
         public async Task Invoke(IMessageContext context)
         {
             var controller = dependencyResolver.Resolve(bindingInfo.ControllerType);
-
-            await using var controllerContext = new ControllerMessageContext(context)
-            {
-                Controller = controller
-            };
+            context.Store(new ControllerMessageContextPayload(controller, context.Binding as IControllerMethodBinding));
             
-            if (!await FilterAllowed(controllerContext))
+            if (!await FilterAllowed(context))
                 return;
 
 
             await MiddlewareHelper.GoAsync(
                 bindingInfo.MessageMiddleware,
-                async (handler, next) => await handler.Handle(controllerContext, next),
-                async () => await messageHandler(controllerContext));
+                async (handler, next) => await handler.Handle(context, next),
+                async () => await messageHandler(context));
         }
 
 
         /// <inheritdoc />
         public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            await using var controllerContext = new ControllerMessageContext(context)
-            {
-                Controller = null
-            };
-            
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,
-                async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
+                async (handler, next) => await handler.Cleanup(context, consumeResult, next),
                 () => Task.CompletedTask);
         }
 
 
-        private async Task<bool> FilterAllowed(IControllerMessageContext context)
+        private async Task<bool> FilterAllowed(IMessageContext context)
         {
             var allowed = false;
             await MiddlewareHelper.GoAsync(
@@ -208,7 +199,7 @@ namespace Tapeti.Default
         }
 
 
-        private delegate Task MessageHandlerFunc(IControllerMessageContext context);
+        private delegate Task MessageHandlerFunc(IMessageContext context);
 
 
         private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
@@ -233,9 +224,10 @@ namespace Tapeti.Default
         {
             return context =>
             {
+                var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    var result = method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    var result = method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return resultHandler(context, result);
                 }
                 catch (Exception e)
@@ -250,9 +242,10 @@ namespace Tapeti.Default
         {
             return context =>
             {
+                var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 { 
-                    method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return Task.CompletedTask;
                 }
                 catch (Exception e)
@@ -268,9 +261,10 @@ namespace Tapeti.Default
         {
             return context =>
             {
+                var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return (Task) method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return (Task) method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                 }
                 catch (Exception e)
                 {
@@ -285,9 +279,10 @@ namespace Tapeti.Default
         {
             return context =>
             {
+                var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 { 
-                    return (Task<object>)method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return (Task<object>)method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                 }
                 catch (Exception e)
                 {
@@ -302,9 +297,10 @@ namespace Tapeti.Default
         {
             return context =>
             {
+                var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return Task.FromResult(method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                    return Task.FromResult(method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
                 }
                 catch (Exception e)
                 {
