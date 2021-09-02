@@ -79,91 +79,88 @@ namespace Tapeti.Cmd.Mock
             throw new NotImplementedException();
         }
 
-        public bool IsAppIdPresent()
-        {
-            throw new NotImplementedException();
-        }
+        public bool IsAppIdPresent() => appIdPresent;
+        public bool IsClusterIdPresent() => clusterIdPresent;
+        public bool IsContentEncodingPresent() => contentEncodingPresent;
+        public bool IsContentTypePresent() => contentTypePresent;
+        public bool IsCorrelationIdPresent() => correlationIdPresent;
+        public bool IsDeliveryModePresent() => deliveryModePresent;
+        public bool IsExpirationPresent() => expirationPresent;
+        public bool IsHeadersPresent() => headersPresent;
+        public bool IsMessageIdPresent() => messageIdPresent;
+        public bool IsPriorityPresent() => priorityPresent;
+        public bool IsReplyToPresent() => replyToPresent;
+        public bool IsTimestampPresent() => timestampPresent;
+        public bool IsTypePresent() => typePresent;
+        public bool IsUserIdPresent() => userIdPresent;
+        
 
-        public bool IsClusterIdPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool appIdPresent;
+        private string appId;
 
-        public bool IsContentEncodingPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool clusterIdPresent;
+        private string clusterId;
 
-        public bool IsContentTypePresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool contentEncodingPresent;
+        private string contentEncoding;
 
-        public bool IsCorrelationIdPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool contentTypePresent;
+        private string contentType;
 
-        public bool IsDeliveryModePresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool correlationIdPresent;
+        private string correlationId;
 
-        public bool IsExpirationPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool deliveryModePresent;
+        private byte deliveryMode;
 
-        public bool IsHeadersPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool expirationPresent;
+        private string expiration;
 
-        public bool IsMessageIdPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool headersPresent;
+        private IDictionary<string, object> headers;
+        
+        private bool messageIdPresent;
+        private string messageId;
 
-        public bool IsPriorityPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool priorityPresent;
+        private byte priority;
 
-        public bool IsReplyToPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool replyToPresent;
+        private string replyTo;
 
-        public bool IsTimestampPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool timestampPresent;
+        private AmqpTimestamp timestamp;
 
-        public bool IsTypePresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool typePresent;
+        private string type;
 
-        public bool IsUserIdPresent()
-        {
-            throw new NotImplementedException();
-        }
+        private bool userIdPresent;
+        private string userId;
 
-        public string AppId { get; set; }
-        public string ClusterId { get; set; }
-        public string ContentEncoding { get; set; }
-        public string ContentType { get; set; }
-        public string CorrelationId { get; set; }
-        public byte DeliveryMode { get; set; }
-        public string Expiration { get; set; }
-        public IDictionary<string, object> Headers { get; set; }
-        public string MessageId { get; set; }
+
+
+        public string AppId { get => appId; set => SetValue(out appId, out appIdPresent, value); }
+        public string ClusterId { get => clusterId; set => SetValue(out clusterId, out clusterIdPresent, value); }
+        public string ContentEncoding { get => contentEncoding; set => SetValue(out contentEncoding, out contentEncodingPresent, value); }
+        public string ContentType { get => contentType; set => SetValue(out contentType, out contentTypePresent, value); }
+        public string CorrelationId { get => correlationId; set => SetValue(out correlationId, out correlationIdPresent, value); }
+        public byte DeliveryMode { get => deliveryMode; set => SetValue(out deliveryMode, out deliveryModePresent, value); }
+        public string Expiration { get => expiration; set => SetValue(out expiration, out expirationPresent, value); }
+        public IDictionary<string, object> Headers { get => headers; set => SetValue(out headers, out headersPresent, value); }
+        public string MessageId { get => messageId; set => SetValue(out messageId, out messageIdPresent, value); }
         public bool Persistent { get; set; }
-        public byte Priority { get; set; }
-        public string ReplyTo { get; set; }
+        public byte Priority { get => priority; set => SetValue(out priority, out priorityPresent, value); }
+        public string ReplyTo { get => replyTo; set => SetValue(out replyTo, out replyToPresent, value); }
         public PublicationAddress ReplyToAddress { get; set; }
-        public AmqpTimestamp Timestamp { get; set; }
-        public string Type { get; set; }
-        public string UserId { get; set; }
+        public AmqpTimestamp Timestamp { get => timestamp; set => SetValue(out timestamp, out timestampPresent, value); }
+        public string Type { get => type; set => SetValue(out type, out typePresent, value); }
+        public string UserId { get => userId; set => SetValue(out userId, out userIdPresent, value); }
+
+
+        private static void SetValue<T>(out T field, out bool present, T value)
+        {
+            field = value;
+            present = true;
+        }
     }
 }

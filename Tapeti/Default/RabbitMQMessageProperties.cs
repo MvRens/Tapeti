@@ -87,8 +87,7 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public void SetHeader(string name, string value)
         {
-            if (BasicProperties.Headers == null)
-                BasicProperties.Headers = new Dictionary<string, object>();
+            BasicProperties.Headers ??= new Dictionary<string, object>();
 
             if (BasicProperties.Headers.ContainsKey(name))
                 BasicProperties.Headers[name] = Encoding.UTF8.GetBytes(value);

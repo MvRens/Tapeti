@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Tapeti.Config;
 using ISerilogLogger = Serilog.ILogger;
 
@@ -91,6 +92,14 @@ namespace Tapeti.Serilog
                 seriLogger.Information("Tapeti: verifying durable queue {queueName}", queueName);
             else 
                 seriLogger.Information("Tapeti: declaring {queueType} queue {queueName}", durable ? "durable" : "dynamic", queueName);
+        }
+
+        /// <inheritdoc />
+        public void QueueExistsWarning(string queueName, Dictionary<string, string> arguments)
+        {
+            seriLogger.Warning("Tapeti: durable queue {queueName} exists with incompatible x-arguments ({arguments}) and will not be redeclared, queue will be consumed as-is",
+                queueName,
+                arguments);
         }
 
         /// <inheritdoc />

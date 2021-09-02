@@ -31,6 +31,12 @@ namespace _03_FlowRequestResponse
         // Public fields will be stored.
         public DateTime RequestStartTime;
 
+        
+        // Be sure not to accidentally use any public fields that aren't serializable, for example:
+        //public TaskCompletionSource<bool> SerializationFail = new TaskCompletionSource<bool>();
+        //
+        // In the Newtonsoft.Json version at the time of writing, this will not result in an exception but instead hang the flow!
+
 
         public SimpleFlowController(IFlowProvider flowProvider, IExampleState exampleState)
         {

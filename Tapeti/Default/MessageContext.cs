@@ -7,7 +7,7 @@ namespace Tapeti.Default
 {
     internal class MessageContext : IMessageContext
     {
-        private readonly Dictionary<string, object> items = new Dictionary<string, object>();
+        private readonly Dictionary<string, object> items = new();
 
 
         /// <inheritdoc />

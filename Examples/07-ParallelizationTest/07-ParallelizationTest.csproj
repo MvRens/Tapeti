@@ -11,10 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Examples\ExampleLib\ExampleLib.csproj" />
-    <ProjectReference Include="..\Examples\Messaging.TapetiExample\Messaging.TapetiExample.csproj" />
-    <ProjectReference Include="..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
-    <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
+    <ProjectReference Include="..\ExampleLib\ExampleLib.csproj" />
+    <ProjectReference Include="..\Messaging.TapetiExample\Messaging.TapetiExample.csproj" />
+    <ProjectReference Include="..\..\Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj" />
+    <ProjectReference Include="..\..\Tapeti\Tapeti.csproj" />
   </ItemGroup>
 
 </Project>

@@ -160,37 +160,35 @@ namespace Tapeti.Default
         public async Task Invoke(IMessageContext context)
         {
             var controller = dependencyResolver.Resolve(bindingInfo.ControllerType);
-            
-            using (var controllerContext = new ControllerMessageContext(context)
+
+            await using var controllerContext = new ControllerMessageContext(context)
             {
                 Controller = controller
-            })
-            {
-                if (!await FilterAllowed(controllerContext))
-                    return;
+            };
+            
+            if (!await FilterAllowed(controllerContext))
+                return;
 
 
-                await MiddlewareHelper.GoAsync(
-                    bindingInfo.MessageMiddleware,
-                    async (handler, next) => await handler.Handle(controllerContext, next),
-                    async () => await messageHandler(controllerContext));
-            }
+            await MiddlewareHelper.GoAsync(
+                bindingInfo.MessageMiddleware,
+                async (handler, next) => await handler.Handle(controllerContext, next),
+                async () => await messageHandler(controllerContext));
         }
 
 
         /// <inheritdoc />
         public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            using (var controllerContext = new ControllerMessageContext(context)
+            await using var controllerContext = new ControllerMessageContext(context)
             {
                 Controller = null
-            })
-            {
-                await MiddlewareHelper.GoAsync(
-                    bindingInfo.CleanupMiddleware,
-                    async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
-                    () => Task.CompletedTask);
-            }
+            };
+            
+            await MiddlewareHelper.GoAsync(
+                bindingInfo.CleanupMiddleware,
+                async (handler, next) => await handler.Cleanup(controllerContext, consumeResult, next),
+                () => Task.CompletedTask);
         }
 
 
@@ -213,7 +211,7 @@ namespace Tapeti.Default
         private delegate Task MessageHandlerFunc(IControllerMessageContext context);
 
 
-        private static MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
         {
             if (resultHandler != null)
                 return WrapResultHandlerMethod(method, parameterFactories, resultHandler);
@@ -231,48 +229,97 @@ namespace Tapeti.Default
         }
 
 
-        private static MessageHandlerFunc WrapResultHandlerMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapResultHandlerMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
         {
             return context =>
             {
-                var result = method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                return resultHandler(context, result);
+                try
+                {
+                    var result = method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return resultHandler(context, result);
+                }
+                catch (Exception e)
+                {
+                    AddExceptionData(e);
+                    throw;
+                }
             };
         }
 
-        private static MessageHandlerFunc WrapNullMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapNullMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
-                method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                return Task.CompletedTask;
+                try
+                { 
+                    method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return Task.CompletedTask;
+                }
+                catch (Exception e)
+                {
+                    AddExceptionData(e);
+                    throw;
+                }
             };
         }
 
 
-        private static MessageHandlerFunc WrapTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
-        {
-            return context => (Task)method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
-        }
-
-
-        private static MessageHandlerFunc WrapGenericTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
-        {
-            return context =>
-            {
-                return (Task<object>)method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
-            };
-        }
-
-
-        private static MessageHandlerFunc WrapObjectMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
-                return Task.FromResult(method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                try
+                {
+                    return (Task) method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                }
+                catch (Exception e)
+                {
+                    AddExceptionData(e);
+                    throw;
+                }
             };
         }
 
+
+        private MessageHandlerFunc WrapGenericTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        {
+            return context =>
+            {
+                try
+                { 
+                    return (Task<object>)method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                }
+                catch (Exception e)
+                {
+                    AddExceptionData(e);
+                    throw;
+                }
+            };
+        }
+
+
+        private MessageHandlerFunc WrapObjectMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        {
+            return context =>
+            {
+                try
+                {
+                    return Task.FromResult(method.Invoke(context.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                }
+                catch (Exception e)
+                {
+                    AddExceptionData(e);
+                    throw;
+                }
+            };
+        }
+
+
+        private void AddExceptionData(Exception exception)
+        {
+            exception.Data["Tapeti.Controller.Name"] = bindingInfo.ControllerType?.FullName;
+            exception.Data["Tapeti.Controller.Method"] = bindingInfo.Method?.Name;
+        }
 
 
         /// <summary>

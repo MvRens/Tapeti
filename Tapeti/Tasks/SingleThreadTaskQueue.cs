@@ -12,10 +12,10 @@ namespace Tapeti.Tasks
     /// </summary>
     public class SingleThreadTaskQueue : IDisposable
     {
-        private readonly object previousTaskLock = new object();
+        private readonly object previousTaskLock = new();
         private Task previousTask = Task.CompletedTask;
 
-        private readonly Lazy<SingleThreadTaskScheduler> singleThreadScheduler = new Lazy<SingleThreadTaskScheduler>();
+        private readonly Lazy<SingleThreadTaskScheduler> singleThreadScheduler = new();
 
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace Tapeti.Tasks
         {
             lock (previousTaskLock)
             {
-                previousTask = previousTask.ContinueWith(t => action(), CancellationToken.None
+                previousTask = previousTask.ContinueWith(_ => action(), CancellationToken.None
                     , TaskContinuationOptions.None
                     , singleThreadScheduler.Value);
 
@@ -43,7 +43,7 @@ namespace Tapeti.Tasks
         {
             lock (previousTaskLock)
             {
-                var task = previousTask.ContinueWith(t => func(), CancellationToken.None
+                var task = previousTask.ContinueWith(_ => func(), CancellationToken.None
                     , TaskContinuationOptions.None
                     , singleThreadScheduler.Value);
 
@@ -70,7 +70,7 @@ namespace Tapeti.Tasks
             public override int MaximumConcurrencyLevel => 1;
 
 
-            private readonly Queue<Task> scheduledTasks = new Queue<Task>();
+            private readonly Queue<Task> scheduledTasks = new();
             private bool disposed;
 
 
