@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using Tapeti.Config;
 
 namespace Tapeti.Default
@@ -58,6 +60,21 @@ namespace Tapeti.Default
             Console.WriteLine(passive 
                 ? $"[Tapeti] Declaring {(durable ? "durable" : "dynamic")} queue {queueName}" 
                 : $"[Tapeti] Verifying durable queue {queueName}");
+        }
+
+        /// <inheritdoc />
+        public void QueueExistsWarning(string queueName, Dictionary<string, string> arguments)
+        {
+            var argumentsText = new StringBuilder();
+            foreach (var pair in arguments)
+            {
+                if (argumentsText.Length > 0)
+                    argumentsText.Append(", ");
+
+                argumentsText.Append($"{pair.Key} = {pair.Value}");
+            }
+            
+            Console.WriteLine($"[Tapeti] Durable queue {queueName} exists with incompatible x-arguments ({argumentsText}) and will not be redeclared, queue will be consumed as-is");
         }
 
         /// <inheritdoc />

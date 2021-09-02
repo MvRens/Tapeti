@@ -267,9 +267,28 @@ namespace Tapeti.Connection
         }
 
 
+        private async Task<bool> GetDurableQueueDeclareRequired(string queueName)
+        {
+            var existingQueue = await GetQueueInfo(queueName);
+            if (existingQueue == null) 
+                return true;
+            
+            if (!existingQueue.Durable || existingQueue.AutoDelete || existingQueue.Exclusive)
+                throw new InvalidOperationException($"Durable queue {queueName} already exists with incompatible parameters, durable = {existingQueue.Durable} (expected True), autoDelete = {existingQueue.AutoDelete} (expected False), exclusive = {existingQueue.Exclusive} (expected False)");
+
+            if (existingQueue.Arguments.Count <= 0) 
+                return true;
+            
+            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingQueue.Arguments);
+            return false;
+        }
+        
+
         /// <inheritdoc />
         public async Task DurableQueueDeclare(CancellationToken cancellationToken, string queueName, IEnumerable<QueueBinding> bindings)
         {
+            var declareRequired = await GetDurableQueueDeclareRequired(queueName);
+
             var existingBindings = (await GetQueueBindings(queueName)).ToList();
             var currentBindings = bindings.ToList();
             var bindingLogger = logger as IBindingLogger;
@@ -279,9 +298,11 @@ namespace Tapeti.Connection
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
-                bindingLogger?.QueueDeclare(queueName, true, false);
-                channel.QueueDeclare(queueName, true, false, false);
-
+                if (declareRequired)
+                {
+                    bindingLogger?.QueueDeclare(queueName, true, false);
+                    channel.QueueDeclare(queueName, true, false, false);
+                }
 
                 foreach (var binding in currentBindings.Except(existingBindings))
                 {
@@ -301,6 +322,9 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DurableQueueVerify(CancellationToken cancellationToken, string queueName)
         {
+            if (!await GetDurableQueueDeclareRequired(queueName))
+                return;
+
             await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -491,6 +515,24 @@ namespace Tapeti.Connection
 
         private class ManagementQueueInfo
         {
+            [JsonProperty("name")]
+            public string Name { get; set; }
+
+            [JsonProperty("vhost")]
+            public string VHost { get; set; }
+
+            [JsonProperty("durable")]
+            public bool Durable { get; set; }
+
+            [JsonProperty("auto_delete")]
+            public bool AutoDelete { get; set; }
+
+            [JsonProperty("exclusive")]
+            public bool Exclusive { get; set; }
+
+            [JsonProperty("arguments")]
+            public Dictionary<string, string> Arguments { get; set; }
+
             [JsonProperty("messages")]
             public uint Messages { get; set; }
         }
@@ -539,7 +581,7 @@ namespace Tapeti.Connection
             public string PropertiesKey { get; set; }
         }
 
-
+        
         private async Task<IEnumerable<QueueBinding>> GetQueueBindings(string queueName)
         {
             var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
@@ -577,7 +619,13 @@ namespace Tapeti.Connection
 
         private async Task<T> WithRetryableManagementAPI<T>(string path, Func<HttpResponseMessage, Task<T>> handleResponse)
         {
-            var requestUri = new Uri($"http://{connectionParams.HostName}:{connectionParams.ManagementPort}/api/{path}");
+            // Workaround for: https://github.com/dotnet/runtime/issues/23581#issuecomment-354391321
+            // "localhost" can cause a 1 second delay *per call*. Not an issue in production scenarios, but annoying while debugging.
+            var hostName = connectionParams.HostName;
+            if (hostName.Equals("localhost", StringComparison.InvariantCultureIgnoreCase))
+                hostName = "127.0.0.1";
+            
+            var requestUri = new Uri($"http://{hostName}:{connectionParams.ManagementPort}/api/{path}");
 
             using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
             var retryDelayIndex = 0;

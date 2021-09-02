@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Tapeti.Config;
 
 // ReSharper disable UnusedMember.Global
@@ -129,6 +130,16 @@ namespace Tapeti
         /// <param name="durable">Indicates if the queue is durable or dynamic</param>
         /// <param name="passive">Indicates whether the queue was declared as passive (to verify durable queues)</param>
         void QueueDeclare(string queueName, bool durable, bool passive);
+
+        /// <summary>
+        /// Called when a durable queue would be declared but already exists with incompatible x-arguments. The existing
+        /// queue will be consumed without declaring to prevent errors during startup. This is used for compatibility with existing queues
+        /// not declared by Tapeti.
+        /// If the queue already exists but should be compatible QueueDeclare will be called instead.
+        /// </summary>
+        /// <param name="queueName">The name of the queue that is declared</param>
+        /// <param name="arguments">The x-arguments of the existing queue</param>
+        void QueueExistsWarning(string queueName, Dictionary<string, string> arguments);
 
         /// <summary>
         /// Called before a binding is added to a queue.
