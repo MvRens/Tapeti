@@ -161,7 +161,7 @@ namespace Tapeti.Flow.Default
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                return Task.FromResult(cachedFlowState.FlowState?.Clone());
+                return Task.FromResult(cachedFlowState?.FlowState?.Clone());
             }
 
             public async Task StoreFlowState(FlowState newFlowState, bool persistent)
