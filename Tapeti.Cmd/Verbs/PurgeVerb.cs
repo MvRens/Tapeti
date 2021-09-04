@@ -1,6 +1,7 @@
 ﻿using System;
 using CommandLine;
 using RabbitMQ.Client;
+using Tapeti.Cmd.ConsoleHelper;
 
 namespace Tapeti.Cmd.Verbs
 {
@@ -27,14 +28,13 @@ namespace Tapeti.Cmd.Verbs
         }
         
         
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
+            
             if (!options.Confirm)
             {
-                Console.Write($"Do you want to purge the queue '{options.QueueName}'? (Y/N) ");
-                var answer = Console.ReadLine();
-
-                if (string.IsNullOrEmpty(answer) || !answer.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
+                if (!consoleWriter.ConfirmYesNo($"Do you want to purge the queue '{options.QueueName}'?"))
                     return;
             }
 
@@ -52,7 +52,7 @@ namespace Tapeti.Cmd.Verbs
             
             var messageCount = channel.QueuePurge(options.QueueName);
 
-            Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} purged from '{options.QueueName}'.");
+            consoleWriter.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} purged from '{options.QueueName}'.");
         }
     }
 }

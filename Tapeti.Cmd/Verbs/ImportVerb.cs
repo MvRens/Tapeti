@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using CommandLine;
 using RabbitMQ.Client;
-using Tapeti.Cmd.ASCII;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.RateLimiter;
 using Tapeti.Cmd.Serialization;
 
@@ -27,6 +27,12 @@ namespace Tapeti.Cmd.Verbs
 
         [Option("maxrate", HelpText = "The maximum amount of messages per second to import.")]
         public int? MaxRate { get; set; }
+        
+        [Option("batchsize", HelpText = "How many messages to import before pausing. Will wait for manual confirmation unless batchpausetime is specified.")]
+        public int? BatchSize { get; set; }
+        
+        [Option("batchpausetime", HelpText = "How many seconds to wait before starting the next batch if batchsize is specified.")]
+        public int? BatchPauseTime { get; set; }
     }
 
     
@@ -41,8 +47,9 @@ namespace Tapeti.Cmd.Verbs
         }
         
         
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
             var factory = new ConnectionFactory
             {
                 HostName = options.Host,
@@ -55,30 +62,27 @@ namespace Tapeti.Cmd.Verbs
             using var messageSerializer = GetMessageSerializer(options);
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
-            var rateLimiter = GetRateLimiter(options.MaxRate);
+            var rateLimiter = RateLimiterFactory.Create(console, options.MaxRate, options.BatchSize, options.BatchPauseTime);
 
             var totalCount = messageSerializer.GetMessageCount();
             var messageCount = 0;
-            var cancelled = false;
 
-            Console.CancelKeyPress += (_, args) =>
-            {
-                args.Cancel = true;
-                cancelled = true;
-            };
 
             ProgressBar progress = null;
             if (totalCount > 0)
-                progress = new ProgressBar(totalCount);
+                progress = new ProgressBar(console, totalCount);
             try
             {
                 foreach (var message in messageSerializer.Deserialize(channel))
                 {
-                    if (cancelled)
+                    if (console.Cancelled)
                         break;
 
                     rateLimiter.Execute(() =>
                     {
+                        if (console.Cancelled)
+                            return;
+
                         var exchange = options.PublishToExchange ? message.Exchange : "";
                         var routingKey = options.PublishToExchange ? message.RoutingKey : message.Queue;
 
@@ -96,7 +100,7 @@ namespace Tapeti.Cmd.Verbs
                 progress?.Dispose();
             }
 
-            Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} published.");
+            consoleWriter.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} published.");
         }
 
 
@@ -135,15 +139,6 @@ namespace Tapeti.Cmd.Verbs
 
             disposeStream = true;
             return new FileStream(options.InputFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        }
-
-
-        private static IRateLimiter GetRateLimiter(int? maxRate)
-        {
-            if (!maxRate.HasValue || maxRate.Value <= 0)
-                return new NoRateLimiter();
-
-            return new SpreadRateLimiter(maxRate.Value, TimeSpan.FromSeconds(1));
         }
     }
 }

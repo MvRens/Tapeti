@@ -1,4 +1,5 @@
 ﻿using System;
+using Tapeti.Cmd.ConsoleHelper;
 
 namespace Tapeti.Cmd.Verbs
 {
@@ -8,7 +9,7 @@ namespace Tapeti.Cmd.Verbs
     /// </remarks>
     public interface IVerbExecuter
     {
-        void Execute();
+        void Execute(IConsole console);
     }
     
     

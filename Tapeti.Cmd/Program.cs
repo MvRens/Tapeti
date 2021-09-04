@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using CommandLine;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.Verbs;
 
 namespace Tapeti.Cmd
@@ -26,8 +27,10 @@ namespace Tapeti.Cmd
 
                         // Should have been validated by the ExecutableVerbAttribute
                         Debug.Assert(executer != null, nameof(executer) + " != null");
-                        
-                        executer.Execute();
+
+                        using var consoleWrapper = new ConsoleWrapper();
+
+                        executer.Execute(consoleWrapper);
                         exitCode = 0;
                     }
                     catch (Exception e)

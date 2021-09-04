@@ -2,6 +2,7 @@
 using CommandLine;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
+using Tapeti.Cmd.ConsoleHelper;
 
 namespace Tapeti.Cmd.Verbs
 {
@@ -31,14 +32,13 @@ namespace Tapeti.Cmd.Verbs
         }
 
 
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
+            
             if (!options.Confirm)
             {
-                Console.Write($"Do you want to remove the queue '{options.QueueName}'? (Y/N) ");
-                var answer = Console.ReadLine();
-
-                if (string.IsNullOrEmpty(answer) || !answer.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
+                if (!consoleWriter.ConfirmYesNo($"Do you want to remove the queue '{options.QueueName}'?"))
                     return;
             }
 
@@ -66,10 +66,7 @@ namespace Tapeti.Cmd.Verbs
                 {
                     if (!options.ConfirmPurge)
                     {
-                        Console.Write($"There are messages remaining. Do you want to purge the queue '{options.QueueName}'? (Y/N) ");
-                        var answer = Console.ReadLine();
-
-                        if (string.IsNullOrEmpty(answer) || !answer.Equals("Y", StringComparison.CurrentCultureIgnoreCase))
+                        if (!consoleWriter.ConfirmYesNo($"There are messages remaining. Do you want to purge the queue '{options.QueueName}'?"))
                             return;
                     }
 
@@ -82,7 +79,7 @@ namespace Tapeti.Cmd.Verbs
                     throw;
             }
 
-            Console.WriteLine(messageCount == 0
+            consoleWriter.WriteLine(messageCount == 0
                 ? $"Empty or non-existent queue '{options.QueueName}' removed."
                 : $"{messageCount} message{(messageCount != 1 ? "s" : "")} purged while removing '{options.QueueName}'.");
         }

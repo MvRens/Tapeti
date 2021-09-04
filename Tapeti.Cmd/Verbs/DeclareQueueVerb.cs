@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using CommandLine;
 using RabbitMQ.Client;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.Parser;
 
 namespace Tapeti.Cmd.Verbs
 {
-    [Verb("declarequeue", HelpText = "Declares a durable queue without arguments, compatible with Tapeti.")]
+    [Verb("declarequeue", HelpText = "Declares a durable queue without arguments.")]
     [ExecutableVerb(typeof(DeclareQueueVerb))]
     public class DeclareQueueOptions : BaseConnectionOptions
     {
@@ -29,8 +30,10 @@ namespace Tapeti.Cmd.Verbs
         }
         
         
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
+            
             // Parse early to fail early
             var bindings = BindingParser.Parse(options.Bindings);
 
@@ -51,7 +54,7 @@ namespace Tapeti.Cmd.Verbs
             foreach (var (exchange, routingKey) in bindings)
                 channel.QueueBind(options.QueueName, exchange, routingKey);
 
-            Console.WriteLine($"Queue {options.QueueName} declared with {bindings.Length} binding{(bindings.Length != 1 ? "s" : "")}.");
+            consoleWriter.WriteLine($"Queue {options.QueueName} declared with {bindings.Length} binding{(bindings.Length != 1 ? "s" : "")}.");
         }
     }
 }

@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Text;
 
-namespace Tapeti.Cmd.ASCII
+namespace Tapeti.Cmd.ConsoleHelper
 {
 	public class ProgressBar : IDisposable, IProgress<int>
     {
         private static readonly TimeSpan UpdateInterval = TimeSpan.FromMilliseconds(20);
 
+        private readonly IConsoleWriter consoleWriter;
         private readonly int max;
         private readonly int width;
         private readonly bool showPosition;
@@ -14,39 +15,33 @@ namespace Tapeti.Cmd.ASCII
 
         private readonly bool enabled;
         private DateTime lastUpdate = DateTime.MinValue;
-        private int lastOutputLength;
 
         
-		public ProgressBar(int max, int width = 10, bool showPosition = true)
+		public ProgressBar(IConsole console, int max, int width = 10, bool showPosition = true)
         {
             if (width <= 0)
                 throw new ArgumentOutOfRangeException(nameof(width), "Width must be greater than zero");
             
             if (max <= 0)
                 throw new ArgumentOutOfRangeException(nameof(max), "Max must be greater than zero");
-            
+
+            consoleWriter = console.GetTemporaryWriter();
+
             this.max = max;
             this.width = width;
             this.showPosition = showPosition;
 
-            enabled = !Console.IsOutputRedirected;
+            enabled = consoleWriter.Enabled;
             if (!enabled) 
                 return;
             
-            Console.CursorVisible = false;
             Redraw();
         }
 
 
         public void Dispose()
         {
-            if (!enabled || lastOutputLength <= 0) 
-                return;
-            
-            Console.CursorLeft = 0;
-            Console.Write(new string(' ', lastOutputLength));
-            Console.CursorLeft = 0;
-            Console.CursorVisible = true;
+            consoleWriter.Dispose();
         }
 
 
@@ -89,15 +84,7 @@ namespace Tapeti.Cmd.ASCII
             else
                 output.Append(" ").Append((int)Math.Truncate((decimal)position / max * 100)).Append("%");
 
-
-            var newLength = output.Length;    
-            if (newLength < lastOutputLength)
-                output.Append(new string(' ', lastOutputLength - output.Length));
-
-            Console.CursorLeft = 0;
-            Console.Write(output);
-
-            lastOutputLength = newLength;
+            consoleWriter.WriteLine(output.ToString());
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using CommandLine;
 using RabbitMQ.Client;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.Parser;
 
 namespace Tapeti.Cmd.Verbs
@@ -29,8 +30,9 @@ namespace Tapeti.Cmd.Verbs
         }
 
 
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
             var bindings = BindingParser.Parse(options.Bindings);
 
             var factory = new ConnectionFactory
@@ -48,7 +50,7 @@ namespace Tapeti.Cmd.Verbs
             foreach (var (exchange, routingKey) in bindings)
                 channel.QueueBind(options.QueueName, exchange, routingKey);
             
-            Console.WriteLine($"{bindings.Length} binding{(bindings.Length != 1 ? "s" : "")} added to queue {options.QueueName}.");
+            consoleWriter.WriteLine($"{bindings.Length} binding{(bindings.Length != 1 ? "s" : "")} added to queue {options.QueueName}.");
         }
     }
 }

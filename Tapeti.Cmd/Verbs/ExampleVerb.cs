@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using CommandLine;
 using RabbitMQ.Client;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.Mock;
 using Tapeti.Cmd.Serialization;
 
@@ -25,7 +26,7 @@ namespace Tapeti.Cmd.Verbs
         }
 
 
-        public void Execute()
+        public void Execute(IConsole console)
         {
             using var messageSerializer = new SingleFileJSONMessageSerializer(Console.OpenStandardOutput(), false, new UTF8Encoding(false));
             

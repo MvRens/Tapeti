@@ -1,7 +1,9 @@
 Tapeti.Cmd
 ==========
 
-The Tapeti command-line tool provides various operations for managing messages. It tries to be compatible with all type of messages, but has been tested only against JSON messages, specifically those sent by Tapeti.
+The Tapeti command-line tool provides various operations for managing messages and queues.
+
+Some operations, like shovel, are compatible with all types of messages. However, commands like import and export can assume JSON messages, specifically those sent by Tapeti, so your results may vary.
 
 
 Common parameters
@@ -83,6 +85,12 @@ Read messages from disk as previously exported and publish them to a queue.
 --maxrate <messages per second>
   The maximum amount of messages per second to import.
 
+--batchsize <messages per batch>
+  How many messages to import before pausing. Will wait for manual confirmation unless batchpausetime is specified.
+
+--batchpausetime <seconds>
+  How many seconds to wait before starting the next batch if batchsize is specified.
+
 
 Either input, message or pipe is required.
 
@@ -128,11 +136,110 @@ Reads messages from a queue and publishes them to another queue, optionally to a
 --maxrate <messages per second>
   The maximum amount of messages per second to shovel.
 
+--batchsize <messages per batch>
+  How many messages to shovel before pausing. Will wait for manual confirmation unless batchpausetime is specified.
+
+--batchpausetime <seconds>
+  How many seconds to wait before starting the next batch if batchsize is specified.
+
 
 Example:
 ::
 
   .\Tapeti.Cmd.exe shovel -q tapeti.example.01 -t tapeti.example.06
+
+
+Purge
+-----
+
+Removes all messages from a queue destructively.
+
+-q <queue>, --queue <queue>
+  *Required*. The queue to purge.
+
+--confirm
+  Confirms the purging of the specified queue. If not provided, an interactive prompt will ask for confirmation.
+
+
+Example:
+::
+
+  .\Tapeti.Cmd.exe purge -q tapeti.example.01
+
+
+Declare queue
+-------------
+
+Declares a durable queue without arguments.
+
+-q <queue>, --queue <queue>
+  *Required*. The queue to declare.
+
+-b <bindings>, --bindings <bindings>
+  One or more bindings to add to the queue. Format: <exchange>:<routingKey>
+
+
+Example:
+::
+
+  .\Tapeti.Cmd.exe declarequeue -q tapeti.cmd.example -b myexchange:example.message myexchange:another.message
+
+
+Bind queue
+----------
+
+Add a binding to an existing queue.
+
+-q <queue>, --queue <queue>
+  *Required*. The name of the queue to add the binding(s) to.
+
+-b <bindings>, --bindings <bindings>
+  One or more bindings to add to the queue. Format: <exchange>:<routingKey>
+
+
+Example:
+::
+
+  .\Tapeti.Cmd.exe bindqueue -q tapeti.cmd.example -b myexchange:example.message myexchange:another.message
+
+
+Unbind queue
+------------
+
+Remove a binding from a queue.
+
+-q <queue>, --queue <queue>
+  *Required*. The name of the queue to remove the binding(s) from.
+
+-b <bindings>, --bindings <bindings>
+  One or more bindings to remove from the queue. Format: <exchange>:<routingKey>
+
+
+Example:
+::
+
+  .\Tapeti.Cmd.exe unbindqueue -q tapeti.cmd.example -b myexchange:example.message myexchange:another.message
+
+
+Remove queue
+------------
+
+Removes a durable queue.
+
+-q <queue>, --queue <queue>
+  *Required*. The name of the queue to remove.
+
+--confirm
+  Confirms the removal of the specified queue. If not provided, an interactive prompt will ask for confirmation.
+
+--confirmpurge
+  Confirms the removal of the specified queue even if there still are messages in the queue. If not provided, an interactive prompt will ask for confirmation.
+
+
+Example:
+::
+
+  .\Tapeti.Cmd.exe removequeue -q tapeti.cmd.example
 
 
 Serialization methods

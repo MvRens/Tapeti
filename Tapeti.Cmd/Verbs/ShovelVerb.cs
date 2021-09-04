@@ -1,7 +1,7 @@
 ﻿using System;
 using CommandLine;
 using RabbitMQ.Client;
-using Tapeti.Cmd.ASCII;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.RateLimiter;
 
 namespace Tapeti.Cmd.Verbs
@@ -39,6 +39,12 @@ namespace Tapeti.Cmd.Verbs
 
         [Option("maxrate", HelpText = "The maximum amount of messages per second to shovel.")]
         public int? MaxRate { get; set; }
+
+        [Option("batchsize", HelpText = "How many messages to shovel before pausing. Will wait for manual confirmation unless batchpausetime is specified.")]
+        public int? BatchSize { get; set; }
+
+        [Option("batchpausetime", HelpText = "How many seconds to wait before starting the next batch if batchsize is specified.")]
+        public int? BatchPauseTime { get; set; }
     }
     
     
@@ -53,7 +59,7 @@ namespace Tapeti.Cmd.Verbs
         }
         
         
-        public void Execute()
+        public void Execute(IConsole console)
         {
             var sourceFactory = new ConnectionFactory
             {
@@ -81,48 +87,49 @@ namespace Tapeti.Cmd.Verbs
                 using var targetConnection = targetFactory.CreateConnection();
                 using var targetChannel = targetConnection.CreateModel();
                 
-                Shovel(options, sourceChannel, targetChannel);
+                Shovel(console, options, sourceChannel, targetChannel);
             }
             else
-                Shovel(options, sourceChannel, sourceChannel);
+                Shovel(console, options, sourceChannel, sourceChannel);
         }
         
         
-        private static void Shovel(ShovelOptions options, IModel sourceChannel, IModel targetChannel)
+        private static void Shovel(IConsole console, ShovelOptions options, IModel sourceChannel, IModel targetChannel)
         {
-            var rateLimiter = GetRateLimiter(options.MaxRate);
+            var consoleWriter = console.GetPermanentWriter();
+            var rateLimiter = RateLimiterFactory.Create(console, options.MaxRate, options.BatchSize, options.BatchPauseTime);
             var targetQueueName = !string.IsNullOrEmpty(options.TargetQueueName) ? options.TargetQueueName : options.QueueName;
 
             var totalCount = (int)sourceChannel.MessageCount(options.QueueName);
             if (options.MaxCount.HasValue && options.MaxCount.Value < totalCount)
                 totalCount = options.MaxCount.Value;
 
-            Console.WriteLine($"Shoveling {totalCount} message{(totalCount != 1 ? "s" : "")} (actual number may differ if queue has active consumers or publishers)");
+            consoleWriter.WriteLine($"Shoveling {totalCount} message{(totalCount != 1 ? "s" : "")} (actual number may differ if queue has active consumers or publishers)");
             var messageCount = 0;
-            var cancelled = false;
 
-            Console.CancelKeyPress += (_, args) =>
+            using (var progressBar = new ProgressBar(console, totalCount))
             {
-                args.Cancel = true;
-                cancelled = true;
-            };
+                var hasMessage = true;
 
-            using (var progressBar = new ProgressBar(totalCount))
-            {
-                while (!cancelled && (!options.MaxCount.HasValue || messageCount < options.MaxCount.Value))
+                while (!console.Cancelled && hasMessage && (!options.MaxCount.HasValue || messageCount < options.MaxCount.Value))
                 {
-                    var result = sourceChannel.BasicGet(options.QueueName, false);
-                    if (result == null)
-                        // No more messages on the queue
-                        break;
-
-                    // Since RabbitMQ client 6 we need to copy the body before calling another channel method
-                    // like BasicPublish, or the published body will be corrupted if sourceChannel and targetChannel are the same
-                    var bodyCopy = result.Body.ToArray();
-
-
                     rateLimiter.Execute(() =>
                     {
+                        if (console.Cancelled)
+                            return;
+                        
+                        var result = sourceChannel.BasicGet(options.QueueName, false);
+                        if (result == null)
+                        {
+                            // No more messages on the queue
+                            hasMessage = false;
+                            return;
+                        }
+
+                        // Since RabbitMQ client 6 we need to copy the body before calling another channel method
+                        // like BasicPublish, or the published body will be corrupted if sourceChannel and targetChannel are the same
+                        var bodyCopy = result.Body.ToArray();
+
                         targetChannel.BasicPublish("", targetQueueName, result.BasicProperties, bodyCopy);
                         messageCount++;
 
@@ -135,7 +142,7 @@ namespace Tapeti.Cmd.Verbs
                 }
             }
 
-            Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} shoveled.");
+            consoleWriter.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} shoveled.");
         }
 
 
@@ -167,15 +174,6 @@ namespace Tapeti.Cmd.Verbs
 
             // Everything's the same, we can use the same channel
             return false;
-        }
-
-
-        private static IRateLimiter GetRateLimiter(int? maxRate)
-        {
-            if (!maxRate.HasValue || maxRate.Value <= 0)
-                return new NoRateLimiter();
-
-            return new SpreadRateLimiter(maxRate.Value, TimeSpan.FromSeconds(1));
         }
     }
 }

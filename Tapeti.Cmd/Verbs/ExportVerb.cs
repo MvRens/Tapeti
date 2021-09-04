@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using CommandLine;
 using RabbitMQ.Client;
-using Tapeti.Cmd.ASCII;
+using Tapeti.Cmd.ConsoleHelper;
 using Tapeti.Cmd.Serialization;
 
 namespace Tapeti.Cmd.Verbs
@@ -37,8 +37,9 @@ namespace Tapeti.Cmd.Verbs
         }
         
         
-        public void Execute()
+        public void Execute(IConsole console)
         {
+            var consoleWriter = console.GetPermanentWriter();
             var factory = new ConnectionFactory
             {
                 HostName = options.Host,
@@ -56,19 +57,12 @@ namespace Tapeti.Cmd.Verbs
             if (options.MaxCount.HasValue && options.MaxCount.Value < totalCount)
                 totalCount = options.MaxCount.Value;
 
-            Console.WriteLine($"Exporting {totalCount} message{(totalCount != 1 ? "s" : "")} (actual number may differ if queue has active consumers or publishers)");
+            consoleWriter.WriteLine($"Exporting {totalCount} message{(totalCount != 1 ? "s" : "")} (actual number may differ if queue has active consumers or publishers)");
             var messageCount = 0;
-            var cancelled = false;
-
-            Console.CancelKeyPress += (_, args) =>
-            {
-                args.Cancel = true;
-                cancelled = true;
-            };
             
-            using (var progressBar = new ProgressBar(totalCount))
+            using (var progressBar = new ProgressBar(console, totalCount))
             {
-                while (!cancelled && (!options.MaxCount.HasValue || messageCount < options.MaxCount.Value))
+                while (!console.Cancelled && (!options.MaxCount.HasValue || messageCount < options.MaxCount.Value))
                 {
                     var result = channel.BasicGet(options.QueueName, false);
                     if (result == null)
@@ -96,7 +90,7 @@ namespace Tapeti.Cmd.Verbs
                 }
             }
 
-            Console.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} exported.");
+            consoleWriter.WriteLine($"{messageCount} message{(messageCount != 1 ? "s" : "")} exported.");
         }
 
 
