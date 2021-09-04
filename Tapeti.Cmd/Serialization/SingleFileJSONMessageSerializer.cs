@@ -14,8 +14,11 @@ namespace Tapeti.Cmd.Serialization
         private readonly bool disposeStream;
         private readonly Encoding encoding;
 
+        // StreamReader.DefaultBufferSize is private :-/
+        private const int DefaultBufferSize = 1024;
 
-        private static readonly JsonSerializerSettings SerializerSettings = new JsonSerializerSettings
+
+        private static readonly JsonSerializerSettings SerializerSettings = new()
         {
             NullValueHandling = NullValueHandling.Ignore            
         };
@@ -40,23 +43,48 @@ namespace Tapeti.Cmd.Serialization
             exportFile.Value.WriteLine(serialized);
         }
 
+        
+        public int GetMessageCount()
+        {
+            if (!stream.CanSeek)
+                return 0;
+
+            var position = stream.Position;
+            try
+            {
+                var lineCount = 0;
+                using var reader = new StreamReader(stream, encoding, true, DefaultBufferSize, true);
+
+                while (!reader.EndOfStream)
+                {
+                    if (!string.IsNullOrEmpty(reader.ReadLine()))
+                        lineCount++;
+                }
+
+                return lineCount;
+            }
+            finally
+            {
+                stream.Position = position;
+            }
+        }
+
 
         public IEnumerable<Message> Deserialize(IModel channel)
         {
-            using (var reader = new StreamReader(stream, encoding))
+            using var reader = new StreamReader(stream, encoding, true, DefaultBufferSize, true);
+            
+            while (!reader.EndOfStream)
             {
-                while (!reader.EndOfStream)
-                {
-                    var serialized = reader.ReadLine();
-                    if (string.IsNullOrEmpty(serialized))
-                        continue;
+                var serialized = reader.ReadLine();
+                if (string.IsNullOrEmpty(serialized))
+                    continue;
 
-                    var serializableMessage = JsonConvert.DeserializeObject<SerializableMessage>(serialized);
-                    if (serializableMessage == null)
-                        continue;
+                var serializableMessage = JsonConvert.DeserializeObject<SerializableMessage>(serialized);
+                if (serializableMessage == null)
+                    continue;
 
-                    yield return serializableMessage.ToMessage(channel);
-                }
+                yield return serializableMessage.ToMessage(channel);
             }
         }
 
@@ -135,7 +163,7 @@ namespace Tapeti.Cmd.Serialization
 
             public Message ToMessage(IModel channel)
             {
-                return new Message
+                return new()
                 {
                     DeliveryTag = DeliveryTag,
                     Redelivered = Redelivered,

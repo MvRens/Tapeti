@@ -11,22 +11,23 @@ namespace Tapeti.Cmd.Serialization
 {
     public class EasyNetQMessageSerializer : IMessageSerializer
     {
-        private static readonly Regex InvalidCharRegex = new Regex(@"[\\\/:\*\?\""\<\>|]", RegexOptions.Compiled);
+        private static readonly Regex InvalidCharRegex = new(@"[\\\/:\*\?\""\<\>|]", RegexOptions.Compiled);
 
-        private readonly string path;
         private readonly Lazy<string> writablePath;
         private int messageCount;
+
+        private readonly Lazy<string[]> files;
 
 
         public EasyNetQMessageSerializer(string path)
         {
-            this.path = path;
-
             writablePath = new Lazy<string>(() =>
             {
                 Directory.CreateDirectory(path);
                 return path;
             });
+
+            files = new Lazy<string[]>(() => Directory.GetFiles(path, "*.*.message.txt"));
         }
 
 
@@ -60,9 +61,15 @@ namespace Tapeti.Cmd.Serialization
         }
 
 
+        public int GetMessageCount()
+        {
+            return files.Value.Length;
+        }
+
+        
         public IEnumerable<Message> Deserialize(IModel channel)
         {
-            foreach (var file in Directory.GetFiles(path, "*.*.message.txt"))
+            foreach (var file in files.Value)
             {
                 const string messageTag = ".message.";
 
@@ -303,7 +310,7 @@ namespace Tapeti.Cmd.Serialization
 
             public Message ToMessage()
             {
-                return new Message
+                return new()
                 {
                     //ConsumerTag = 
                     DeliveryTag = DeliverTag,
