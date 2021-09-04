@@ -7,7 +7,7 @@ using Tapeti.Cmd.Parser;
 
 namespace Tapeti.Cmd.Verbs
 {
-    [Verb("bindqueue", HelpText = "Add a binding to a queue.")]
+    [Verb("bindqueue", HelpText = "Add a binding to an existing queue.")]
     [ExecutableVerb(typeof(BindQueueVerb))]
     public class BindQueueOptions : BaseConnectionOptions
     {
