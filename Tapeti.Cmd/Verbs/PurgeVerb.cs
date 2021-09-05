@@ -1,5 +1,4 @@
-﻿using System;
-using CommandLine;
+﻿using CommandLine;
 using RabbitMQ.Client;
 using Tapeti.Cmd.ConsoleHelper;
 
