@@ -1,4 +1,5 @@
-﻿using Tapeti.Config;
+﻿using System.Threading.Tasks;
+using Tapeti.Config;
 
 namespace Tapeti
 {
@@ -12,6 +13,6 @@ namespace Tapeti
         /// </summary>
         /// <param name="context">The exception strategy context containing the necessary data including the message context and the thrown exception.
         /// Also proivdes methods for the exception strategy to indicate how the message should be handled.</param>
-        void HandleException(IExceptionStrategyContext context);
+        Task HandleException(IExceptionStrategyContext context);
     }
 }
