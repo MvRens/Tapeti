@@ -30,7 +30,7 @@ namespace Tapeti.Flow.Default
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new ConcurrentDictionary<Guid, CachedFlowState>();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
         private readonly LockCollection<Guid> locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
-        private HashSet<string> validatedMethods = null;
+        private HashSet<string> validatedMethods;
 
         private readonly IFlowRepository repository;
         private readonly ITapetiConfig config;

@@ -144,7 +144,7 @@ namespace Tapeti.Cmd.ConsoleHelper
             public void Confirm(string message)
             {
                 WriteLine(message);
-                TryReadKey(false, out var _);
+                TryReadKey(false, out _);
             }
 
 

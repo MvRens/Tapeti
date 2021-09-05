@@ -1,4 +1,5 @@
-﻿using Tapeti.Config;
+﻿using System.Threading.Tasks;
+using Tapeti.Config;
 
 // ReSharper disable UnusedMember.Global
 
@@ -20,9 +21,10 @@ namespace Tapeti.Default
     public class RequeueExceptionStrategy : IExceptionStrategy
     {
         /// <inheritdoc />
-        public void HandleException(IExceptionStrategyContext context)
+        public Task HandleException(IExceptionStrategyContext context)
         {
             context.SetConsumeResult(ConsumeResult.Requeue);
+            return Task.CompletedTask;
         }
     }
 }

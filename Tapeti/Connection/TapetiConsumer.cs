@@ -78,7 +78,8 @@ namespace Tapeti.Connection
                 };
                 
                 var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
-                HandleException(exceptionContext);
+                await HandleException(exceptionContext);
+                
                 return exceptionContext.ConsumeResult;
             }
         }
@@ -132,7 +133,7 @@ namespace Tapeti.Connection
             catch (Exception invokeException)
             {
                 var exceptionContext = new ExceptionStrategyContext(context, invokeException);
-                HandleException(exceptionContext);
+                await HandleException(exceptionContext);
 
                 await binding.Cleanup(context, exceptionContext.ConsumeResult);
                 return exceptionContext.ConsumeResult;
@@ -140,7 +141,7 @@ namespace Tapeti.Connection
         }
 
 
-        private void HandleException(ExceptionStrategyContext exceptionContext)
+        private async Task HandleException(ExceptionStrategyContext exceptionContext)
         {
             if (cancellationToken.IsCancellationRequested && IgnoreExceptionDuringShutdown(exceptionContext.Exception))
             {
@@ -151,7 +152,7 @@ namespace Tapeti.Connection
 
             try
             {
-                exceptionStrategy.HandleException(exceptionContext);
+                await exceptionStrategy.HandleException(exceptionContext);
             }
             catch (Exception strategyException)
             {
