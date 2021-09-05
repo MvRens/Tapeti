@@ -19,6 +19,8 @@ namespace Tapeti.Cmd.Serialization
     public interface IMessageSerializer : IDisposable
     {
         void Serialize(Message message);
+
+        int GetMessageCount();
         IEnumerable<Message> Deserialize(IModel channel);
     }
 }

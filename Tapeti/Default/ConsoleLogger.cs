@@ -11,6 +11,19 @@ namespace Tapeti.Default
     /// </summary>
     public class ConsoleLogger : IBindingLogger
     {
+        /// <summary>
+        /// Default ILogger implementation for console applications. This version
+        /// includes the message body if available when an error occurs.
+        /// </summary>
+        public class WithMessageLogging : ConsoleLogger
+        {
+            /// <inheritdoc />
+            public WithMessageLogging() : base() { }
+
+            internal override bool IncludeMessageBody() => true;
+        }
+
+        
         /// <inheritdoc />
         public void Connect(IConnectContext connectContext)
         {
@@ -39,16 +52,22 @@ namespace Tapeti.Default
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
             Console.WriteLine("[Tapeti] Exception while handling message");
-            Console.WriteLine($"  Result     : {consumeResult}");
-            Console.WriteLine($"  Exchange   : {messageContext.Exchange}");
-            Console.WriteLine($"  Queue      : {messageContext.Queue}");
-            Console.WriteLine($"  RoutingKey : {messageContext.RoutingKey}");
+            Console.WriteLine($"  Result        : {consumeResult}");
+            Console.WriteLine($"  Exchange      : {messageContext.Exchange}");
+            Console.WriteLine($"  Queue         : {messageContext.Queue}");
+            Console.WriteLine($"  RoutingKey    : {messageContext.RoutingKey}");
+            Console.WriteLine($"  ReplyTo       : {messageContext.Properties.ReplyTo}");
+            Console.WriteLine($"  CorrelationId : {messageContext.Properties.CorrelationId}");
 
-            if (messageContext is IControllerMessageContext controllerMessageContext)
+            if (messageContext.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
             {
-                Console.WriteLine($"  Controller : {controllerMessageContext.Binding.Controller.FullName}");
-                Console.WriteLine($"  Method     : {controllerMessageContext.Binding.Method.Name}");
+                Console.WriteLine($"  Controller    : {controllerPayload.Binding.Controller.FullName}");
+                Console.WriteLine($"  Method        : {controllerPayload.Binding.Method.Name}");
             }
+
+            if (IncludeMessageBody())
+                Console.WriteLine($"  Body          : {(messageContext.RawBody != null ? Encoding.UTF8.GetString(messageContext.RawBody) : "<null>")}");
+
 
             Console.WriteLine();
             Console.WriteLine(exception);
@@ -102,5 +121,7 @@ namespace Tapeti.Default
                 ? $"[Tapeti] Obsolete queue was deleted: {queueName}" 
                 : $"[Tapeti] Obsolete queue bindings removed: {queueName}, {messageCount} messages remaining");
         }
+
+        internal virtual bool IncludeMessageBody() => false;
     }
 }

@@ -14,6 +14,6 @@ namespace Tapeti.Config
         /// <param name="context"></param>
         /// <param name="consumeResult"></param>
         /// <param name="next">Always call to allow the next in the chain to clean up</param>
-        Task Cleanup(IControllerMessageContext context, ConsumeResult consumeResult, Func<Task> next);
+        Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next);
     }
 }

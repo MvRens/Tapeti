@@ -57,6 +57,7 @@ namespace Tapeti.Connection
 
                 return await DispatchMessage(message, new MessageContextData
                 {
+                    RawBody = body,
                     Exchange = exchange,
                     RoutingKey = routingKey,
                     Properties = properties
@@ -70,6 +71,7 @@ namespace Tapeti.Connection
                     Queue = queueName,
                     Exchange = exchange,
                     RoutingKey = routingKey,
+                    RawBody = body,
                     Message = message,
                     Properties = properties,
                     Binding = null
@@ -112,6 +114,7 @@ namespace Tapeti.Connection
                 Queue = queueName,
                 Exchange = messageContextData.Exchange,
                 RoutingKey = messageContextData.RoutingKey,
+                RawBody = messageContextData.RawBody,
                 Message = message,
                 Properties = messageContextData.Properties,
                 Binding = binding
@@ -174,6 +177,7 @@ namespace Tapeti.Connection
 
         private struct MessageContextData
         {
+            public byte[] RawBody;
             public string Exchange;
             public string RoutingKey;
             public IMessageProperties Properties;

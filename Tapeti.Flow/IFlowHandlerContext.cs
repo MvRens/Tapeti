@@ -29,9 +29,9 @@ namespace Tapeti.Flow
 
 
         /// <summary>
-        /// Access to the controller message context if this is a continuated flow.
+        /// Access to the message context if this is a continuated flow.
         /// Will be null when in a starting flow.
         /// </summary>
-        IControllerMessageContext ControllerMessageContext { get; }
+        IMessageContext MessageContext { get; }
     }
 }

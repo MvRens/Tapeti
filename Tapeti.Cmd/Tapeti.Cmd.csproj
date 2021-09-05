@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
     <Version>2.0.0</Version>
     <Product>Tapeti Command-line Utility</Product>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
