@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using Tapeti.Config;
 
+// ReSharper disable UnusedMember.Global - public API
+
 namespace Tapeti.Default
 {
     /// <inheritdoc />
@@ -17,9 +19,6 @@ namespace Tapeti.Default
         /// </summary>
         public class WithMessageLogging : ConsoleLogger
         {
-            /// <inheritdoc />
-            public WithMessageLogging() : base() { }
-
             internal override bool IncludeMessageBody() => true;
         }
 

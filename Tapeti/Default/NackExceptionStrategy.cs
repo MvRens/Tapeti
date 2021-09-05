@@ -1,4 +1,5 @@
-﻿using Tapeti.Config;
+﻿using System.Threading.Tasks;
+using Tapeti.Config;
 
 namespace Tapeti.Default
 {
@@ -9,9 +10,10 @@ namespace Tapeti.Default
     public class NackExceptionStrategy : IExceptionStrategy
     {
         /// <inheritdoc />
-        public void HandleException(IExceptionStrategyContext context)
+        public Task HandleException(IExceptionStrategyContext context)
         {
             context.SetConsumeResult(ConsumeResult.Error);
+            return Task.CompletedTask;
         }
     }
 }
