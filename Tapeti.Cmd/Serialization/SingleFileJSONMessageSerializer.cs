@@ -241,6 +241,7 @@ namespace Tapeti.Cmd.Serialization
                 if (!string.IsNullOrEmpty(ClusterId)) properties.ClusterId = ClusterId;
                 if (!string.IsNullOrEmpty(ContentEncoding)) properties.ContentEncoding = ContentEncoding;
                 if (!string.IsNullOrEmpty(ContentType)) properties.ContentType = ContentType;
+                if (!string.IsNullOrEmpty(CorrelationId)) properties.CorrelationId = CorrelationId;
                 if (DeliveryMode.HasValue) properties.DeliveryMode = DeliveryMode.Value;
                 if (!string.IsNullOrEmpty(Expiration)) properties.Expiration = Expiration;
                 if (!string.IsNullOrEmpty(MessageId)) properties.MessageId = MessageId;
