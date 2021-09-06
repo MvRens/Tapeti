@@ -35,10 +35,6 @@ after_build:
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.zip | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
 
-
-artifacts:
-- path: 'output\Tapeti.Cmd-*.zip'
-
 build:
   project: Tapeti.sln
 
