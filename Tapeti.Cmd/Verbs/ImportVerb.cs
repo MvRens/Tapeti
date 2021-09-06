@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.IO;
+using System.Net;
 using System.Text;
 using CommandLine;
 using RabbitMQ.Client;
@@ -18,9 +19,12 @@ namespace Tapeti.Cmd.Verbs
 
         [Option('m', "message", Group = "Input", HelpText = "Single message to be sent, in the same format as used for SingleFileJSON. Serialization argument has no effect when using this input.")]
         public string InputMessage { get; set; }
-
+        
         [Option('c', "pipe", Group = "Input", HelpText = "Messages are read from the standard input pipe, in the same format as used for SingleFileJSON. Serialization argument has no effect when using this input.")]
         public bool InputPipe { get; set; }
+        
+        [Option("urlencoded", HelpText = "Indicates the message is URL encoded. Only applies to messages passed directly with --message as quotes are very quirky on the command-line, even more so in PowerShell.")]
+        public bool UrlEncoded { get; set; }
 
         [Option('e', "exchange", HelpText = "If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.")]
         public bool PublishToExchange { get; set; }
@@ -133,8 +137,12 @@ namespace Tapeti.Cmd.Verbs
 
             if (!string.IsNullOrEmpty(options.InputMessage))
             {
+                var inputMessage = options.UrlEncoded
+                    ? WebUtility.UrlDecode(options.InputMessage)
+                    : options.InputMessage;
+                
                 disposeStream = true;
-                return new MemoryStream(Encoding.UTF8.GetBytes(options.InputMessage));
+                return new MemoryStream(Encoding.UTF8.GetBytes(inputMessage));
             }
 
             disposeStream = true;
