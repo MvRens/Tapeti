@@ -41,15 +41,7 @@ namespace Tapeti.Cmd.Verbs
                     return;
             }
 
-            var factory = new ConnectionFactory
-            {
-                HostName = options.Host,
-                Port = options.Port,
-                VirtualHost = options.VirtualHost,
-                UserName = options.Username,
-                Password = options.Password
-            };
-
+            var factory = options.CreateConnectionFactory(console);
             uint messageCount;
 
             try

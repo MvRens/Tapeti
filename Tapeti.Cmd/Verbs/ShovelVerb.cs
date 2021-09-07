@@ -61,15 +61,7 @@ namespace Tapeti.Cmd.Verbs
         
         public void Execute(IConsole console)
         {
-            var sourceFactory = new ConnectionFactory
-            {
-                HostName = options.Host,
-                Port = options.Port,
-                VirtualHost = options.VirtualHost,
-                UserName = options.Username,
-                Password = options.Password
-            };
-
+            var sourceFactory = options.CreateConnectionFactory(console);
             using var sourceConnection = sourceFactory.CreateConnection();
             using var sourceChannel = sourceConnection.CreateModel();
 
@@ -78,7 +70,7 @@ namespace Tapeti.Cmd.Verbs
                 var targetFactory = new ConnectionFactory
                 {
                     HostName = !string.IsNullOrEmpty(options.TargetHost) ? options.TargetHost : options.Host,
-                    Port = options.TargetPort ?? options.Port,
+                    Port = options.TargetPort ?? options.Port ?? 5672,
                     VirtualHost = !string.IsNullOrEmpty(options.TargetVirtualHost) ? options.TargetVirtualHost : options.VirtualHost,
                     UserName = !string.IsNullOrEmpty(options.TargetUsername) ? options.TargetUsername : options.Username,
                     Password = !string.IsNullOrEmpty(options.TargetPassword) ? options.TargetPassword : options.Password
