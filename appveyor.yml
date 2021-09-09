@@ -54,7 +54,7 @@ deploy:
   - provider: GitHub
     auth_token:
       secure: dWOConKg3VTPvd9DmWOOKiX1SJCalaqKInuk9GlKQOZX2s+Bia49J7q+AHO8wFj7
-    artifact: /output\\Tapeti.Cmd-.*\.zip/
+    artifact: /Tapeti.Cmd-.*\.zip/
     draft: false
     prerelease: false
     on:
