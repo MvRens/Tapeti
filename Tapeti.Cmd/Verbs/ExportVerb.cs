@@ -40,15 +40,7 @@ namespace Tapeti.Cmd.Verbs
         public void Execute(IConsole console)
         {
             var consoleWriter = console.GetPermanentWriter();
-            var factory = new ConnectionFactory
-            {
-                HostName = options.Host,
-                Port = options.Port,
-                VirtualHost = options.VirtualHost,
-                UserName = options.Username,
-                Password = options.Password
-            };
-
+            var factory = options.CreateConnectionFactory(console);
             using var messageSerializer = GetMessageSerializer(options);
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();

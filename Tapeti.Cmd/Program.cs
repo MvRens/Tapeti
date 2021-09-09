@@ -17,6 +17,9 @@ namespace Tapeti.Cmd
                 .Where(t => t.GetCustomAttribute<ExecutableVerbAttribute>() != null)
                 .ToArray();
 
+            using var consoleWrapper = new ConsoleWrapper();
+
+            // ReSharper disable AccessToDisposedClosure
             CommandLine.Parser.Default.ParseArguments(args, verbTypes.ToArray())
                 .WithParsed(o =>
                 {
@@ -28,33 +31,33 @@ namespace Tapeti.Cmd
                         // Should have been validated by the ExecutableVerbAttribute
                         Debug.Assert(executer != null, nameof(executer) + " != null");
 
-                        using var consoleWrapper = new ConsoleWrapper();
-
                         executer.Execute(consoleWrapper);
                         exitCode = 0;
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e.Message);
-                        DebugConfirmClose();
+                        using var consoleWriter = consoleWrapper.GetPermanentWriter();
+                        consoleWriter.WriteLine(e.Message);
+                        DebugConfirmClose(consoleWrapper);
                     }
                 })
                 .WithNotParsed(_ =>
                 {
-                    DebugConfirmClose();
+                    DebugConfirmClose(consoleWrapper);
                 });
-                
+            // ReSharper restore AccessToDisposedClosure
+
             return exitCode;
         }
 
 
-        private static void DebugConfirmClose()
+        private static void DebugConfirmClose(IConsole console)
         {
             if (!Debugger.IsAttached)
                 return;
 
-            Console.WriteLine("Press any Enter key to continue...");
-            Console.ReadLine();
+            using var consoleWriter = console.GetPermanentWriter();
+            consoleWriter.Confirm("Press any key to continue...");
         }
     }
 }

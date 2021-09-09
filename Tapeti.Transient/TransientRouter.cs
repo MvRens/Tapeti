@@ -42,7 +42,7 @@ namespace Tapeti.Transient
                 return;
 
             if (map.TryRemove(continuationID, out var tcs))
-                tcs.SetResult(context.Message);
+                tcs.TrySetResult(context.Message);
         }
 
 
@@ -86,7 +86,7 @@ namespace Tapeti.Transient
 
         private void TimeoutResponse(object tcs)
         {
-            ((TaskCompletionSource<object>)tcs).SetException(new TimeoutException("Transient RequestResponse timed out at (ms) " + defaultTimeoutMs));
+            ((TaskCompletionSource<object>)tcs).TrySetException(new TimeoutException("Transient RequestResponse timed out at (ms) " + defaultTimeoutMs));
         }
     }
 }

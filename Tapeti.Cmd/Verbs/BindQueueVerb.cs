@@ -35,15 +35,7 @@ namespace Tapeti.Cmd.Verbs
             var consoleWriter = console.GetPermanentWriter();
             var bindings = BindingParser.Parse(options.Bindings);
 
-            var factory = new ConnectionFactory
-            {
-                HostName = options.Host,
-                Port = options.Port,
-                VirtualHost = options.VirtualHost,
-                UserName = options.Username,
-                Password = options.Password
-            };
-
+            var factory = options.CreateConnectionFactory(console);
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
 
