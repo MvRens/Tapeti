@@ -26,7 +26,7 @@ namespace Tapeti.Cmd.RateLimiter
             if (batchCount > batchSize)
             {
                 Pause(console);
-                batchCount = 0;
+                batchCount = 1;
             }
 
             decoratedRateLimiter.Execute(action);
