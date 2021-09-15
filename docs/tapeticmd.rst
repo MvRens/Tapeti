@@ -82,6 +82,12 @@ Read messages from disk as previously exported and publish them to a queue.
 -e, --exchange
   If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.
 
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous import was interrupted.
+
+-n <count>, --maxcount <count>
+  Maximum number of messages to import. If not specified all messages are imported.
+
 -s <method>, --serialization <method>
   The method used to serialize the message for import or export. Valid options: SingleFileJSON, EasyNetQHosepipe. Defaults to SingleFileJSON. See Serialization methods below for more information.
 
