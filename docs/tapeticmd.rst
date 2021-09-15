@@ -51,6 +51,9 @@ Fetches messages from a queue and writes them to disk.
 -r, --remove
   If specified messages are acknowledged and removed from the queue. If not messages are kept.
 
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous non-removing export was interrupted.
+
 -n <count>, --maxcount <count>
   Maximum number of messages to retrieve from the queue. If not specified all messages are exported.
 
@@ -123,6 +126,9 @@ Reads messages from a queue and publishes them to another queue, optionally to a
 
 -r, --remove
   If specified messages are acknowledged and removed from the queue. If not messages are kept.
+
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous non-removing shovel was interrupted.
 
 -n <count>, --maxcount <count>
   Maximum number of messages to retrieve from the queue. If not specified all messages are exported.
