@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
+using Console = System.Console;
 
 namespace Tapeti.Cmd.ConsoleHelper
 {
@@ -138,39 +140,79 @@ namespace Tapeti.Cmd.ConsoleHelper
 
             public abstract bool Enabled { get; }
 
+            public abstract void WriteCaptured(string value, Action processInput);
             public abstract void WriteLine(string value);
 
 
             public void Confirm(string message)
             {
                 WriteLine(message);
-                TryReadKey(false, out _);
+
+                // Clear any previous key entered before this confirmation
+                while (!Owner.Cancelled && Console.KeyAvailable)
+                    Console.ReadKey(true);
+
+                while (!Owner.Cancelled && !Console.KeyAvailable)
+                    Thread.Sleep(50);
+
+                if (Owner.Cancelled)
+                    return;
+
+                Console.ReadKey(true);
             }
 
 
             public bool ConfirmYesNo(string message)
             {
-                WriteLine($"{message} (Y/N) ");
-                if (!TryReadKey(true, out var key))
-                    return false;
+                var confirmed = false;
 
-                return key.KeyChar == 'y' || key.KeyChar == 'Y';
-            }
-
-
-            private bool TryReadKey(bool showKeyOutput, out ConsoleKeyInfo keyInfo)
-            {
-                while (!Owner.Cancelled && !Console.KeyAvailable)
-                    Thread.Sleep(50);
-
-                if (Owner.Cancelled)
+                WriteCaptured($"{message} (Y/N) ", () =>
                 {
-                    keyInfo = default;
-                    return false;
-                }
+                    // Clear any previous key entered before this confirmation
+                    while (!Owner.Cancelled && Console.KeyAvailable)
+                        Console.ReadKey(true);
 
-                keyInfo = Console.ReadKey(!showKeyOutput);
-                return true;
+                    var input = new StringBuilder();
+
+                    while (!Owner.Cancelled)
+                    {
+                        if (!Console.KeyAvailable)
+                        {
+                            Thread.Sleep(50);
+                            continue;
+                        }
+
+                        var keyInfo = Console.ReadKey(false);
+
+                        // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault - by design
+                        switch (keyInfo.Key)
+                        {
+                            case ConsoleKey.Enter:
+                                Console.WriteLine();
+                                confirmed = input.ToString().Equals("Y", StringComparison.CurrentCultureIgnoreCase);
+                                return;
+
+                            case ConsoleKey.Backspace:
+                                if (input.Length > 0)
+                                {
+                                    input.Remove(input.Length - 1, 1);
+
+                                    // We need to handle erasing the character ourselves, as we want to use ReadKey so that we can monitor Cancelled
+                                    Console.Write(" \b");
+                                }
+
+                                break;
+
+                            default:
+                                if (keyInfo.KeyChar != -1)
+                                    input.Append(keyInfo.KeyChar);
+
+                                break;
+                        }
+                    }
+                });
+
+                return confirmed;
             }
         }
 
@@ -183,6 +225,22 @@ namespace Tapeti.Cmd.ConsoleHelper
 
             
             public override bool Enabled => true;
+
+
+            
+            public override void WriteCaptured(string value, Action waitForInput)
+            {
+                Owner.AcquirePermanent();
+                try
+                {
+                    Console.Write(value);
+                    waitForInput();
+                }
+                finally
+                {
+                    Owner.ReleasePermanent();
+                }
+            }
 
 
             public override void WriteLine(string value)
@@ -216,6 +274,13 @@ namespace Tapeti.Cmd.ConsoleHelper
 
             public override bool Enabled => !Console.IsOutputRedirected;
 
+
+            public override void WriteCaptured(string value, Action waitForInput)
+            {
+                WriteLine(value);
+                waitForInput();
+            }
+            
 
             public override void WriteLine(string value)
             {

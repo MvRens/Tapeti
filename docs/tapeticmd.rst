@@ -45,6 +45,9 @@ Fetches messages from a queue and writes them to disk.
 -o <target>, --output <target>
   *Required*. Path or filename (depending on the chosen serialization method) where the messages will be output to.
 
+-y, --overwrite
+  If the output exists, do not ask to overwrite.
+
 -r, --remove
   If specified messages are acknowledged and removed from the queue. If not messages are kept.
 
