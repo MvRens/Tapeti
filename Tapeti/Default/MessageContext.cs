@@ -67,20 +67,20 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public void Dispose()
-        {
-            foreach (var payload in payloads.Values)
-                (payload as IDisposable)?.Dispose();
-        }
-
-
-        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             foreach (var payload in payloads.Values)
             {
-                if (payload is IAsyncDisposable asyncDisposable)
-                    await asyncDisposable.DisposeAsync();
+                switch (payload)
+                {
+                    case IAsyncDisposable asyncDisposable:
+                        await asyncDisposable.DisposeAsync();
+                        break;
+
+                    case IDisposable disposable:
+                        disposable.Dispose();
+                        break;
+                }
             }
         }
 
