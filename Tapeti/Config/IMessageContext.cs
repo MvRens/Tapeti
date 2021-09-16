@@ -8,7 +8,7 @@ namespace Tapeti.Config
     /// <summary>
     /// Provides information about the message currently being handled.
     /// </summary>
-    public interface IMessageContext : IAsyncDisposable, IDisposable
+    public interface IMessageContext : IAsyncDisposable
     {
         /// <summary>
         /// Provides access to the Tapeti config.

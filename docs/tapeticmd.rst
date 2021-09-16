@@ -45,8 +45,14 @@ Fetches messages from a queue and writes them to disk.
 -o <target>, --output <target>
   *Required*. Path or filename (depending on the chosen serialization method) where the messages will be output to.
 
+-y, --overwrite
+  If the output exists, do not ask to overwrite.
+
 -r, --remove
   If specified messages are acknowledged and removed from the queue. If not messages are kept.
+
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous non-removing export was interrupted.
 
 -n <count>, --maxcount <count>
   Maximum number of messages to retrieve from the queue. If not specified all messages are exported.
@@ -78,6 +84,12 @@ Read messages from disk as previously exported and publish them to a queue.
 
 -e, --exchange
   If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.
+
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous import was interrupted.
+
+-n <count>, --maxcount <count>
+  Maximum number of messages to import. If not specified all messages are imported.
 
 -s <method>, --serialization <method>
   The method used to serialize the message for import or export. Valid options: SingleFileJSON, EasyNetQHosepipe. Defaults to SingleFileJSON. See Serialization methods below for more information.
@@ -114,6 +126,9 @@ Reads messages from a queue and publishes them to another queue, optionally to a
 
 -r, --remove
   If specified messages are acknowledged and removed from the queue. If not messages are kept.
+
+--skip <count>
+  Number of messages in the input to skip. Useful if a previous non-removing shovel was interrupted.
 
 -n <count>, --maxcount <count>
   Maximum number of messages to retrieve from the queue. If not specified all messages are exported.

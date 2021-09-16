@@ -28,6 +28,12 @@ namespace Tapeti.Cmd.Verbs
 
         [Option('e', "exchange", HelpText = "If specified publishes to the originating exchange using the original routing key. By default these are ignored and the message is published directly to the originating queue.")]
         public bool PublishToExchange { get; set; }
+        
+        [Option("skip", HelpText = "(Default: 0) Number of messages in the input to skip. Useful if a previous import was interrupted.", Default = 0)]
+        public int Skip { get; set; }
+
+        [Option('n', "maxcount", HelpText = "(Default: all) Maximum number of messages to import.")]
+        public int? MaxCount { get; set; }
 
         [Option("maxrate", HelpText = "The maximum amount of messages per second to import.")]
         public int? MaxRate { get; set; }
@@ -61,6 +67,7 @@ namespace Tapeti.Cmd.Verbs
 
             var totalCount = messageSerializer.GetMessageCount();
             var messageCount = 0;
+            var skip = Math.Max(options.Skip, 0);
 
 
             ProgressBar progress = null;
@@ -70,24 +77,27 @@ namespace Tapeti.Cmd.Verbs
             {
                 foreach (var message in messageSerializer.Deserialize(channel))
                 {
-                    if (console.Cancelled)
+                    if (console.Cancelled || (options.MaxCount.HasValue && messageCount >= options.MaxCount.Value))
                         break;
 
-                    rateLimiter.Execute(() =>
-                    {
-                        if (console.Cancelled)
-                            return;
+                    if (skip > 0)
+                        skip--;
+                    else
+                        rateLimiter.Execute(() =>
+                        {
+                            if (console.Cancelled)
+                                return;
 
-                        var exchange = options.PublishToExchange ? message.Exchange : "";
-                        var routingKey = options.PublishToExchange ? message.RoutingKey : message.Queue;
+                            var exchange = options.PublishToExchange ? message.Exchange : "";
+                            var routingKey = options.PublishToExchange ? message.RoutingKey : message.Queue;
 
-                        // ReSharper disable AccessToDisposedClosure
-                        channel.BasicPublish(exchange, routingKey, message.Properties, message.Body);
-                        messageCount++;
-                        
-                        progress?.Report(messageCount);
-                        // ReSharper restore AccessToDisposedClosure
-                    });
+                            // ReSharper disable AccessToDisposedClosure
+                            channel.BasicPublish(exchange, routingKey, message.Properties, message.Body);
+                            messageCount++;
+
+                            progress?.Report(messageCount);
+                            // ReSharper restore AccessToDisposedClosure
+                        });
                 }
             }
             finally

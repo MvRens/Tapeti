@@ -31,6 +31,12 @@ namespace Tapeti.Cmd.Serialization
         }
 
 
+        public static bool OutputExists(string path)
+        {
+            return Directory.Exists(path) && Directory.GetFiles(path, "*.message.txt").Length > 0;
+        }
+
+
         public void Dispose()
         {
         }

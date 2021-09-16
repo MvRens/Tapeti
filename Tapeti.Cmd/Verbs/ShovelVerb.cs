@@ -37,6 +37,9 @@ namespace Tapeti.Cmd.Verbs
         [Option("targetpassword", HelpText = "Password used to connect to the target RabbitMQ server. Defaults to the source password.")]
         public string TargetPassword { get; set; }
 
+        [Option("skip", HelpText = "(Default: 0) Number of messages in the queue to skip. Useful if a previous non-removing shovel was interrupted.", Default = 0)]
+        public int Skip { get; set; }
+
         [Option("maxrate", HelpText = "The maximum amount of messages per second to shovel.")]
         public int? MaxRate { get; set; }
 
@@ -93,6 +96,11 @@ namespace Tapeti.Cmd.Verbs
             var targetQueueName = !string.IsNullOrEmpty(options.TargetQueueName) ? options.TargetQueueName : options.QueueName;
 
             var totalCount = (int)sourceChannel.MessageCount(options.QueueName);
+
+            var skip = Math.Max(options.Skip, 0);
+            if (skip > 0)
+                totalCount -= Math.Min(skip, totalCount);
+
             if (options.MaxCount.HasValue && options.MaxCount.Value < totalCount)
                 totalCount = options.MaxCount.Value;
 
@@ -101,6 +109,18 @@ namespace Tapeti.Cmd.Verbs
 
             using (var progressBar = new ProgressBar(console, totalCount))
             {
+                // Perform the skips outside of the rate limiter
+                while (skip > 0 && !console.Cancelled)
+                {
+                    var result = sourceChannel.BasicGet(options.QueueName, false);
+                    if (result == null)
+                        // No more messages on the queue
+                        return;
+
+                    skip--;
+                }
+
+                
                 var hasMessage = true;
 
                 while (!console.Cancelled && hasMessage && (!options.MaxCount.HasValue || messageCount < options.MaxCount.Value))
