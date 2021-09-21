@@ -5,6 +5,9 @@ using Tapeti.Default;
 
 namespace Tapeti.Connection
 {
+    public delegate Task ResponseFunc(long expectedConnectionReference, ulong deliveryTag, ConsumeResult result);
+
+
     /// <inheritdoc />
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
@@ -12,13 +15,15 @@ namespace Tapeti.Connection
     internal class TapetiBasicConsumer : DefaultBasicConsumer
     {
         private readonly IConsumer consumer;
-        private readonly Func<ulong, ConsumeResult, Task> onRespond;
+        private readonly long connectionReference;
+        private readonly ResponseFunc onRespond;
 
 
         /// <inheritdoc />
-        public TapetiBasicConsumer(IConsumer consumer, Func<ulong, ConsumeResult, Task> onRespond)
+        public TapetiBasicConsumer(IConsumer consumer, long connectionReference, ResponseFunc onRespond)
         {
             this.consumer = consumer;
+            this.connectionReference = connectionReference;
             this.onRespond = onRespond;
         }
 
@@ -45,11 +50,11 @@ namespace Tapeti.Connection
                 try
                 {
                     var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), bodyArray);
-                    await onRespond(deliveryTag, response);
+                    await onRespond(connectionReference, deliveryTag, response);
                 }
                 catch
                 {
-                    await onRespond(deliveryTag, ConsumeResult.Error);
+                    await onRespond(connectionReference, deliveryTag, ConsumeResult.Error);
                 }
             });
         }
