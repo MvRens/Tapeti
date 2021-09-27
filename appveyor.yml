@@ -47,7 +47,7 @@ configuration:
 deploy:
   - provider: NuGet
     api_key:
-      secure: 3WCSZAzan66vEmHZ1q3XzfOfucuAQiA+SiCDChO/gswbxfIXUpiM1eMNASDa3qWH
+      secure: DWFz7brxvCOtPLGJWxMojaVzIJimMGd7BPdlW75MjbhHJuoHwG1kPxZHVdjN4tPe
 
     skip_symbols: false
     artifact: /.*(\.|\.s)nupkg/
