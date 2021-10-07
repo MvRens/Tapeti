@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,7 +13,7 @@ namespace Tapeti.Connection
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
-        private readonly List<string> consumerTags = new();
+        private readonly List<TapetiConsumerTag> consumerTags = new();
 
         private CancellationTokenSource initializeCancellationTokenSource;
 

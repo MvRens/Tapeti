@@ -18,7 +18,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Tapeti.Annotations\Tapeti.Annotations.csproj" />
     <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
   </ItemGroup>
 
@@ -30,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.0.0" />
   </ItemGroup>
 </Project>

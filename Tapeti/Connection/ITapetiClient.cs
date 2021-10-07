@@ -78,13 +78,13 @@ namespace Tapeti.Connection
         /// <param name="queueName"></param>
         /// <param name="consumer">The consumer implementation which will receive the messages from the queue</param>
         /// <returns>The consumer tag as returned by BasicConsume.</returns>
-        Task<string> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer);
+        Task<TapetiConsumerTag> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer);
 
         /// <summary>
         /// Stops the consumer with the specified tag.
         /// </summary>
         /// <param name="consumerTag">The consumer tag as returned by Consume.</param>
-        Task Cancel(string consumerTag);
+        Task Cancel(TapetiConsumerTag consumerTag);
 
         /// <summary>
         /// Creates a durable queue if it does not already exist, and updates the bindings.
@@ -128,5 +128,32 @@ namespace Tapeti.Connection
         /// Closes the connection to RabbitMQ gracefully.
         /// </summary>
         Task Close();
+    }
+
+
+    /// <summary>
+    /// Represents a consumer for a specific connection.
+    /// </summary>
+    public class TapetiConsumerTag
+    {
+        /// <summary>
+        /// The consumer tag as determined by the AMQP protocol.
+        /// </summary>
+        public string ConsumerTag { get; }
+
+        /// <summary>
+        /// An internal reference to the connection on which the consume was started.
+        /// </summary>
+        public long ConnectionReference { get;}
+
+
+        /// <summary>
+        /// Creates a new instance of the TapetiConsumerTag class.
+        /// </summary>
+        public TapetiConsumerTag(long connectionReference, string consumerTag)
+        {
+            ConnectionReference = connectionReference;
+            ConsumerTag = consumerTag;
+        }
     }
 }

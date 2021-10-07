@@ -1,3 +1,4 @@
+
 ## Introduction
 Tapeti is a wrapper for the RabbitMQ .NET Client designed for long-running microservices. It’s main goal is to minimize the amount of messaging code required, and instead focus on the higher-level flow.
 
@@ -47,6 +48,17 @@ The documentation for Tapeti is available on Read the Docs:
 [![Documentation Status](https://readthedocs.org/projects/tapeti/badge/?version=latest)](http://tapeti.readthedocs.io/en/latest/introduction.html?badge=latest)
 
 
+## Related repositories
+Parts of Tapeti have been split into their own repository. This allows them to have their own version numbers which increases compatibility between shared message packages when services use different Tapeti versions.
+
+ - [Tapeti.Annotations](https://github.com/MvRens/Tapeti.Annotations)
+ annotations used in message classes, like [Request]
+
+ - [Tapeti.DataAnnotations.Extensions](https://github.com/MvRens/Tapet.DataAnnotations.Extensions)
+ generic data annotation attributes useful in messages, like the [RequiredGuid] attribute
+
+ - [Tapeti.Cmd](https://github.com/MvRens/Tapeti.Cmd)
+ the standalone tool to manage RabbitMQ messages and queues, focused on Tapeti-compatible messages
 
 ## Builds
 Builds are automatically run using AppVeyor, with the resulting packages being pushed to NuGet.
