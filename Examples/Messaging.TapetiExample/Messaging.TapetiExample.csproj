@@ -6,10 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Tapeti.Annotations\Tapeti.Annotations.csproj" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.0.0" />
   </ItemGroup>
 
 </Project>

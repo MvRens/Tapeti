@@ -21,8 +21,9 @@ namespace Tapeti.Serilog.Default
         {
             this.logger = logger;
         }
-        
 
+
+        /// <inheritdoc />
         public void Set(string propertyName, object value, bool destructureObjects = false)
         {
             if (logger.BindProperty(propertyName, value, destructureObjects, out var logEventProperty))

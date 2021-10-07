@@ -5,6 +5,12 @@ using Tapeti.Default;
 
 namespace Tapeti.Connection
 {
+    /// <summary>
+    /// Called to report the result of a consumed message back to RabbitMQ.
+    /// </summary>
+    /// <param name="expectedConnectionReference">The connection reference on which the consumed message was received</param>
+    /// <param name="deliveryTag">The delivery tag of the consumed message</param>
+    /// <param name="result">The result which should be sent back</param>
     public delegate Task ResponseFunc(long expectedConnectionReference, ulong deliveryTag, ConsumeResult result);
 
 
