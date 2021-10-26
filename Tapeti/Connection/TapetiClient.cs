@@ -820,7 +820,7 @@ namespace Tapeti.Connection
                     }
 
                     if (connectionParams.PrefetchCount > 0)
-                        capturedPublishChannelModel.BasicQos(0, connectionParams.PrefetchCount, false);
+                        capturedConsumeChannelModel.BasicQos(0, connectionParams.PrefetchCount, false);
 
                     capturedPublishChannelModel.ModelShutdown += (_, e) =>
                     {

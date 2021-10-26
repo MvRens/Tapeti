@@ -143,13 +143,13 @@ namespace Tapeti.Connection
         {
             var queues = config.Bindings.GroupBy(binding => binding.QueueName);
 
-            consumerTags.AddRange(await Task.WhenAll(queues.Select(async group =>
+            consumerTags.AddRange((await Task.WhenAll(queues.Select(async group =>
             {
                 var queueName = group.Key;
                 var consumer = new TapetiConsumer(cancellationToken, config, queueName, group);
 
                 return await clientFactory().Consume(cancellationToken, queueName, consumer);
-            })));
+            }))).Where(t => t != null));
         }
 
 
