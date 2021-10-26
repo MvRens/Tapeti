@@ -86,6 +86,7 @@ namespace Tapeti.Flow.Default
         {
             // We could check all the things that are required for a continuation or converge method, but this should suffice
             // for the common scenario where you change code without realizing that it's signature has been persisted
+            // ReSharper disable once InvertIf
             if (validatedMethods.Add(metadata.MethodName))
             {
                 var methodInfo = MethodSerializer.Deserialize(metadata.MethodName);
@@ -97,6 +98,7 @@ namespace Tapeti.Flow.Default
                     throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
             }
 
+            /* Disabled for now - the ConvergeMethodName does not include the assembly so we can't easily check it
             if (string.IsNullOrEmpty(metadata.ConvergeMethodName) || !validatedMethods.Add(metadata.ConvergeMethodName))
                 return;
             
@@ -105,6 +107,7 @@ namespace Tapeti.Flow.Default
                 throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer exists (continuation Id = {continuationId})");
 
             // Converge methods are not message handlers themselves
+            */
         }
 
 
