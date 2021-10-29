@@ -102,7 +102,10 @@ Any public method in a message controller is considered a message handler. There
 - The first parameter must be the message class.
 - The return type can be void, Task, Task<message class> or a message class.
 
-The name of the method is not important to Tapeti. Any parameter other than the first will be resolved using the IoC container, although it is considered best practice to use the constructor for dependency injection instead.
+The name of the method is not important to Tapeti. Any parameter other than the first will be resolved in two ways:
+
+1. Registered middleware can alter the behaviour of parameters. Tapeti includes one by default for CancellationToken parameters, see :ref:`parameterbinding` in :doc:`indepth`.
+2. Any remaining parameters are resolved using the IoC container, although it is considered best practice to use the constructor for dependency injection instead.
 
 A new controller is instantiated for each message, so it is safe to use public or private fields to store state while handling the message. Just don't expect it to be there for the next message. If you need this behaviour, take a look at the :doc:`flow`!
 
