@@ -74,7 +74,8 @@ namespace Tapeti.Connection
                     RawBody = body,
                     Message = message,
                     Properties = properties,
-                    Binding = null
+                    Binding = null,
+                    ConnectionClosed = CancellationToken.None
                 };
                 
                 var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
@@ -118,7 +119,8 @@ namespace Tapeti.Connection
                 RawBody = messageContextData.RawBody,
                 Message = message,
                 Properties = messageContextData.Properties,
-                Binding = binding
+                Binding = binding,
+                ConnectionClosed = cancellationToken
             };
             
             try

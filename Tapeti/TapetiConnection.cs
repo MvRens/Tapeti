@@ -151,10 +151,8 @@ namespace Tapeti
         protected virtual void OnConnected(ConnectedEventArgs e)
         {
             var connectedEvent = Connected;
-            if (connectedEvent == null)
-                return;
-
-            Task.Run(() => connectedEvent.Invoke(this, e));
+            if (connectedEvent != null)
+                Task.Run(() => connectedEvent.Invoke(this, e));
         }
 
         /// <summary>
@@ -162,13 +160,11 @@ namespace Tapeti
         /// </summary>
         protected virtual void OnReconnected(ConnectedEventArgs e)
         {
-            var reconnectedEvent = Reconnected;
-            if (reconnectedEvent == null && subscriber == null)
-                return;
-
             subscriber?.Reconnect();
 
-            Task.Run(() => reconnectedEvent?.Invoke(this, e));
+            var reconnectedEvent = Reconnected;
+            if (reconnectedEvent != null)
+                Task.Run(() => reconnectedEvent?.Invoke(this, e));
         }
 
         /// <summary>
@@ -176,13 +172,11 @@ namespace Tapeti
         /// </summary>
         protected virtual void OnDisconnected(DisconnectedEventArgs e)
         {
-            var disconnectedEvent = Disconnected;
-            if (disconnectedEvent == null)
-                return;
-
             subscriber?.Disconnect();
 
-            Task.Run(() => disconnectedEvent.Invoke(this, e));
+            var disconnectedEvent = Disconnected;
+            if (disconnectedEvent != null)
+                Task.Run(() => disconnectedEvent.Invoke(this, e));
         }
     }
 }
