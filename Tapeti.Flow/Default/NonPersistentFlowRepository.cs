@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
@@ -10,9 +11,9 @@ namespace Tapeti.Flow.Default
     /// </summary>
     public class NonPersistentFlowRepository : IFlowRepository
     {
-        Task<List<KeyValuePair<Guid, T>>> IFlowRepository.GetStates<T>()
+        Task<IEnumerable<FlowRecord<T>>> IFlowRepository.GetStates<T>()
         {
-            return Task.FromResult(new List<KeyValuePair<Guid, T>>());
+            return Task.FromResult(Enumerable.Empty<FlowRecord<T>>());
         }
 
         /// <inheritdoc />

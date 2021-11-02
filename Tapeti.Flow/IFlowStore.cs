@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Tapeti.Flow.Default;
 
@@ -29,6 +30,15 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="flowID"></param>
         Task<IFlowStateLock> LockFlowState(Guid flowID);
+
+        /// <summary>
+        /// Returns information about the currently active flows.
+        /// </summary>
+        /// <remarks>
+        /// This is intended for monitoring purposes and should be treated as a snapshot.
+        /// </remarks>
+        /// <param name="minimumAge">The minimum age of the flow before it is included in the result. Set to TimeSpan.Zero to return all active flows.</param>
+        Task<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge);
     }
 
 
@@ -59,5 +69,34 @@ namespace Tapeti.Flow
         /// Disposes of the flow state corresponding to this Flow ID.
         /// </summary>
         Task DeleteFlowState();
+    }
+
+
+    /// <summary>
+    /// Contains information about an active flow, as returned by <see cref="IFlowStore.GetActiveFlows"/>.
+    /// </summary>
+    public class ActiveFlow
+    {
+        /// <summary>
+        /// The ID of the active flow.
+        /// </summary>
+        public Guid FlowID { get; }
+
+        /// <summary>
+        /// The time when the flow was initially created.
+        /// </summary>
+        public DateTime CreationTime { get; }
+
+
+        /// <summary>
+        /// Create a new instance of an ActiveFlow.
+        /// </summary>
+        /// <param name="flowID">The ID of the active flow.</param>
+        /// <param name="creationTime">The time when the flow was initially created.</param>
+        public ActiveFlow(Guid flowID, DateTime creationTime)
+        {
+            FlowID = flowID;
+            CreationTime = creationTime;
+        }
     }
 }
