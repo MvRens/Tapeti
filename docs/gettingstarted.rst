@@ -74,7 +74,7 @@ A message is simply a plain object which can be serialized using `Json.NET <http
 
 Creating a message controller
 -----------------------------
-To handle messages you need what Tapeti refers to as a "message controller". It is similar to an ASP.NET MVC controller if you're familiar with those, but it handles RabbitMQ messages instead of HTTP requests.
+To handle messages you need what Tapeti refers to as a "message controller". It is similar to an ASP.NET controller if you're familiar with those, but it handles RabbitMQ messages instead of HTTP requests.
 
 All you need to do is create a new class and annotate it with the MessageController attribute and a queue attribute. The name and folder of the class is not important to Tapeti, though you might want to agree on a standard in your team.
 

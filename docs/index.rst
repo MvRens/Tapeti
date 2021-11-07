@@ -7,6 +7,7 @@ Tapeti documentation
 
    introduction
    gettingstarted
+   compatibility
    indepth
    dataannotations
    flow
