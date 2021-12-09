@@ -243,6 +243,15 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
+        public IFlowParallelRequest GetParallelRequest(IFlowHandlerContext context)
+        {
+            if (!context.MessageContext.TryGet<FlowMessageContextPayload>(out var flowPayload))
+                return null;
+
+
+        }
+
 
         private class ParallelRequestBuilder : IFlowParallelRequestBuilder
         {
@@ -284,7 +293,31 @@ namespace Tapeti.Flow.Default
             }
 
 
+            public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
+            {
+                requests.Add(new RequestInfo
+                {
+                    Message = message,
+                    ResponseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler)
+                });
+
+                return this;
+            }
+
+
             public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
+            {
+                requests.Add(new RequestInfo
+                {
+                    Message = message,
+                    ResponseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler)
+                });
+
+                return this;
+            }
+
+
+            public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler)
             {
                 requests.Add(new RequestInfo
                 {
@@ -327,6 +360,40 @@ namespace Tapeti.Flow.Default
                             convergeMethod.Method.Name,
                             convergeMethodSync)));
                 });
+            }
+        }
+
+
+        private class ParallelRequest : IFlowParallelRequest
+        {
+            private readonly ITapetiConfig config;
+            private readonly SendRequestFunc sendRequest;
+
+
+            public ParallelRequestBuilder(ITapetiConfig config, SendRequestFunc sendRequest)
+            {
+                this.config = config;
+                this.sendRequest = sendRequest;
+            }
+
+            public IFlowParallelRequest AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IFlowParallelRequest AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IFlowParallelRequest AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
+            {
+                throw new NotImplementedException();
+            }
+
+            public IFlowParallelRequest AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler)
+            {
+                throw new NotImplementedException();
             }
         }
 
