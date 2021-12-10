@@ -251,9 +251,34 @@ A few things to note:
 
 #) The response handlers do not return an IYieldPoint themselves, but void (for AddRequestSync) or Task (for AddRequest). Therefore they can not influence the flow. Instead the converge method as passed to Yield or YieldSync determines how the flow continues. It is called immediately after the last response handler.
 #) The converge method must be private, as it is not a valid message handler in itself.
-#) You must add at least one request.
+#) You must add at least one request, or specify the NoRequestsBehaviour parameter for Yield/YieldSync explicitly.
 
 Note that you do not have to perform all the operations in one go. You can store the result of ``YieldWithParallelRequest`` and conditionally call ``AddRequest`` or ``AddRequestSync`` as many times as required.
+
+
+Adding requests to a parallel flow
+----------------------------------
+As mentioned above, you can not start a new parallel request in the same flow while the current one has not converged yet. This is enforced by the response handlers not returning an IYieldPoint.
+
+You can however add requests to the current parallel request while handling one of the responses. This is equivalent to adding the request to the parallel flow builder initially, and will delay calling the converge method until a response has been received to this new request as well.
+
+To add an additional request, include a second parameter in the continuation method of type IFlowParallelRequest. The continuation method also needs to be async to be able to await the IFlowParallelRequest.AddRequest[Sync] methods. For example:
+
+::
+
+  [Continuation]
+  public async Task HandleDoctorAppointmentResponse(DoctorAppointmentResponseMessage appointment,
+      IFlowParallelRequest parallelRequest)
+  {
+      // Now that we have the appointment details, we can query the patient data
+      await parallelRequest.AddRequestSync<PatientRequestMessage, PatientResponseMessage>(
+          new PatientRequestMessage
+          {
+              PatientID = appointment.PatientID
+          },
+          HandlePatientResponse);
+  }
+
 
 
 Persistent state
