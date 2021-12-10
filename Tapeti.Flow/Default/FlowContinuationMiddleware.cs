@@ -40,16 +40,10 @@ namespace Tapeti.Flow.Default
 
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
                 flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
-                var converge = flowContext.FlowState.Continuations.Count == 0 &&
-                               flowContext.ContinuationMetadata.ConvergeMethodName != null;
-
-                if (converge)
-                    // Indicate to the FlowBindingMiddleware that the state must not to be stored
-                    flowPayload.FlowIsConverging = true;
 
                 await next();
 
-                if (converge)
+                if (flowPayload.FlowIsConverging)
                     await CallConvergeMethod(context, controllerPayload,
                         flowContext.ContinuationMetadata.ConvergeMethodName,
                         flowContext.ContinuationMetadata.ConvergeMethodSync);

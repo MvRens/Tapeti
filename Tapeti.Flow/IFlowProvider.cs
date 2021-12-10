@@ -192,14 +192,14 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        Task<IFlowParallelRequest> AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler);
+        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler);
 
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,Task})"/>
-        Task<IFlowParallelRequest> AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler);
+        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler);
 
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
@@ -209,14 +209,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        Task<IFlowParallelRequest> AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
-
-        /// <remarks>
-        /// This overload allows the response handler access to the IFlowParallelRequest interface, which
-        /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
-        /// </remarks>
-        /// <inheritdoc cref="AddRequestSync{TRequest,TResponse}(TRequest,Action{TResponse})"/>
-        Task<IFlowParallelRequest> AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler);
+        Task AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
     }
 
 

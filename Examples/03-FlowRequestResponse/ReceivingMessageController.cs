@@ -25,8 +25,7 @@ namespace _03_FlowRequestResponse
                     break;
 
                 default:
-                    // We have to return a response.
-                    quote = null;
+                    quote = new string('\'', message.Amount);
                     break;
             }
 

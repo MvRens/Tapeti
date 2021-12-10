@@ -249,19 +249,19 @@ namespace Tapeti.Flow.Default
             if (!context.MessageContext.TryGet<FlowMessageContextPayload>(out var flowPayload))
                 return null;
 
-
+            return new ParallelRequest(config, SendRequest, flowPayload.FlowContext);
         }
+
+
+        private delegate Task SendRequestFunc(FlowContext context,
+            object message,
+            ResponseHandlerInfo responseHandlerInfo,
+            string convergeMethodName,
+            bool convergeMethodSync);
 
 
         private class ParallelRequestBuilder : IFlowParallelRequestBuilder
         {
-            public delegate Task SendRequestFunc(FlowContext context, 
-                object message, 
-                ResponseHandlerInfo responseHandlerInfo, 
-                string convergeMethodName,
-                bool convergeMethodSync);
-
-
             private class RequestInfo
             {
                 public object Message { get; set; }
@@ -283,41 +283,23 @@ namespace Tapeti.Flow.Default
 
             public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler)
             {
-                requests.Add(new RequestInfo
-                {
-                    Message = message,
-                    ResponseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler)
-                });
-
-                return this;
+                return InternalAddRequest(message, responseHandler);
             }
 
 
             public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
             {
-                requests.Add(new RequestInfo
-                {
-                    Message = message,
-                    ResponseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler)
-                });
-
-                return this;
+                return InternalAddRequest(message, responseHandler);
             }
 
 
             public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
             {
-                requests.Add(new RequestInfo
-                {
-                    Message = message,
-                    ResponseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler)
-                });
-
-                return this;
+                return InternalAddRequest(message, responseHandler);
             }
 
 
-            public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler)
+            public IFlowParallelRequestBuilder InternalAddRequest(object message, Delegate responseHandler)
             {
                 requests.Add(new RequestInfo
                 {
@@ -368,32 +350,39 @@ namespace Tapeti.Flow.Default
         {
             private readonly ITapetiConfig config;
             private readonly SendRequestFunc sendRequest;
+            private readonly FlowContext flowContext;
 
 
-            public ParallelRequestBuilder(ITapetiConfig config, SendRequestFunc sendRequest)
+            public ParallelRequest(ITapetiConfig config, SendRequestFunc sendRequest, FlowContext flowContext)
             {
                 this.config = config;
                 this.sendRequest = sendRequest;
+                this.flowContext = flowContext;
             }
 
-            public IFlowParallelRequest AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler)
+
+            public Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler)
             {
-                throw new NotImplementedException();
+                return InternalAddRequest(message, responseHandler);
             }
 
-            public IFlowParallelRequest AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
+
+            public Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
             {
-                throw new NotImplementedException();
+                return InternalAddRequest(message, responseHandler);
             }
 
-            public IFlowParallelRequest AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
+
+            public Task AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
             {
-                throw new NotImplementedException();
+                return InternalAddRequest(message, responseHandler);
             }
 
-            public IFlowParallelRequest AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler)
+
+            private Task InternalAddRequest(object message, Delegate responseHandler)
             {
-                throw new NotImplementedException();
+                var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
+                return sendRequest(flowContext, message, responseHandlerInfo, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync);
             }
         }
 
