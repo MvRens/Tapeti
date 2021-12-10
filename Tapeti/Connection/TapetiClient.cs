@@ -945,8 +945,9 @@ namespace Tapeti.Connection
                         if (returnInfo.RefCount == 0)
                             returnRoutingKeys.Remove(messageInfo.ReturnKey);
                     }
+                    else
+                        messageInfo.CompletionSource.SetResult(0);
 
-                    messageInfo.CompletionSource.SetResult(0);
                     confirmMessages.Remove(deliveryTag);
                 }
             }

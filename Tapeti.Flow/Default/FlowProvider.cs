@@ -48,7 +48,7 @@ namespace Tapeti.Flow.Default
         /// <inheritdoc />
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
         {
-            return new ParallelRequestBuilder(config, SendRequest);
+            return new ParallelRequestBuilder(config, this);
         }
 
         /// <inheritdoc />
@@ -64,8 +64,8 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
-            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+        internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
+            string convergeMethodName = null, bool convergeMethodTaskSync = false, bool store = true)
         {
             if (context.FlowState == null)
             {
@@ -89,7 +89,8 @@ namespace Tapeti.Flow.Default
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
-            await context.Store(responseHandlerInfo.IsDurableQueue);
+            if (store)
+                await context.Store(responseHandlerInfo.IsDurableQueue);
 
             await publisher.Publish(message, properties, true);
         }
@@ -122,7 +123,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static async Task EndFlow(FlowContext context)
+        internal static async Task EndFlow(FlowContext context)
         {
             await context.Delete();
 
@@ -246,18 +247,43 @@ namespace Tapeti.Flow.Default
         /// <inheritdoc />
         public IFlowParallelRequest GetParallelRequest(IFlowHandlerContext context)
         {
-            if (!context.MessageContext.TryGet<FlowMessageContextPayload>(out var flowPayload))
-                return null;
-
-            return new ParallelRequest(config, SendRequest, flowPayload.FlowContext);
+            return context.MessageContext.TryGet<FlowMessageContextPayload>(out var flowPayload)
+                ? new ParallelRequest(config, this, flowPayload.FlowContext)
+                : null;
         }
 
 
-        private delegate Task SendRequestFunc(FlowContext context,
-            object message,
-            ResponseHandlerInfo responseHandlerInfo,
-            string convergeMethodName,
-            bool convergeMethodSync);
+        /// <inheritdoc />
+        public Task Converge(IFlowHandlerContext context)
+        {
+            return Execute(context, new DelegateYieldPoint(flowContext => 
+                Converge(flowContext, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync)));
+        }
+
+
+        internal async Task Converge(FlowContext flowContext, string convergeMethodName, bool convergeMethodSync)
+        {
+            IYieldPoint yieldPoint;
+
+            if (!flowContext.HandlerContext.MessageContext.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
+                throw new ArgumentException("Context does not contain a controller payload", nameof(flowContext));
+
+
+            var method = controllerPayload.Controller.GetType().GetMethod(convergeMethodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            if (method == null)
+                throw new ArgumentException($"Unknown converge method in controller {controllerPayload.Controller.GetType().Name}: {convergeMethodName}");
+
+            if (convergeMethodSync)
+                yieldPoint = (IYieldPoint)method.Invoke(controllerPayload.Controller, new object[] { });
+            else
+                yieldPoint = await(Task<IYieldPoint>)method.Invoke(controllerPayload.Controller, new object[] { });
+
+            if (yieldPoint == null)
+                throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {convergeMethodName}");
+
+            await Execute(flowContext.HandlerContext, yieldPoint);
+        }
+
 
 
         private class ParallelRequestBuilder : IFlowParallelRequestBuilder
@@ -270,14 +296,14 @@ namespace Tapeti.Flow.Default
 
 
             private readonly ITapetiConfig config;
-            private readonly SendRequestFunc sendRequest;
+            private readonly FlowProvider flowProvider;
             private readonly List<RequestInfo> requests = new List<RequestInfo>();
 
 
-            public ParallelRequestBuilder(ITapetiConfig config, SendRequestFunc sendRequest)
+            public ParallelRequestBuilder(ITapetiConfig config, FlowProvider flowProvider)
             {
                 this.config = config;
-                this.sendRequest = sendRequest;
+                this.flowProvider = flowProvider;
             }
 
 
@@ -311,36 +337,57 @@ namespace Tapeti.Flow.Default
             }
 
 
-            public IYieldPoint Yield(Func<Task<IYieldPoint>> continuation)
+            public IYieldPoint Yield(Func<Task<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
             {
-                return BuildYieldPoint(continuation, false);
+                return BuildYieldPoint(continuation, false, noRequestsBehaviour);
             }
 
 
-            public IYieldPoint YieldSync(Func<IYieldPoint> continuation)
+            public IYieldPoint YieldSync(Func<IYieldPoint> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
             {
-                return BuildYieldPoint(continuation, true);
+                return BuildYieldPoint(continuation, true, noRequestsBehaviour);
             }
 
 
-            private IYieldPoint BuildYieldPoint(Delegate convergeMethod, bool convergeMethodSync)
+            private IYieldPoint BuildYieldPoint(Delegate convergeMethod, bool convergeMethodSync, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
             {
                 if (requests.Count == 0)
-                    throw new YieldPointException("At least one request must be added before yielding a parallel request");
+                {
+                    switch (noRequestsBehaviour)
+                    {
+                        case FlowNoRequestsBehaviour.Exception:
+                            throw new YieldPointException("At least one request must be added before yielding a parallel request");
+
+                        case FlowNoRequestsBehaviour.Converge:
+                            return new DelegateYieldPoint(context =>
+                                flowProvider.Converge(context, convergeMethod.Method.Name, convergeMethodSync));
+
+                        case FlowNoRequestsBehaviour.EndFlow:
+                            return new DelegateYieldPoint(EndFlow);
+
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(noRequestsBehaviour), noRequestsBehaviour, null);
+                    }
+                }
 
                 if (convergeMethod?.Method == null)
                     throw new ArgumentNullException(nameof(convergeMethod));
 
-                return new DelegateYieldPoint(context =>
+                return new DelegateYieldPoint(async context =>
                 {
                     if (convergeMethod.Method.DeclaringType != context.HandlerContext.Controller.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");
 
-                    return Task.WhenAll(requests.Select(requestInfo =>
-                        sendRequest(context, requestInfo.Message,
+                    await Task.WhenAll(requests.Select(requestInfo =>
+                        flowProvider.SendRequest(
+                            context, 
+                            requestInfo.Message,
                             requestInfo.ResponseHandlerInfo,
                             convergeMethod.Method.Name,
-                            convergeMethodSync)));
+                            convergeMethodSync,
+                            false)));
+
+                    await context.Store(requests.Any(i => i.ResponseHandlerInfo.IsDurableQueue));
                 });
             }
         }
@@ -349,14 +396,14 @@ namespace Tapeti.Flow.Default
         private class ParallelRequest : IFlowParallelRequest
         {
             private readonly ITapetiConfig config;
-            private readonly SendRequestFunc sendRequest;
+            private readonly FlowProvider flowProvider;
             private readonly FlowContext flowContext;
 
 
-            public ParallelRequest(ITapetiConfig config, SendRequestFunc sendRequest, FlowContext flowContext)
+            public ParallelRequest(ITapetiConfig config, FlowProvider flowProvider, FlowContext flowContext)
             {
                 this.config = config;
-                this.sendRequest = sendRequest;
+                this.flowProvider = flowProvider;
                 this.flowContext = flowContext;
             }
 
@@ -382,7 +429,14 @@ namespace Tapeti.Flow.Default
             private Task InternalAddRequest(object message, Delegate responseHandler)
             {
                 var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
-                return sendRequest(flowContext, message, responseHandlerInfo, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync);
+
+                return flowProvider.SendRequest(
+                    flowContext, 
+                    message, 
+                    responseHandlerInfo, 
+                    flowContext.ContinuationMetadata.ConvergeMethodName, 
+                    flowContext.ContinuationMetadata.ConvergeMethodSync, 
+                    false);
             }
         }
 

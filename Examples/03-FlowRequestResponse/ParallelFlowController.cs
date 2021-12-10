@@ -85,6 +85,15 @@ namespace _03_FlowRequestResponse
             Console.WriteLine("[ParallelFlowController] Second quote: " + SecondQuote);
             Console.WriteLine("[ParallelFlowController] Third quote: " + ThirdQuote);
 
+            return flowProvider.YieldWithParallelRequest()
+                .YieldSync(ImmediateConvergeTest, FlowNoRequestsBehaviour.Converge);
+        }
+
+
+        private IYieldPoint ImmediateConvergeTest()
+        {
+            Console.WriteLine("[ParallelFlowController] Second parallel flow immediately converged");
+
             exampleState.Done();
             return flowProvider.End();
         }
