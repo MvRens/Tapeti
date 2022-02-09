@@ -9,19 +9,22 @@ before_build:
   - ps: gitversion /l console /output buildserver
   - ps: build\UpdateVersion.ps1
 
+environment:
+  pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:p:ContinuousIntegrationBuild=true
+
 after_build:
   # Create NuGet packages
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti\Tapeti.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Flow\Tapeti.Flow.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Flow.SQL\Tapeti.Flow.SQL.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Transient\Tapeti.Transient.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Serilog\Tapeti.Serilog.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Autofac\Tapeti.Autofac.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.Ninject\Tapeti.Ninject.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output Tapeti.UnityContainer\Tapeti.UnityContainer.csproj /p:Configuration=Release /p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti\Tapeti.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.DataAnnotations\Tapeti.DataAnnotations.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Flow\Tapeti.Flow.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Flow.SQL\Tapeti.Flow.SQL.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Transient\Tapeti.Transient.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Serilog\Tapeti.Serilog.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.SimpleInjector\Tapeti.SimpleInjector.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Autofac\Tapeti.Autofac.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.Ninject\Tapeti.Ninject.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
+  - cmd: dotnet pack Tapeti.UnityContainer\Tapeti.UnityContainer.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
