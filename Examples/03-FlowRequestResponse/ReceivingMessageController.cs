@@ -9,25 +9,17 @@ namespace _03_FlowRequestResponse
     public class ReceivingMessageController
     {
         // No publisher required, responses can simply be returned
+        #pragma warning disable CA1822 // Mark members as static - not supported yet by Tapeti
         public async Task<QuoteResponseMessage> HandleQuoteRequest(QuoteRequestMessage message)
         {
-            string quote;
-
-            switch (message.Amount)
+            var quote = message.Amount switch
             {
-                case 1:
+                1 =>
                     // Well, they asked for it... :-)
-                    quote = "'";
-                    break;
-                
-                case 2:
-                    quote = "\"";
-                    break;
-
-                default:
-                    quote = new string('\'', message.Amount);
-                    break;
-            }
+                    "'",
+                2 => "\"",
+                _ => new string('\'', message.Amount)
+            };
 
             // Just gonna let them wait for a bit, to demonstrate async message handlers
             await Task.Delay(1000);
@@ -37,5 +29,6 @@ namespace _03_FlowRequestResponse
                 Quote = quote
             };
         }
+        #pragma warning restore CA1822
     }
 }

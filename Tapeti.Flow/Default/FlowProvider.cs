@@ -325,7 +325,7 @@ namespace Tapeti.Flow.Default
             }
 
 
-            public IFlowParallelRequestBuilder InternalAddRequest(object message, Delegate responseHandler)
+            private IFlowParallelRequestBuilder InternalAddRequest(object message, Delegate responseHandler)
             {
                 requests.Add(new RequestInfo
                 {

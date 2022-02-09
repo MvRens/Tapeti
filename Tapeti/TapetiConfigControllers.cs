@@ -79,7 +79,7 @@ namespace Tapeti
                 }
 
                 var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
-                if (methodQueueInfo == null || !methodQueueInfo.IsValid)
+                if (methodQueueInfo is not { IsValid: true })
                     throw new TopologyConfigurationException(
                         $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 

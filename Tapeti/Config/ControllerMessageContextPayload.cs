@@ -7,7 +7,7 @@
     public class ControllerMessageContextPayload : IMessageContextPayload
     {
         /// <summary>
-        /// An instance of the controller referenced by the binding. Note: can be null during Cleanup.
+        /// An instance of the controller referenced by the binding. Note: can be null during Cleanup or when bound to static methods.
         /// </summary>
         public object Controller { get; }
 

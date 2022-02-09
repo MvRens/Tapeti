@@ -663,7 +663,7 @@ namespace Tapeti.Connection
                 }
                 catch (WebException e)
                 {
-                    if (!(e.Response is HttpWebResponse response))
+                    if (e.Response is not HttpWebResponse response)
                         throw;
 
                     if (!TransientStatusCodes.Contains(response.StatusCode))
@@ -714,7 +714,7 @@ namespace Tapeti.Connection
                     ? publishChannelModel
                     : consumeChannelModel;
 
-                if (channel != null && channel.IsOpen)
+                if (channel is { IsOpen: true })
                     return channel;
             }
 

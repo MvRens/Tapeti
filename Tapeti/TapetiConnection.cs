@@ -164,7 +164,7 @@ namespace Tapeti
 
             var reconnectedEvent = Reconnected;
             if (reconnectedEvent != null)
-                Task.Run(() => reconnectedEvent?.Invoke(this, e));
+                Task.Run(() => reconnectedEvent.Invoke(this, e));
         }
 
         /// <summary>

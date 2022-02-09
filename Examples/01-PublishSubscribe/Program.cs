@@ -23,7 +23,7 @@ namespace _01_PublishSubscribe
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
             var dependencyResolver = GetSimpleInjectorDependencyResolver();
 
@@ -47,7 +47,7 @@ namespace _01_PublishSubscribe
                 .RegisterAllControllers()
                 .Build();
 
-            using (var connection = new TapetiConnection(config)
+            await using var connection = new TapetiConnection(config)
             {
                 // Params is optional if you want to use the defaults, but we'll set it 
                 // explicitly for this example
@@ -63,28 +63,27 @@ namespace _01_PublishSubscribe
                         { "example", "01 - Publish Subscribe" }
                     }
                 }
-            })
-            {
-                // IoC containers that separate the builder from the resolver (Autofac) must be built after
-                // creating a TapetConnection, as it modifies the container by injecting IPublisher.
-                (dependencyResolver as AutofacDependencyResolver)?.Build();
+            };
+
+            // IoC containers that separate the builder from the resolver (Autofac) must be built after
+            // creating a TapetConnection, as it modifies the container by injecting IPublisher.
+            (dependencyResolver as AutofacDependencyResolver)?.Build();
 
 
-                // Create the queues and start consuming immediately.
-                // If you need to do some processing before processing messages, but after the
-                // queues have initialized, pass false as the startConsuming parameter and store
-                // the returned ISubscriber. Then call Resume on it later.
-                await connection.Subscribe();
+            // Create the queues and start consuming immediately.
+            // If you need to do some processing before processing messages, but after the
+            // queues have initialized, pass false as the startConsuming parameter and store
+            // the returned ISubscriber. Then call Resume on it later.
+            await connection.Subscribe();
 
 
-                // We could get an IPublisher from the container directly, but since you'll usually use
-                // it as an injected constructor parameter this shows
-                await dependencyResolver.Resolve<ExamplePublisher>().SendTestMessage();
+            // We could get an IPublisher from the container directly, but since you'll usually use
+            // it as an injected constructor parameter this shows
+            await dependencyResolver.Resolve<ExamplePublisher>().SendTestMessage();
 
 
-                // Wait for the controller to signal that the message has been received
-                await waitForDone();
-            }
+            // Wait for the controller to signal that the message has been received
+            await waitForDone();
         }
 
 

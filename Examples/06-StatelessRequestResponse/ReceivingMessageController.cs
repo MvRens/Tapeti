@@ -8,31 +8,23 @@ namespace _06_StatelessRequestResponse
     public class ReceivingMessageController
     {
         // No publisher required, responses can simply be returned
+        #pragma warning disable CA1822 // Mark members as static - not supported yet by Tapeti
         public QuoteResponseMessage HandleQuoteRequest(QuoteRequestMessage message)
         {
-            string quote;
-
-            switch (message.Amount)
+            var quote = message.Amount switch
             {
-                case 1:
+                1 =>
                     // Well, they asked for it... :-)
-                    quote = "'";
-                    break;
-                
-                case 2:
-                    quote = "\"";
-                    break;
-
-                default:
-                    // We have to return a response.
-                    quote = null;
-                    break;
-            }
+                    "'",
+                2 => "\"",
+                _ => null
+            };
 
             return new QuoteResponseMessage
             {
                 Quote = quote
             };
         }
+        #pragma warning restore CA1822
     }
 }

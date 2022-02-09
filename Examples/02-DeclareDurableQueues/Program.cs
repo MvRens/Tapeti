@@ -11,7 +11,7 @@ namespace _02_DeclareDurableQueues
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
             var container = new Container();
             var dependencyResolver = new SimpleInjectorDependencyResolver(container);
@@ -30,19 +30,18 @@ namespace _02_DeclareDurableQueues
                 .EnableDeclareDurableQueues()
                 .Build();
 
-            using (var connection = new TapetiConnection(config))
+            await using var connection = new TapetiConnection(config);
+
+            // This creates or updates the durable queue
+            await connection.Subscribe();
+
+            await dependencyResolver.Resolve<IPublisher>().Publish(new PublishSubscribeMessage
             {
-                // This creates or updates the durable queue
-                await connection.Subscribe();
+                Greeting = "Hello durable queue!"
+            });
 
-                await dependencyResolver.Resolve<IPublisher>().Publish(new PublishSubscribeMessage
-                {
-                    Greeting = "Hello durable queue!"
-                });
-
-                // Wait for the controller to signal that the message has been received
-                await waitForDone();
-            }
+            // Wait for the controller to signal that the message has been received
+            await waitForDone();
         }
     }
 }

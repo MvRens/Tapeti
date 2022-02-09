@@ -49,7 +49,7 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public object Deserialize(byte[] body, IMessageProperties properties)
         {
-            if (properties.ContentType == null || !properties.ContentType.Equals(ContentType))
+            if (properties.ContentType is not ContentType)
                 throw new ArgumentException($"content_type must be {ContentType}");
 
             var typeName = properties.GetHeader(ClassTypeHeader);

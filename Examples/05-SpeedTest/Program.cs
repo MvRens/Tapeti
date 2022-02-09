@@ -21,7 +21,7 @@ namespace _05_SpeedTest
         private const int ConcurrentTasks = 20;
 
 
-        public static void Main(string[] args)
+        public static void Main()
         {
             var container = new Container();
             var dependencyResolver = new SimpleInjectorDependencyResolver(container);
@@ -52,34 +52,32 @@ namespace _05_SpeedTest
                 .Build();
 
 
-            using (var connection = new TapetiConnection(config))
-            {
-                var subscriber = await connection.Subscribe(false);
+            await using var connection = new TapetiConnection(config);
+            var subscriber = await connection.Subscribe(false);
 
 
-                var publisher = dependencyResolver.Resolve<IPublisher>();
-                Console.WriteLine($"Publishing {MessageCount} messages...");
+            var publisher = dependencyResolver.Resolve<IPublisher>();
+            Console.WriteLine($"Publishing {MessageCount} messages...");
 
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
 
-                await PublishMessages(publisher);
+            await PublishMessages(publisher);
 
-                stopwatch.Stop();
-                Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds} ms, {MessageCount / (stopwatch.ElapsedMilliseconds / 1000F):F0} messages/sec");
+            stopwatch.Stop();
+            Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds} ms, {MessageCount / (stopwatch.ElapsedMilliseconds / 1000F):F0} messages/sec");
 
 
 
-                Console.WriteLine("Consuming messages...");
-                await subscriber.Resume();
+            Console.WriteLine("Consuming messages...");
+            await subscriber.Resume();
 
-                stopwatch.Restart();
+            stopwatch.Restart();
 
-                await waitForDone();
+            await waitForDone();
 
-                stopwatch.Stop();
-                Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds} ms, {MessageCount / (stopwatch.ElapsedMilliseconds / 1000F):F0} messages/sec");
-            }
+            stopwatch.Stop();
+            Console.WriteLine($"Took {stopwatch.ElapsedMilliseconds} ms, {MessageCount / (stopwatch.ElapsedMilliseconds / 1000F):F0} messages/sec");
         }
 
 

@@ -1,5 +1,7 @@
 ﻿using System.Text;
 
+// ReSharper disable UnusedMember.Global - public API
+
 namespace Tapeti.Helpers
 {
     /// <summary>

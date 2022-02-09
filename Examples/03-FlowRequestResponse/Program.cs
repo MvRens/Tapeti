@@ -12,7 +12,7 @@ namespace _03_FlowRequestResponse
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
             var container = new Container();
             var dependencyResolver = new SimpleInjectorDependencyResolver(container);
@@ -33,34 +33,33 @@ namespace _03_FlowRequestResponse
                 .Build();
 
 
-            using (var connection = new TapetiConnection(config))
+            await using var connection = new TapetiConnection(config);
+
+            // Must be called before using any flow. When using a persistent repository like the
+            // SQL server implementation, you can run any required update scripts (for example, using DbUp)
+            // before calling this Load method.
+            // Call after creating the TapetiConnection, as it modifies the container to inject IPublisher.
+            await dependencyResolver.Resolve<IFlowStore>().Load();
+
+
+            await connection.Subscribe();
+
+
+            var flowStarter = dependencyResolver.Resolve<IFlowStarter>();
+
+            var startData = new SimpleFlowController.StartData
             {
-                // Must be called before using any flow. When using a persistent repository like the
-                // SQL server implementation, you can run any required update scripts (for example, using DbUp)
-                // before calling this Load method.
-                // Call after creating the TapetiConnection, as it modifies the container to inject IPublisher.
-                await dependencyResolver.Resolve<IFlowStore>().Load();
+                RequestStartTime = DateTime.Now,
+                Amount = 1
+            };
 
 
-                await connection.Subscribe();
+            await flowStarter.Start<SimpleFlowController, SimpleFlowController.StartData>(c => c.StartFlow, startData);
+            await flowStarter.Start<ParallelFlowController>(c => c.StartFlow);
 
 
-                var flowStarter = dependencyResolver.Resolve<IFlowStarter>();
-
-                var startData = new SimpleFlowController.StartData
-                {
-                    RequestStartTime = DateTime.Now,
-                    Amount = 1
-                };
-
-
-                await flowStarter.Start<SimpleFlowController, SimpleFlowController.StartData>(c => c.StartFlow, startData);
-                await flowStarter.Start<ParallelFlowController>(c => c.StartFlow);
-
-
-                // Wait for the controller to signal that the message has been received
-                await waitForDone();
-            }
+            // Wait for the controller to signal that the message has been received
+            await waitForDone();
         }
     }
 }
