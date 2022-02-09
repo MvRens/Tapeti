@@ -39,6 +39,13 @@ namespace Tapeti.Flow.Default
         }
 
         /// <inheritdoc />
+        public IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask<IYieldPoint>> responseHandler)
+        {
+            var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
+            return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
+        }
+
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler)
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
@@ -312,14 +319,27 @@ namespace Tapeti.Flow.Default
                 return InternalAddRequest(message, responseHandler);
             }
 
+            public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask> responseHandler)
+            {
+                return InternalAddRequest(message, responseHandler);
+            }
 
             public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler)
             {
                 return InternalAddRequest(message, responseHandler);
             }
 
+            public IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, ValueTask> responseHandler)
+            {
+                return InternalAddRequest(message, responseHandler);
+            }
 
             public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler)
+            {
+                return InternalAddRequest(message, responseHandler);
+            }
+
+            public IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler)
             {
                 return InternalAddRequest(message, responseHandler);
             }
@@ -340,6 +360,11 @@ namespace Tapeti.Flow.Default
             public IYieldPoint Yield(Func<Task<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
             {
                 return BuildYieldPoint(continuation, false, noRequestsBehaviour);
+            }
+
+            public IYieldPoint Yield(Func<ValueTask<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
+            {
+                throw new NotImplementedException();
             }
 
 

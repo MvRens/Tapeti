@@ -56,7 +56,7 @@ namespace _03_FlowRequestResponse
 
 
         [Continuation]
-        public async Task HandleSecondQuoteResponse(QuoteResponseMessage message, IFlowParallelRequest parallelRequest)
+        public async ValueTask HandleSecondQuoteResponse(QuoteResponseMessage message, IFlowParallelRequest parallelRequest)
         {
             Console.WriteLine("[ParallelFlowController] Second quote response received");
             SecondQuote = message.Quote;

@@ -26,6 +26,18 @@ namespace Tapeti.Flow
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
         /// The request message must be marked with the [Request] attribute, and the
+        /// Response type must match. Used for asynchronous response handlers.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="responseHandler"></param>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask<IYieldPoint>> responseHandler);
+
+
+        /// <summary>
+        /// Publish a request message and continue the flow when the response arrives.
+        /// The request message must be marked with the [Request] attribute, and the
         /// Response type must match. Used for synchronous response handlers.
         /// </summary>
         /// <remarks>
@@ -164,12 +176,29 @@ namespace Tapeti.Flow
         /// <param name="responseHandler"></param>
         IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler);
 
+        /// <summary>
+        /// Publish a request message and continue the flow when the response arrives.
+        /// Note that the response handler can not influence the flow as it does not return a YieldPoint.
+        /// It can instead store state in the controller for the continuation passed to the Yield method.
+        /// Used for asynchronous response handlers.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="responseHandler"></param>
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask> responseHandler);
+
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,Task})"/>
         IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler);
+
+        /// <remarks>
+        /// This overload allows the response handler access to the IFlowParallelRequest interface, which
+        /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
+        /// </remarks>
+        /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,ValueTask})"/>
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, ValueTask> responseHandler);
 
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
@@ -180,6 +209,13 @@ namespace Tapeti.Flow
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
         IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
+
+        /// <remarks>
+        /// This overload allows the response handler access to the IFlowParallelRequest interface, which
+        /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
+        /// </remarks>
+        /// <inheritdoc cref="AddRequestSync{TRequest,TResponse}(TRequest,Action{TResponse})"/>
+        IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler);
 
         /// There is no Sync overload with an IFlowParallelRequest parameter, as the AddRequest methods for that are
         /// async, so you should always await them.
@@ -193,6 +229,19 @@ namespace Tapeti.Flow
         /// <param name="continuation">The converge continuation method to be called when all responses have been handled.</param>
         /// <param name="noRequestsBehaviour">How the Yield method should behave when no requests have been added to the parallel request builder.</param>
         IYieldPoint Yield(Func<Task<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception);
+
+        /// There is no Sync overload with an IFlowParallelRequest parameter, as the AddRequest methods for that are
+        /// async, so you should always await them.
+        /// <summary>
+        /// Constructs an IYieldPoint to continue the flow when responses arrive.
+        /// The continuation method is called when all responses have arrived.
+        /// Response handlers and the continuation method are guaranteed thread-safe access to the
+        /// controller and can store state.
+        /// Used for asynchronous continuation methods.
+        /// </summary>
+        /// <param name="continuation">The converge continuation method to be called when all responses have been handled.</param>
+        /// <param name="noRequestsBehaviour">How the Yield method should behave when no requests have been added to the parallel request builder.</param>
+        IYieldPoint Yield(Func<ValueTask<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception);
 
         /// <summary>
         /// Constructs an IYieldPoint to continue the flow when responses arrive.

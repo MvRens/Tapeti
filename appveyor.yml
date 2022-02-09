@@ -10,7 +10,7 @@ before_build:
   - ps: build\UpdateVersion.ps1
 
 environment:
-  pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:p:ContinuousIntegrationBuild=true
+  pack_params: -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -p:PublishRepositoryUrl=true -p:EmbedUntrackedSources=true --output output -p:Configuration=Release -p:p:ContinuousIntegrationBuild=true --verbosity detailed
 
 after_build:
   # Create NuGet packages
