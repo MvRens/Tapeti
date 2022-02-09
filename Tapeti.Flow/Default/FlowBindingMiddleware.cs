@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
@@ -52,6 +53,10 @@ namespace Tapeti.Flow.Default
             }
             else
                 throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context. Method.DeclaringType?.FullName}, method {context.Method.Name}");
+
+
+            foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType == typeof(IFlowParallelRequest)))
+                parameter.SetBinding(ParallelRequestParameterFactory);
         }
 
 
@@ -102,6 +107,13 @@ namespace Tapeti.Flow.Default
 
             if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(t => t == request.Response || t == typeof(IYieldPoint), out _))
                 throw new ResponseExpectedException($"Response of class {request.Response.FullName} expected in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
+        }
+
+
+        private static object ParallelRequestParameterFactory(IMessageContext context)
+        {
+            var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
+            return flowHandler.GetParallelRequest(new FlowHandlerContext(context));
         }
     }
 }

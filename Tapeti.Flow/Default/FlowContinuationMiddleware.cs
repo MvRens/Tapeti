@@ -40,19 +40,14 @@ namespace Tapeti.Flow.Default
 
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
                 flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
-                var converge = flowContext.FlowState.Continuations.Count == 0 &&
-                               flowContext.ContinuationMetadata.ConvergeMethodName != null;
-
-                if (converge)
-                    // Indicate to the FlowBindingMiddleware that the state must not to be stored
-                    flowPayload.FlowIsConverging = true;
 
                 await next();
 
-                if (converge)
-                    await CallConvergeMethod(context, controllerPayload,
-                        flowContext.ContinuationMetadata.ConvergeMethodName,
-                        flowContext.ContinuationMetadata.ConvergeMethodSync);
+                if (flowPayload.FlowIsConverging)
+                {
+                    var flowHandler = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowHandler>();
+                    await flowHandler.Converge(new FlowHandlerContext(context));
+                }
             }
             else
                 await next();
@@ -126,29 +121,6 @@ namespace Tapeti.Flow.Default
             // IDisposable items in the IMessageContext are automatically disposed
             context.Store(new FlowMessageContextPayload(flowContext));
             return flowContext;
-        }
-
-
-        private static async Task CallConvergeMethod(IMessageContext context, ControllerMessageContextPayload controllerPayload, string methodName, bool sync)
-        {
-            IYieldPoint yieldPoint;
-            
-            
-
-            var method = controllerPayload.Controller.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
-            if (method == null)
-                throw new ArgumentException($"Unknown converge method in controller {controllerPayload.Controller.GetType().Name}: {methodName}");
-
-            if (sync)
-                yieldPoint = (IYieldPoint)method.Invoke(controllerPayload.Controller, new object[] {});
-            else
-                yieldPoint = await (Task<IYieldPoint>)method.Invoke(controllerPayload.Controller, new object[] { });
-
-            if (yieldPoint == null)
-                throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {methodName}");
-
-            var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
-            await flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
     }
 }

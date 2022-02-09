@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
@@ -12,13 +13,13 @@ namespace Tapeti.Flow.Default
         public Guid ContinuationID { get; set; }
         public ContinuationMetadata ContinuationMetadata { get; set; }
 
-        private bool storeCalled;
-        private bool deleteCalled;
+        private int storeCalled;
+        private int deleteCalled;
 
 
         public async Task Store(bool persistent)
         {
-            storeCalled = true;
+            storeCalled++;
 
             if (HandlerContext == null) throw new ArgumentNullException(nameof(HandlerContext));
             if (FlowState == null) throw new ArgumentNullException(nameof(FlowState));
@@ -30,7 +31,7 @@ namespace Tapeti.Flow.Default
 
         public async Task Delete()
         {
-            deleteCalled = true;
+            deleteCalled++;
 
             if (FlowStateLock != null)
                 await FlowStateLock.DeleteFlowState();
@@ -38,13 +39,16 @@ namespace Tapeti.Flow.Default
 
         public bool IsStoredOrDeleted()
         {
-            return storeCalled || deleteCalled;
+            return storeCalled > 0 || deleteCalled > 0;
         }
 
         public void EnsureStoreOrDeleteIsCalled()
         {
             if (!IsStoredOrDeleted())
                 throw new InvalidProgramException("Neither Store nor Delete are called for the state of the current flow. FlowID = " + FlowStateLock?.FlowID);
+
+            Debug.Assert(storeCalled <= 1, "Store called more than once!");
+            Debug.Assert(deleteCalled <= 1, "Delete called more than once!");
         }
 
         public void Dispose()

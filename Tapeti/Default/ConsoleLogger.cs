@@ -76,8 +76,8 @@ namespace Tapeti.Default
         public void QueueDeclare(string queueName, bool durable, bool passive)
         {
             Console.WriteLine(passive 
-                ? $"[Tapeti] Declaring {(durable ? "durable" : "dynamic")} queue {queueName}" 
-                : $"[Tapeti] Verifying durable queue {queueName}");
+                ? $"[Tapeti] Verifying durable queue {queueName}" 
+                : $"[Tapeti] Declaring {(durable ? "durable" : "dynamic")} queue {queueName}");
         }
 
         /// <inheritdoc />
