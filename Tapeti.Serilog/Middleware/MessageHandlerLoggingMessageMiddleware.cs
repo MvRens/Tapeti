@@ -29,7 +29,7 @@ namespace Tapeti.Serilog.Middleware
         }
         
         /// <inheritdoc />
-        public async Task Handle(IMessageContext context, Func<Task> next)
+        public async ValueTask Handle(IMessageContext context, Func<ValueTask> next)
         {
             var logger = context.Config.DependencyResolver.Resolve<global::Serilog.ILogger>();
             
@@ -40,6 +40,7 @@ namespace Tapeti.Serilog.Middleware
             stopwatch.Start();
             
             await next();
+
 
             stopwatch.Stop();
 

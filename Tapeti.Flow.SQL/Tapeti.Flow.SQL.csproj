@@ -17,6 +17,11 @@
     <NoWarn>1701;1702</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
+    <!-- Suppress 'using statement can be simplified' which requires language version 8 not available in .NET Standard 2.0 -->
+    <NoWarn>IDE0063</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="scripts\Flow table.sql" />
   </ItemGroup>

@@ -19,7 +19,7 @@ namespace Tapeti.Config
     /// </summary>
     /// <param name="context"></param>
     /// <param name="value"></param>
-    public delegate Task ResultHandler(IMessageContext context, object value);
+    public delegate ValueTask ResultHandler(IMessageContext context, object value);
 
 
     /// <summary>

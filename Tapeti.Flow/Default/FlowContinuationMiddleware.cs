@@ -11,7 +11,7 @@ namespace Tapeti.Flow.Default
     /// </summary>
     internal class FlowContinuationMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
     {
-        public async Task Filter(IMessageContext context, Func<Task> next)
+        public async ValueTask Filter(IMessageContext context, Func<ValueTask> next)
         {
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
@@ -27,7 +27,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Handle(IMessageContext context, Func<Task> next)
+        public async ValueTask Handle(IMessageContext context, Func<ValueTask> next)
         {
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
@@ -53,7 +53,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next)
+        public async ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<ValueTask> next)
         {
             await next();
 
@@ -82,7 +82,7 @@ namespace Tapeti.Flow.Default
 
 
 
-        private static async Task<FlowContext> EnrichWithFlowContext(IMessageContext context)
+        private static async ValueTask<FlowContext> EnrichWithFlowContext(IMessageContext context)
         {
             if (context.TryGet<FlowMessageContextPayload>(out var flowPayload))
                 return flowPayload.FlowContext;

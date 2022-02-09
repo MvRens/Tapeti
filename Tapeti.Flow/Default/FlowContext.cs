@@ -17,7 +17,7 @@ namespace Tapeti.Flow.Default
         private int deleteCalled;
 
 
-        public async Task Store(bool persistent)
+        public ValueTask Store(bool persistent)
         {
             storeCalled++;
 
@@ -26,15 +26,13 @@ namespace Tapeti.Flow.Default
             if (FlowStateLock == null) throw new ArgumentNullException(nameof(FlowStateLock));
 
             FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller);
-            await FlowStateLock.StoreFlowState(FlowState, persistent);
+            return FlowStateLock.StoreFlowState(FlowState, persistent);
         }
 
-        public async Task Delete()
+        public ValueTask Delete()
         {
             deleteCalled++;
-
-            if (FlowStateLock != null)
-                await FlowStateLock.DeleteFlowState();
+            return FlowStateLock?.DeleteFlowState() ?? default;
         }
 
         public bool IsStoredOrDeleted()

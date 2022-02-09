@@ -80,14 +80,13 @@ namespace Tapeti.Connection
 
             cancellationToken = initializeCancellationTokenSource.Token;
 
-            // ReSharper disable once MethodSupportsCancellation
             Task.Run(async () =>
             {
                 await ApplyBindings(cancellationToken);
 
                 if (consuming && !cancellationToken.IsCancellationRequested)
                     await ConsumeQueues(cancellationToken);
-            });
+            }, CancellationToken.None);
         }
 
 

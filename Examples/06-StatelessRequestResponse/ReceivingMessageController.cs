@@ -8,8 +8,7 @@ namespace _06_StatelessRequestResponse
     public class ReceivingMessageController
     {
         // No publisher required, responses can simply be returned
-        #pragma warning disable CA1822 // Mark members as static - not supported yet by Tapeti
-        public QuoteResponseMessage HandleQuoteRequest(QuoteRequestMessage message)
+        public static QuoteResponseMessage HandleQuoteRequest(QuoteRequestMessage message)
         {
             var quote = message.Amount switch
             {
@@ -25,6 +24,5 @@ namespace _06_StatelessRequestResponse
                 Quote = quote
             };
         }
-        #pragma warning restore CA1822
     }
 }

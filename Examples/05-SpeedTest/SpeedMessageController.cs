@@ -15,9 +15,11 @@ namespace _05_SpeedTest
         }
 
 
+        #pragma warning disable IDE0060 // Remove unused parameter
         public void HandleSpeedTestMessage(SpeedTestMessage message)
         {
             messageCounter.Add();
         }
+        #pragma warning restore IDE0060
     }
 }

@@ -15,6 +15,6 @@ namespace Tapeti.Config
         /// <param name="context"></param>
         /// <param name="next"></param>
         /// <returns></returns>
-        Task Filter(IMessageContext context, Func<Task> next);
+        ValueTask Filter(IMessageContext context, Func<ValueTask> next);
     }
 }

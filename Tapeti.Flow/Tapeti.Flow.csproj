@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
-    <!-- Supress 'Use switch expression' which requires language version 8 not available in .NET Standard 2.0 -->
+    <!-- Suppress 'Use switch expression' which requires language version 8 not available in .NET Standard 2.0 -->
     <NoWarn>IDE0066</NoWarn>
   </PropertyGroup>
 

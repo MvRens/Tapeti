@@ -9,8 +9,7 @@ namespace _03_FlowRequestResponse
     public class ReceivingMessageController
     {
         // No publisher required, responses can simply be returned
-        #pragma warning disable CA1822 // Mark members as static - not supported yet by Tapeti
-        public async Task<QuoteResponseMessage> HandleQuoteRequest(QuoteRequestMessage message)
+        public static async Task<QuoteResponseMessage> HandleQuoteRequest(QuoteRequestMessage message)
         {
             var quote = message.Amount switch
             {
@@ -29,6 +28,5 @@ namespace _03_FlowRequestResponse
                 Quote = quote
             };
         }
-        #pragma warning restore CA1822
     }
 }

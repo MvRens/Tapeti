@@ -13,6 +13,6 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="context"></param>
         /// <param name="next">Call to pass the message to the next handler in the chain</param>
-        Task Handle(IPublishContext context, Func<Task> next);
+        ValueTask Handle(IPublishContext context, Func<ValueTask> next);
     }
 }

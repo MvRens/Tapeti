@@ -108,7 +108,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="context"></param>
         /// <param name="yieldPoint"></param>
-        Task Execute(IFlowHandlerContext context, IYieldPoint yieldPoint);
+        ValueTask Execute(IFlowHandlerContext context, IYieldPoint yieldPoint);
 
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace Tapeti.Flow
         /// <summary>
         /// Calls the converge method for a parallel flow.
         /// </summary>
-        Task Converge(IFlowHandlerContext context);
+        ValueTask Converge(IFlowHandlerContext context);
     }
 
 

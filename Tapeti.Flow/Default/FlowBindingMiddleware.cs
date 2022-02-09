@@ -31,6 +31,9 @@ namespace Tapeti.Flow.Default
             if (continuationAttribute == null)
                 return;
 
+            if (context.Method.IsStatic)
+                throw new ArgumentException($"Continuation attribute is not valid on static methods in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
+
             context.SetBindingTargetMode(BindingTargetMode.Direct);
             context.Use(new FlowContinuationMiddleware());
 
@@ -52,7 +55,7 @@ namespace Tapeti.Flow.Default
                 context.Result.SetHandler((messageContext, value) => HandleParallelResponse(messageContext));
             }
             else
-                throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context. Method.DeclaringType?.FullName}, method {context.Method.Name}");
+                throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
 
 
             foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType == typeof(IFlowParallelRequest)))
@@ -62,34 +65,53 @@ namespace Tapeti.Flow.Default
 
         private static void RegisterYieldPointResult(IControllerBindingContext context)
         {
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var isTaskOf))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var taskType))
                 return;
 
-            if (isTaskOf)
+            if (context.Method.IsStatic)
+                throw new ArgumentException($"Yield points are not valid on static methods in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
+
+            switch (taskType)
             {
-                context.Result.SetHandler(async (messageContext, value) =>
-                {
-                    var yieldPoint = await (Task<IYieldPoint>)value;
-                    if (yieldPoint != null)
-                        await HandleYieldPoint(messageContext, yieldPoint);
-                });
+                case TaskType.None:
+                    context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
+                    break;
+
+                case TaskType.Task:
+                    context.Result.SetHandler(async (messageContext, value) =>
+                    {
+                        var yieldPoint = await (Task<IYieldPoint>)value;
+                        if (yieldPoint != null)
+                            await HandleYieldPoint(messageContext, yieldPoint);
+                    });
+                    break;
+
+                case TaskType.ValueTask:
+                    context.Result.SetHandler(async (messageContext, value) =>
+                    {
+                        var yieldPoint = await (ValueTask<IYieldPoint>)value;
+                        if (yieldPoint != null)
+                            await HandleYieldPoint(messageContext, yieldPoint);
+                    });
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-            else
-                context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
         }
 
 
-        private static Task HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
+        private static ValueTask HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
 
 
-        private static Task HandleParallelResponse(IMessageContext context)
+        private static ValueTask HandleParallelResponse(IMessageContext context)
         {
             if (context.TryGet<FlowMessageContextPayload>(out var flowPayload) && flowPayload.FlowIsConverging)
-                return Task.CompletedTask;
+                return default;
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>

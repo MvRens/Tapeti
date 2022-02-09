@@ -51,7 +51,7 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public async Task Load()
+        public async ValueTask Load()
         {
             if (inUse)
                 throw new InvalidOperationException("Can only load the saved state once.");
@@ -114,17 +114,17 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public Task<Guid?> FindFlowID(Guid continuationID)
+        public ValueTask<Guid?> FindFlowID(Guid continuationID)
         {
             if (!loaded)
                 throw new InvalidOperationException("Flow store is not yet loaded.");
 
-            return Task.FromResult(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
+            return new ValueTask<Guid?>(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
         }
 
 
         /// <inheritdoc />
-        public async Task<IFlowStateLock> LockFlowState(Guid flowID)
+        public async ValueTask<IFlowStateLock> LockFlowState(Guid flowID)
         {
             if (!loaded)
                 throw new InvalidOperationException("Flow store should be loaded before storing flows.");
@@ -137,14 +137,14 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public Task<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
         {
             var maximumDateTime = DateTime.UtcNow - minimumAge;
 
-            return Task.FromResult(flowStates
+            return new ValueTask<IEnumerable<ActiveFlow>>(flowStates
                 .Where(p => p.Value.CreationTime <= maximumDateTime)
                 .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
-                .ToArray() as IEnumerable<ActiveFlow>);
+                .ToArray());
         }
 
 
@@ -173,15 +173,15 @@ namespace Tapeti.Flow.Default
                 l?.Dispose();
             }
 
-            public Task<FlowState> GetFlowState()
+            public ValueTask<FlowState> GetFlowState()
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                return Task.FromResult(cachedFlowState?.FlowState?.Clone());
+                return new ValueTask<FlowState>(cachedFlowState?.FlowState?.Clone());
             }
 
-            public async Task StoreFlowState(FlowState newFlowState, bool persistent)
+            public async ValueTask StoreFlowState(FlowState newFlowState, bool persistent)
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
@@ -227,7 +227,7 @@ namespace Tapeti.Flow.Default
                 }
             }
 
-            public async Task DeleteFlowState()
+            public async ValueTask DeleteFlowState()
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");

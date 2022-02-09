@@ -159,7 +159,7 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public async Task Invoke(IMessageContext context)
         {
-            var controller = dependencyResolver.Resolve(bindingInfo.ControllerType);
+            var controller = Method.IsStatic ? null : dependencyResolver.Resolve(bindingInfo.ControllerType);
             context.Store(new ControllerMessageContextPayload(controller, context.Binding as IControllerMethodBinding));
             
             if (!await FilterAllowed(context))
@@ -179,7 +179,7 @@ namespace Tapeti.Default
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,
                 async (handler, next) => await handler.Cleanup(context, consumeResult, next),
-                () => Task.CompletedTask);
+                () => default);
         }
 
 
@@ -192,14 +192,14 @@ namespace Tapeti.Default
                 () =>
                 {
                     allowed = true;
-                    return Task.CompletedTask;
+                    return default;
                 });
 
             return allowed;
         }
 
 
-        private delegate Task MessageHandlerFunc(IMessageContext context);
+        private delegate ValueTask MessageHandlerFunc(IMessageContext context);
 
 
         private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
@@ -213,10 +213,11 @@ namespace Tapeti.Default
             if (method.ReturnType == typeof(Task))
                 return WrapTaskMethod(method, parameterFactories);
 
-            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
-                return WrapGenericTaskMethod(method, parameterFactories);
+            if (method.ReturnType == typeof(ValueTask))
+                return WrapValueTaskMethod(method, parameterFactories);
 
-            return WrapObjectMethod(method, parameterFactories);
+            // Breaking change in Tapeti 2.9: PublishResultBinding or other middleware should have taken care of the return value. If not, don't silently discard it.
+            throw new ArgumentException($"Method {method.Name} on controller {method.DeclaringType?.FullName} returns type {method.ReturnType.FullName}, which can not be handled by Tapeti or any registered middleware");
         }
 
 
@@ -246,7 +247,7 @@ namespace Tapeti.Default
                 try
                 { 
                     method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                    return Task.CompletedTask;
+                    return default;
                 }
                 catch (Exception e)
                 {
@@ -264,7 +265,7 @@ namespace Tapeti.Default
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return (Task) method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return new ValueTask((Task) method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
                 }
                 catch (Exception e)
                 {
@@ -275,32 +276,14 @@ namespace Tapeti.Default
         }
 
 
-        private MessageHandlerFunc WrapGenericTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
-        {
-            return context =>
-            {
-                var controllerPayload = context.Get<ControllerMessageContextPayload>();
-                try
-                { 
-                    return (Task<object>)method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                }
-                catch (Exception e)
-                {
-                    AddExceptionData(e);
-                    throw;
-                }
-            };
-        }
-
-
-        private MessageHandlerFunc WrapObjectMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapValueTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return Task.FromResult(method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                    return (ValueTask)method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                 }
                 catch (Exception e)
                 {

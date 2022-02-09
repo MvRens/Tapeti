@@ -11,27 +11,27 @@ namespace Tapeti.Flow.Default
     /// </summary>
     public class NonPersistentFlowRepository : IFlowRepository
     {
-        Task<IEnumerable<FlowRecord<T>>> IFlowRepository.GetStates<T>()
+        ValueTask<IEnumerable<FlowRecord<T>>> IFlowRepository.GetStates<T>()
         {
-            return Task.FromResult(Enumerable.Empty<FlowRecord<T>>());
+            return new ValueTask<IEnumerable<FlowRecord<T>>>(Enumerable.Empty<FlowRecord<T>>());
         }
 
         /// <inheritdoc />
-        public Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
+        public ValueTask CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <inheritdoc />
-        public Task UpdateState<T>(Guid flowID, T state)
+        public ValueTask UpdateState<T>(Guid flowID, T state)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <inheritdoc />
-        public Task DeleteState(Guid flowID)
+        public ValueTask DeleteState(Guid flowID)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

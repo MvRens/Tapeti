@@ -5,6 +5,10 @@ using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
+// Neither of these are available in language version 7 required for .NET Standard 2.0
+// ReSharper disable ConvertToUsingDeclaration
+// ReSharper disable UseAwaitUsing
+
 namespace Tapeti.Flow.SQL
 {
     /// <inheritdoc />
@@ -37,7 +41,7 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public async Task<IEnumerable<FlowRecord<T>>> GetStates<T>()
+        public async ValueTask<IEnumerable<FlowRecord<T>>> GetStates<T>()
         {
             return await SqlRetryHelper.Execute(async () =>
             {
@@ -64,7 +68,7 @@ namespace Tapeti.Flow.SQL
         }
 
         /// <inheritdoc />
-        public async Task CreateState<T>(Guid flowID, T state, DateTime timestamp)
+        public async ValueTask CreateState<T>(Guid flowID, T state, DateTime timestamp)
         {
             await SqlRetryHelper.Execute(async () =>
             {
@@ -88,7 +92,7 @@ namespace Tapeti.Flow.SQL
         }
 
         /// <inheritdoc />
-        public async Task UpdateState<T>(Guid flowID, T state)
+        public async ValueTask UpdateState<T>(Guid flowID, T state)
         {
             await SqlRetryHelper.Execute(async () =>
             {
@@ -108,7 +112,7 @@ namespace Tapeti.Flow.SQL
         }
 
         /// <inheritdoc />
-        public async Task DeleteState(Guid flowID)
+        public async ValueTask DeleteState(Guid flowID)
         {
             await SqlRetryHelper.Execute(async () =>
             {

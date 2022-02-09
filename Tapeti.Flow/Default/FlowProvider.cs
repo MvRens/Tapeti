@@ -197,7 +197,7 @@ namespace Tapeti.Flow.Default
 
         
         /// <inheritdoc />
-        public async Task Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
+        public async ValueTask Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
         {
             if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Method.Name}");
@@ -254,7 +254,7 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public Task Converge(IFlowHandlerContext context)
+        public ValueTask Converge(IFlowHandlerContext context)
         {
             return Execute(context, new DelegateYieldPoint(flowContext => 
                 Converge(flowContext, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync)));

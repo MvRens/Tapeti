@@ -43,7 +43,7 @@ namespace Tapeti
             var controllerIsObsolete = controller.GetCustomAttribute<ObsoleteAttribute>() != null;
 
 
-            foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance)
+            foreach (var method in controller.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
