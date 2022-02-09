@@ -109,7 +109,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Apply(IBindingTarget target)
+        public async ValueTask Apply(IBindingTarget target)
         {
             if (!bindingInfo.IsObsolete)
             {
@@ -157,7 +157,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Invoke(IMessageContext context)
+        public async ValueTask Invoke(IMessageContext context)
         {
             var controller = Method.IsStatic ? null : dependencyResolver.Resolve(bindingInfo.ControllerType);
             context.Store(new ControllerMessageContextPayload(controller, context.Binding as IControllerMethodBinding));
@@ -174,7 +174,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
+        public async ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,

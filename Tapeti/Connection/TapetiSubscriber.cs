@@ -119,7 +119,7 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task ApplyBindings(CancellationToken cancellationToken)
+        private async ValueTask ApplyBindings(CancellationToken cancellationToken)
         {
             var routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
             var exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
@@ -133,7 +133,9 @@ namespace Tapeti.Connection
             else
                 bindingTarget = new NoVerifyBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
 
-            await Task.WhenAll(config.Bindings.Select(binding => binding.Apply(bindingTarget)));
+            foreach (var binding in config.Bindings)
+                await binding.Apply(bindingTarget);
+
             await bindingTarget.Apply();
         }
 
@@ -183,12 +185,12 @@ namespace Tapeti.Connection
             }
 
 
-            public abstract Task BindDurable(Type messageClass, string queueName);
-            public abstract Task BindDurableDirect(string queueName);
-            public abstract Task BindDurableObsolete(string queueName);
+            public abstract ValueTask BindDurable(Type messageClass, string queueName);
+            public abstract ValueTask BindDurableDirect(string queueName);
+            public abstract ValueTask BindDurableObsolete(string queueName);
 
 
-            public async Task<string> BindDynamic(Type messageClass, string queuePrefix = null)
+            public async ValueTask<string> BindDynamic(Type messageClass, string queuePrefix = null)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix);
                 if (!result.IsNewMessageClass) 
@@ -203,14 +205,14 @@ namespace Tapeti.Connection
             }
 
 
-            public async Task<string> BindDynamicDirect(Type messageClass, string queuePrefix = null)
+            public async ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix = null)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix);
                 return result.QueueName;
             }
 
 
-            public async Task<string> BindDynamicDirect(string queuePrefix = null)
+            public async ValueTask<string> BindDynamicDirect(string queuePrefix = null)
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
@@ -285,7 +287,7 @@ namespace Tapeti.Connection
             }
 
 
-            public override Task BindDurable(Type messageClass, string queueName)
+            public override ValueTask BindDurable(Type messageClass, string queueName)
             {
                 // Collect the message classes per queue so we can determine afterwards
                 // if any of the bindings currently set on the durable queue are no
@@ -300,23 +302,23 @@ namespace Tapeti.Connection
                 else if (!messageClasses.Contains(messageClass))
                     messageClasses.Add(messageClass);
 
-                return Task.CompletedTask;
+                return default;
             }
 
 
-            public override Task BindDurableDirect(string queueName)
+            public override ValueTask BindDurableDirect(string queueName)
             {
                 if (!durableQueues.ContainsKey(queueName))
                     durableQueues.Add(queueName, new List<Type>());
 
-                return Task.CompletedTask;
+                return default;
             }
 
 
-            public override Task BindDurableObsolete(string queueName)
+            public override ValueTask BindDurableObsolete(string queueName)
             {
                 obsoleteDurableQueues.Add(queueName);
-                return Task.CompletedTask;
+                return default;
             }
 
 
@@ -357,7 +359,7 @@ namespace Tapeti.Connection
 
         private class PassiveDurableQueuesBindingTarget : CustomBindingTarget
         {
-            private readonly List<string> durableQueues = new();
+            private readonly HashSet<string> durableQueues = new();
 
 
             public PassiveDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
@@ -365,29 +367,28 @@ namespace Tapeti.Connection
             }
 
 
-            public override async Task BindDurable(Type messageClass, string queueName)
+            public override async ValueTask BindDurable(Type messageClass, string queueName)
             {
                 await VerifyDurableQueue(queueName);
             }
 
-            public override async Task BindDurableDirect(string queueName)
+            public override async ValueTask BindDurableDirect(string queueName)
             {
                 await VerifyDurableQueue(queueName);
             }
 
-            public override Task BindDurableObsolete(string queueName)
+            public override ValueTask BindDurableObsolete(string queueName)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
 
             private async Task VerifyDurableQueue(string queueName)
             {
-                if (!durableQueues.Contains(queueName))
-                {
-                    await ClientFactory().DurableQueueVerify(CancellationToken, queueName);
-                    durableQueues.Add(queueName);
-                }
+                if (!durableQueues.Add(queueName))
+                    return;
+
+                await ClientFactory().DurableQueueVerify(CancellationToken, queueName);
             }
         }
 
@@ -399,19 +400,19 @@ namespace Tapeti.Connection
             }
 
 
-            public override Task BindDurable(Type messageClass, string queueName)
+            public override ValueTask BindDurable(Type messageClass, string queueName)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public override Task BindDurableDirect(string queueName)
+            public override ValueTask BindDurableDirect(string queueName)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public override Task BindDurableObsolete(string queueName)
+            public override ValueTask BindDurableObsolete(string queueName)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

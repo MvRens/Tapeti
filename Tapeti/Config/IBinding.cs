@@ -41,7 +41,7 @@ namespace Tapeti.Config
         /// Called after a connection is established to set up the binding.
         /// </summary>
         /// <param name="target"></param>
-        Task Apply(IBindingTarget target);
+        ValueTask Apply(IBindingTarget target);
 
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace Tapeti.Config
         /// Invokes the handler for the message as specified by the context.
         /// </summary>
         /// <param name="context"></param>
-        Task Invoke(IMessageContext context);
+        ValueTask Invoke(IMessageContext context);
 
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace Tapeti.Config
         /// <param name="context"></param>
         /// <param name="consumeResult"></param>
         /// <returns></returns>
-        Task Cleanup(IMessageContext context, ConsumeResult consumeResult);
+        ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult);
     }
 
 
@@ -80,7 +80,7 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="messageClass">The message class to be bound to the queue</param>
         /// <param name="queueName">The name of the durable queue</param>
-        Task BindDurable(Type messageClass, string queueName);
+        ValueTask BindDurable(Type messageClass, string queueName);
 
         /// <summary>
         /// Binds the messageClass to a dynamic auto-delete queue.
@@ -92,14 +92,14 @@ namespace Tapeti.Config
         /// <param name="messageClass">The message class to be bound to the queue</param>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        Task<string> BindDynamic(Type messageClass, string queuePrefix = null);
+        ValueTask<string> BindDynamic(Type messageClass, string queuePrefix = null);
 
         /// <summary>
         /// Declares a durable queue but does not add a binding for a messageClass' routing key.
         /// Used for direct-to-queue messages.
         /// </summary>
         /// <param name="queueName">The name of the durable queue</param>
-        Task BindDurableDirect(string queueName);
+        ValueTask BindDurableDirect(string queueName);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -108,7 +108,7 @@ namespace Tapeti.Config
         /// <param name="messageClass">The message class which will be handled on the queue. It is not actually bound to the queue.</param>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        Task<string> BindDynamicDirect(Type messageClass = null, string queuePrefix = null);
+        ValueTask<string> BindDynamicDirect(Type messageClass = null, string queuePrefix = null);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -116,13 +116,13 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        Task<string> BindDynamicDirect(string queuePrefix = null);
+        ValueTask<string> BindDynamicDirect(string queuePrefix = null);
 
         /// <summary>
         /// Marks the specified durable queue as having an obsolete binding. If after all bindings have subscribed, the queue only contains obsolete
         /// bindings and is empty, it will be removed.
         /// </summary>
         /// <param name="queueName">The name of the durable queue</param>
-        Task BindDurableObsolete(string queueName);
+        ValueTask BindDurableObsolete(string queueName);
     }
 }

@@ -31,7 +31,7 @@ namespace Tapeti.Transient
 
 
         /// <inheritdoc />
-        public async Task Apply(IBindingTarget target)
+        public async ValueTask Apply(IBindingTarget target)
         {
             QueueName = await target.BindDynamicDirect(dynamicQueuePrefix);
             router.TransientResponseQueueName = QueueName;
@@ -46,17 +46,17 @@ namespace Tapeti.Transient
 
 
         /// <inheritdoc />
-        public Task Invoke(IMessageContext context)
+        public ValueTask Invoke(IMessageContext context)
         {
             router.HandleMessage(context);
-            return Task.CompletedTask;
+            return default;
         }
 
 
         /// <inheritdoc />
-        public Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
+        public ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }
