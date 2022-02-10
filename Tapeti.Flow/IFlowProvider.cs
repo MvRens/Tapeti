@@ -230,19 +230,6 @@ namespace Tapeti.Flow
         /// <param name="noRequestsBehaviour">How the Yield method should behave when no requests have been added to the parallel request builder.</param>
         IYieldPoint Yield(Func<Task<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception);
 
-        /// There is no Sync overload with an IFlowParallelRequest parameter, as the AddRequest methods for that are
-        /// async, so you should always await them.
-        /// <summary>
-        /// Constructs an IYieldPoint to continue the flow when responses arrive.
-        /// The continuation method is called when all responses have arrived.
-        /// Response handlers and the continuation method are guaranteed thread-safe access to the
-        /// controller and can store state.
-        /// Used for asynchronous continuation methods.
-        /// </summary>
-        /// <param name="continuation">The converge continuation method to be called when all responses have been handled.</param>
-        /// <param name="noRequestsBehaviour">How the Yield method should behave when no requests have been added to the parallel request builder.</param>
-        IYieldPoint Yield(Func<ValueTask<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception);
-
         /// <summary>
         /// Constructs an IYieldPoint to continue the flow when responses arrive.
         /// The continuation method is called when all responses have arrived.

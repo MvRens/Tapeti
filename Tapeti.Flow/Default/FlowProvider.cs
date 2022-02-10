@@ -362,12 +362,6 @@ namespace Tapeti.Flow.Default
                 return BuildYieldPoint(continuation, false, noRequestsBehaviour);
             }
 
-            public IYieldPoint Yield(Func<ValueTask<IYieldPoint>> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
-            {
-                throw new NotImplementedException();
-            }
-
-
             public IYieldPoint YieldSync(Func<IYieldPoint> continuation, FlowNoRequestsBehaviour noRequestsBehaviour = FlowNoRequestsBehaviour.Exception)
             {
                 return BuildYieldPoint(continuation, true, noRequestsBehaviour);
