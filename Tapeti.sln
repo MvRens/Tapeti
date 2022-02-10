@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31005.135
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti", "Tapeti\Tapeti.csproj", "{2952B141-C54D-4E6F-8108-CAD735B0279F}"
 EndProject
@@ -54,6 +54,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "07-ParallelizationTest", "Examples\07-ParallelizationTest\07-ParallelizationTest.csproj", "{E69E6BA5-68E7-4A4D-A38C-B2526AA66E96}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "08-MessageHandlerLogging", "Examples\08-MessageHandlerLogging\08-MessageHandlerLogging.csproj", "{906605A6-2CAB-4B29-B0DD-B735BF265E39}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tapeti.Benchmarks", "Tapeti.Benchmarks\Tapeti.Benchmarks.csproj", "{DBE56131-9207-4CEA-BA3E-031351677C48}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -149,6 +151,10 @@ Global
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

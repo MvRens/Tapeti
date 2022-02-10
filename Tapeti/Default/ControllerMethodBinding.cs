@@ -205,30 +205,30 @@ namespace Tapeti.Default
         private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
         {
             if (resultHandler != null)
-                return WrapResultHandlerMethod(method, parameterFactories, resultHandler);
+                return WrapResultHandlerMethod(method.CreateExpressionInvoke(), parameterFactories, resultHandler);
 
             if (method.ReturnType == typeof(void))
-                return WrapNullMethod(method, parameterFactories);
+                return WrapNullMethod(method.CreateExpressionInvoke(), parameterFactories);
 
             if (method.ReturnType == typeof(Task))
-                return WrapTaskMethod(method, parameterFactories);
+                return WrapTaskMethod(method.CreateExpressionInvoke(), parameterFactories);
 
             if (method.ReturnType == typeof(ValueTask))
-                return WrapValueTaskMethod(method, parameterFactories);
+                return WrapValueTaskMethod(method.CreateExpressionInvoke(), parameterFactories);
 
             // Breaking change in Tapeti 2.9: PublishResultBinding or other middleware should have taken care of the return value. If not, don't silently discard it.
             throw new ArgumentException($"Method {method.Name} on controller {method.DeclaringType?.FullName} returns type {method.ReturnType.FullName}, which can not be handled by Tapeti or any registered middleware");
         }
 
 
-        private MessageHandlerFunc WrapResultHandlerMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapResultHandlerMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    var result = method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    var result = invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return resultHandler(context, result);
                 }
                 catch (Exception e)
@@ -239,14 +239,14 @@ namespace Tapeti.Default
             };
         }
 
-        private MessageHandlerFunc WrapNullMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapNullMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 { 
-                    method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return default;
                 }
                 catch (Exception e)
@@ -258,14 +258,14 @@ namespace Tapeti.Default
         }
 
 
-        private MessageHandlerFunc WrapTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapTaskMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return new ValueTask((Task) method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                    return new ValueTask((Task) invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
                 }
                 catch (Exception e)
                 {
@@ -276,14 +276,14 @@ namespace Tapeti.Default
         }
 
 
-        private MessageHandlerFunc WrapValueTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapValueTaskMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return (ValueTask)method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return (ValueTask)invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                 }
                 catch (Exception e)
                 {
