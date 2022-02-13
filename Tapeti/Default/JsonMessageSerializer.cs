@@ -16,8 +16,8 @@ namespace Tapeti.Default
         private const string ClassTypeHeader = "classType";
 
 
-        private readonly ConcurrentDictionary<string, Type> deserializedTypeNames = new();
-        private readonly ConcurrentDictionary<Type, string> serializedTypeNames = new();
+        private readonly ConcurrentDictionary<string, Type> deserializedTypeNames = new ConcurrentDictionary<string, Type>();
+        private readonly ConcurrentDictionary<Type, string> serializedTypeNames = new ConcurrentDictionary<Type, string>();
         private readonly JsonSerializerSettings serializerSettings;
 
 
@@ -49,7 +49,7 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public object Deserialize(byte[] body, IMessageProperties properties)
         {
-            if (properties.ContentType is not ContentType)
+            if (!(properties.ContentType is ContentType))
                 throw new ArgumentException($"content_type must be {ContentType}");
 
             var typeName = properties.GetHeader(ClassTypeHeader);

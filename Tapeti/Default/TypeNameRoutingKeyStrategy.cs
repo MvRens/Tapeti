@@ -28,9 +28,9 @@ namespace Tapeti.Default
                     (?(?<=[A-Z])[A-Z](?=[a-z])|[A-Z])
                 )";
 
-        private static readonly Regex SeparatorRegex = new(SeparatorPattern, RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
+        private static readonly Regex SeparatorRegex = new Regex(SeparatorPattern, RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
 
-        private static readonly ConcurrentDictionary<Type, string> RoutingKeyCache = new();
+        private static readonly ConcurrentDictionary<Type, string> RoutingKeyCache = new ConcurrentDictionary<Type, string>();
 
 
         /// <inheritdoc />

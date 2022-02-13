@@ -8,7 +8,7 @@ namespace Tapeti.Default
 {
     internal class MessageContext : IMessageContext
     {
-        private readonly Dictionary<Type, IMessageContextPayload> payloads = new();
+        private readonly Dictionary<Type, IMessageContextPayload> payloads = new Dictionary<Type, IMessageContextPayload>();
 
 
         /// <inheritdoc />
@@ -117,7 +117,7 @@ namespace Tapeti.Default
         // ReSharper disable once InconsistentNaming
         public class KeyValuePayload : IMessageContextPayload, IDisposable, IAsyncDisposable
         {
-            private readonly Dictionary<string, object> items = new();
+            private readonly Dictionary<string, object> items = new Dictionary<string, object>();
             
             
             public KeyValuePayload(string key, object value)

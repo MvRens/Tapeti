@@ -172,7 +172,8 @@ namespace Tapeti.Connection
             return e switch
             {
                 AggregateException aggregateException => aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown),
-                TaskCanceledException or OperationCanceledException => true,
+                TaskCanceledException _ => true,
+                OperationCanceledException _ => true,
                 _ => e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException)
             };
         }

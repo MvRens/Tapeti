@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -50,7 +50,7 @@ namespace Tapeti.Connection
         private readonly HttpClient managementClient;
 
         // These fields must be locked using connectionLock
-        private readonly object connectionLock = new();
+        private readonly object connectionLock = new object();
         private long connectionReference;
         private RabbitMQ.Client.IConnection connection;
         private IModel consumeChannelModel;
@@ -61,12 +61,12 @@ namespace Tapeti.Connection
 
         // These fields are for use in a single TapetiChannel's queue only!
         private ulong lastDeliveryTag;
-        private readonly HashSet<string> deletedQueues = new();
+        private readonly HashSet<string> deletedQueues = new HashSet<string>();
 
         // These fields must be locked using confirmLock, since the callbacks for BasicAck/BasicReturn can run in a different thread
-        private readonly object confirmLock = new();
-        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new();
-        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new();
+        private readonly object confirmLock = new object();
+        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new Dictionary<ulong, ConfirmMessageInfo>();
+        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new Dictionary<string, ReturnInfo>();
 
 
         private class ConfirmMessageInfo
@@ -184,18 +184,15 @@ namespace Tapeti.Connection
 
                 var replyCode = publishResultTask.Result;
 
-                switch (replyCode)
-                {
-                    // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
-                    // at the time of writing...
-                    case 312:
-                        throw new NoRouteException(
-                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
-                    
-                    case > 0:
-                        throw new NoRouteException(
-                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
-                }
+                // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                // at the time of writing...
+                if (replyCode == 312)
+                    throw new NoRouteException(
+                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
+
+                if (replyCode > 0)
+                    throw new NoRouteException(
+                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
             });
         }
 
@@ -526,7 +523,7 @@ namespace Tapeti.Connection
         }
 
 
-        private static readonly List<HttpStatusCode> TransientStatusCodes = new()
+        private static readonly List<HttpStatusCode> TransientStatusCodes = new List<HttpStatusCode>()
         {
             HttpStatusCode.GatewayTimeout,
             HttpStatusCode.RequestTimeout,
@@ -663,7 +660,7 @@ namespace Tapeti.Connection
                 }
                 catch (WebException e)
                 {
-                    if (e.Response is not HttpWebResponse response)
+                    if (!(e.Response is HttpWebResponse response))
                         throw;
 
                     if (!TransientStatusCodes.Contains(response.StatusCode))
@@ -678,7 +675,7 @@ namespace Tapeti.Connection
         }
 
 
-        private readonly HashSet<string> declaredExchanges = new();
+        private readonly HashSet<string> declaredExchanges = new HashSet<string>();
 
         private void DeclareExchange(IModel channel, string exchange)
         {
@@ -845,7 +842,7 @@ namespace Tapeti.Connection
                             GetTapetiChannel(TapetiChannelType.Consume).QueueRetryable(_ => { });
                     };
 
-                    capturedPublishChannelModel.ModelShutdown += (_, _) =>
+                    capturedPublishChannelModel.ModelShutdown += (sender, args) =>
                     {
                         lock (connectionLock)
                         {

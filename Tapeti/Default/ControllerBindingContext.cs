@@ -9,7 +9,7 @@ namespace Tapeti.Default
     internal class ControllerBindingContext : IControllerBindingContext
     {
         private BindingTargetMode? bindingTargetMode;
-        private readonly List<IControllerMiddlewareBase> middleware = new();
+        private readonly List<IControllerMiddlewareBase> middleware = new List<IControllerMiddlewareBase>();
         private readonly List<ControllerBindingParameter> parameters;
         private readonly ControllerBindingResult result;
 
