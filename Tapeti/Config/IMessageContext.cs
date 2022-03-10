@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 
 // ReSharper disable UnusedMemberInSuper.Global - public API
 // ReSharper disable UnusedMember.Global
@@ -49,6 +50,13 @@ namespace Tapeti.Config
         /// Provides access to the binding which is currently processing the message.
         /// </remarks>
         IBinding Binding { get; }
+
+        /// <summary>
+        /// Contains a CancellationToken which is cancelled when the connection to the RabbitMQ server is closed.
+        /// Note that this token is cancelled regardless of whether the connection will be reestablished, as any
+        /// messages still in the queue will be redelivered with a new token.
+       /// </summary>
+        CancellationToken ConnectionClosed { get; }
 
         /// <summary>
         /// Stores additional properties in the message context which can be passed between middleware stages.

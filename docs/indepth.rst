@@ -9,6 +9,46 @@ As described in the Getting started guide, a message is a plain object which can
 When communicating between services it is considered best practice to define messages in separate class library assemblies which can be referenced in other services. This establishes a public interface between services and components without binding to the implementation.
 
 
+.. _parameterbinding:
+
+Parameter binding
+-----------------
+Tapeti will bind the parameters of message handler methods using the registered binding middleware.
+
+Although stated in the Getting started guide that the first parameter is always assumed to be the message class, this is in fact handled by one of the default binding middleware implementations instead of being hardcoded in Tapeti. All of the default implementations play nice and will only apply to parameters not already bound by other middleware, making it easy to extend or change the default behaviour if desired.
+
+In addition to the message class parameter, two additional default implementations are included:
+
+
+CancellationToken
+^^^^^^^^^^^^^^^^^
+Similar to ASP.NET, Tapeti will bind parameters of type CancellationToken to a token which is cancelled when the connection to the RabbitMQ server is closed.
+
+.. note:: This does not indicate whether the connection was closed by the application or lost unexpectedly, either scenario will cancel the token. This is by design, as any message in-flight will be put back on the queue and redelivered anyways.
+
+Internally this CancellationToken is called ConnectionClosed, but any name can be used. For example:
+
+::
+
+      public async Task<CountResponseMessage> CountRabbits(CountRequestMessage message,
+          CancellationToken cancellationToken)
+      {
+          var count = await rabbitRepository.Count(cancellationToken);
+
+          return new CountRabbitsResponseMessage
+          {
+              Count = count
+          };
+      }
+
+
+Dependency injection
+^^^^^^^^^^^^^^^^^^^^
+Any parameter not bound by any other means will be resolved using the IoC container which is passed to the TapetiConnection.
+
+.. note:: It is considered best practice to use the constructor for dependency injection instead.
+
+
 Enums
 -----
 Special care must be taken when using enums in messages. For example, you have several services consuming a message containing an enum field. Some services will have logic which depends on a specific value, others will not use that specific field at all.
@@ -80,6 +120,7 @@ The ``[Obsolete]`` attribute can also be applied to the entire controller to mar
 If all message handlers bound to a durable queue are marked as obsolete, including other controllers bound to the same durable queue, the queue is a candidate for removal. During startup, if the queue is empty it will be deleted. This action is logged to the registered ILogger.
 
 If there are still messages in the queue it's pending removal will be logged but the consumers will run as normal to empty the queue. The queue will then remain until it is checked again when the application is restarted.
+
 
 
 Request - response

@@ -35,6 +35,7 @@ namespace Tapeti
 
             Use(new DependencyResolverBinding());
             Use(new PublishResultBinding());
+            Use(new CancellationTokenBinding());
 
             // Registered last so it runs first and the MessageClass is known to other middleware
             Use(new MessageBinding());

@@ -289,3 +289,6 @@ Then install the Tapeti.Flow.SQL NuGet package and register the SqlConnectionFlo
       .WithFlow()
       .RegisterAllControllers()
       .Build();
+
+
+.. caution:: The controller and method names for response handlers and converge methods are stored in the flow and must be valid when they are loaded again. Keep that in mind if you want to refactor the code; either keep the original class and method temporarily for backwards compatibility, optionally redirecting them internally to the new code, or make sure there are no persisted flows remaining.

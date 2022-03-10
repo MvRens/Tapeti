@@ -18,11 +18,13 @@ namespace Tapeti.Flow.Default
         private class CachedFlowState
         {
             public readonly FlowState FlowState;
+            public readonly DateTime CreationTime;
             public readonly bool IsPersistent;
 
-            public CachedFlowState(FlowState flowState, bool isPersistent)
+            public CachedFlowState(FlowState flowState, DateTime creationTime, bool isPersistent)
             {
                 FlowState = flowState;
+                CreationTime = creationTime;
                 IsPersistent = isPersistent;
             }
         }
@@ -64,12 +66,12 @@ namespace Tapeti.Flow.Default
             {
                 foreach (var flowStateRecord in await repository.GetStates<FlowState>())
                 {
-                    flowStates.TryAdd(flowStateRecord.Key, new CachedFlowState(flowStateRecord.Value, true));
+                    flowStates.TryAdd(flowStateRecord.FlowID, new CachedFlowState(flowStateRecord.FlowState, flowStateRecord.CreationTime, true));
 
-                    foreach (var continuation in flowStateRecord.Value.Continuations)
+                    foreach (var continuation in flowStateRecord.FlowState.Continuations)
                     {
-                        ValidateContinuation(flowStateRecord.Key, continuation.Key, continuation.Value);
-                        continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.Key);
+                        ValidateContinuation(flowStateRecord.FlowID, continuation.Key, continuation.Value);
+                        continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.FlowID);
                     }
                 }
             }
@@ -134,6 +136,18 @@ namespace Tapeti.Flow.Default
         }
 
 
+        /// <inheritdoc />
+        public Task<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        {
+            var maximumDateTime = DateTime.UtcNow - minimumAge;
+
+            return Task.FromResult(flowStates
+                .Where(p => p.Value.CreationTime <= maximumDateTime)
+                .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
+                .ToArray() as IEnumerable<ActiveFlow>);
+        }
+
+
         private class FlowStateLock : IFlowStateLock
         {
             private readonly FlowStore owner;
@@ -190,7 +204,7 @@ namespace Tapeti.Flow.Default
                 var isNew = cachedFlowState == null;
                 var wasPersistent = cachedFlowState?.IsPersistent ?? false;
 
-                cachedFlowState = new CachedFlowState(newFlowState, persistent);
+                cachedFlowState = new CachedFlowState(newFlowState, isNew ? DateTime.UtcNow : cachedFlowState.CreationTime, persistent);
                 owner.flowStates[FlowID] = cachedFlowState;
 
                 if (persistent)
@@ -198,8 +212,7 @@ namespace Tapeti.Flow.Default
                     // Storing the flowstate in the underlying repository
                     if (isNew)
                     {
-                        var now = DateTime.UtcNow;
-                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, now);
+                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, cachedFlowState.CreationTime);
                     }
                     else
                     {

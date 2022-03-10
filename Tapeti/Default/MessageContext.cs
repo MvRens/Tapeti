@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Config;
 
@@ -34,7 +35,10 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public IBinding Binding { get; set; }
 
-        
+        /// <inheritdoc />
+        public CancellationToken ConnectionClosed { get; set; }
+
+
         public void Store<T>(T payload) where T : IMessageContextPayload
         {
             payloads.Add(typeof(T), payload);

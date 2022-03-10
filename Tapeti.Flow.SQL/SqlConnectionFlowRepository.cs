@@ -37,24 +37,25 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public async Task<List<KeyValuePair<Guid, T>>> GetStates<T>()
+        public async Task<IEnumerable<FlowRecord<T>>> GetStates<T>()
         {
             return await SqlRetryHelper.Execute(async () =>
             {
                 using (var connection = await GetConnection())
                 {
-                    var flowQuery = new SqlCommand($"select FlowID, StateJson from {tableName}", connection);
+                    var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {tableName}", connection);
                     var flowReader = await flowQuery.ExecuteReaderAsync();
 
-                    var result = new List<KeyValuePair<Guid, T>>();
+                    var result = new List<FlowRecord<T>>();
 
                     while (await flowReader.ReadAsync())
                     {
                         var flowID = flowReader.GetGuid(0);
-                        var stateJson = flowReader.GetString(1);
+                        var creationTime = flowReader.GetDateTime(1);
+                        var stateJson = flowReader.GetString(2);
 
                         var state = JsonConvert.DeserializeObject<T>(stateJson);
-                        result.Add(new KeyValuePair<Guid, T>(flowID, state));
+                        result.Add(new FlowRecord<T>(flowID, creationTime, state));
                     }
 
                     return result;
