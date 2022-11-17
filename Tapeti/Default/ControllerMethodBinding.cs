@@ -117,10 +117,10 @@ namespace Tapeti.Default
                 {
                     case BindingTargetMode.Default:
                         if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -128,10 +128,10 @@ namespace Tapeti.Default
 
                     case BindingTargetMode.Direct:
                         if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name);
+                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -316,7 +316,11 @@ namespace Tapeti.Default
             /// </summary>
             public string Name { get; set; }
 
-
+            /// <summary>
+            /// Optional arguments (x-arguments) passed when declaring the queue.
+            /// </summary>
+            public IReadOnlyDictionary<string, string> QueueArguments { get; set; }
+                
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.
             /// </summary>

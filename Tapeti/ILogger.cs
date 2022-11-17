@@ -138,8 +138,9 @@ namespace Tapeti
         /// If the queue already exists but should be compatible QueueDeclare will be called instead.
         /// </summary>
         /// <param name="queueName">The name of the queue that is declared</param>
-        /// <param name="arguments">The x-arguments of the existing queue</param>
-        void QueueExistsWarning(string queueName, Dictionary<string, string> arguments);
+        /// <param name="existingArguments">The x-arguments of the existing queue</param>
+        /// <param name="arguments">The x-arguments of the queue that would be declared</param>
+        void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments);
 
         /// <summary>
         /// Called before a binding is added to a queue.

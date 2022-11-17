@@ -10,7 +10,7 @@ namespace Tapeti.Default
     /// </summary>
     public class MessageProperties : IMessageProperties
     {
-        private readonly Dictionary<string, string> headers = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> headers = new();
 
 
         /// <inheritdoc />

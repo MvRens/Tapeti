@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Tapeti.Annotations;
@@ -79,7 +80,7 @@ namespace Tapeti
                 }
 
                 var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
-                if (!(methodQueueInfo is { IsValid: true }))
+                if (methodQueueInfo is not { IsValid: true })
                     throw new TopologyConfigurationException(
                         $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
 
@@ -136,12 +137,59 @@ namespace Tapeti
             if (dynamicQueueAttribute != null && durableQueueAttribute != null)
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on controller {member.DeclaringType?.Name} method {member.Name}");
 
+
+            var queueArgumentsAttribute = member.GetCustomAttribute<QueueArgumentsAttribute>();
+
             if (dynamicQueueAttribute != null)
-                return new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Dynamic, Name = dynamicQueueAttribute.Prefix };
+                return new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Dynamic, Name = dynamicQueueAttribute.Prefix, QueueArguments = GetQueueArguments(queueArgumentsAttribute) };
 
             return durableQueueAttribute != null 
-                ? new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Durable, Name = durableQueueAttribute.Name } 
+                ? new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Durable, Name = durableQueueAttribute.Name, QueueArguments = GetQueueArguments(queueArgumentsAttribute) } 
                 : null;
+        }
+
+
+        private static IReadOnlyDictionary<string, string> GetQueueArguments(QueueArgumentsAttribute queueArgumentsAttribute)
+        {
+            if (queueArgumentsAttribute == null)
+                return null;
+
+            #if NETSTANDARD2_1_OR_GREATER
+            var arguments = new Dictionary<string, string>(queueArgumentsAttribute.CustomArguments);
+            #else
+            var arguments = new Dictionary<string, string>();
+            foreach (var pair in queueArgumentsAttribute.CustomArguments)
+                arguments.Add(pair.Key, pair.Value);
+            #endif
+
+            if (queueArgumentsAttribute.MaxLength > 0)
+                arguments.Add(@"x-max-length", queueArgumentsAttribute.MaxLength.ToString());
+
+            if (queueArgumentsAttribute.MaxLengthBytes > 0)
+                arguments.Add(@"x-max-length-bytes", queueArgumentsAttribute.MaxLengthBytes.ToString());
+
+            if (queueArgumentsAttribute.MessageTTL > 0)
+                arguments.Add(@"x-message-ttl", queueArgumentsAttribute.MessageTTL.ToString());
+
+            switch (queueArgumentsAttribute.Overflow)
+            {
+                case RabbitMQOverflow.NotSpecified:
+                    break;
+                case RabbitMQOverflow.DropHead:
+                    arguments.Add(@"x-overflow", @"drop-head");
+                    break;
+                case RabbitMQOverflow.RejectPublish:
+                    arguments.Add(@"x-overflow", @"reject-publish");
+                    break;
+                case RabbitMQOverflow.RejectPublishDeadletter:
+                    arguments.Add(@"x-overflow", @"reject-publish-dlx");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(queueArgumentsAttribute.Overflow), queueArgumentsAttribute.Overflow, "Unsupported Overflow value");
+            }
+
+
+            return arguments.Count > 0 ? arguments : null;
         }
     }
 }

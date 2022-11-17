@@ -13,7 +13,7 @@ namespace Tapeti.Transient
     internal class TransientRouter
     {
         private readonly int defaultTimeoutMs;
-        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new ConcurrentDictionary<Guid, TaskCompletionSource<object>>();
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new();
 
         /// <summary>
         /// The generated name of the dynamic queue to which responses should be sent.

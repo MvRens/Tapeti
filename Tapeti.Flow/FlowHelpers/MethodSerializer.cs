@@ -18,7 +18,7 @@ namespace Tapeti.Flow.FlowHelpers
         }
 
 
-        private static readonly Regex DeserializeRegex = new Regex("^(?<method>.+?)@(?<assembly>.+?):(?<type>.+?)$");
+        private static readonly Regex DeserializeRegex = new("^(?<method>.+?)@(?<assembly>.+?):(?<type>.+?)$");
 
         
         /// <summary>

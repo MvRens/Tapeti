@@ -20,7 +20,7 @@ namespace Tapeti.Connection
     internal class TapetiChannel
     {
         private readonly Func<IModel> modelFactory;
-        private readonly object taskQueueLock = new object();
+        private readonly object taskQueueLock = new();
         private SingleThreadTaskQueue taskQueue;
         private readonly ModelProvider modelProvider;
 

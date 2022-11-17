@@ -60,7 +60,7 @@ namespace Tapeti.Flow.FlowHelpers
             internal volatile LockItem Next;
 
             private readonly Dictionary<T, LockItem> locks;
-            private readonly TaskCompletionSource<IDisposable> tcs = new TaskCompletionSource<IDisposable>(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<IDisposable> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly T key;
 
             public LockItem(Dictionary<T, LockItem> locks, T key)

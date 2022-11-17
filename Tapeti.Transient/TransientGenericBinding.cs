@@ -33,7 +33,7 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public async ValueTask Apply(IBindingTarget target)
         {
-            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix);
+            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix, null);
             router.TransientResponseQueueName = QueueName;
         }
 

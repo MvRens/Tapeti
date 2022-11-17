@@ -304,7 +304,7 @@ namespace Tapeti.Flow.Default
 
             private readonly ITapetiConfig config;
             private readonly FlowProvider flowProvider;
-            private readonly List<RequestInfo> requests = new List<RequestInfo>();
+            private readonly List<RequestInfo> requests = new();
 
 
             public ParallelRequestBuilder(ITapetiConfig config, FlowProvider flowProvider)

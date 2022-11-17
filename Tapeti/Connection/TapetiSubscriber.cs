@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Config;
+using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
@@ -13,7 +14,7 @@ namespace Tapeti.Connection
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
-        private readonly List<TapetiConsumerTag> consumerTags = new List<TapetiConsumerTag>();
+        private readonly List<TapetiConsumerTag> consumerTags = new();
 
         private CancellationTokenSource initializeCancellationTokenSource;
 
@@ -149,7 +150,7 @@ namespace Tapeti.Connection
                 var queueName = group.Key;
                 var consumer = new TapetiConsumer(cancellationToken, config, queueName, group);
 
-                return await clientFactory().Consume(cancellationToken, queueName, consumer);
+                return await clientFactory().Consume(queueName, consumer, cancellationToken);
             }))).Where(t => t != null));
         }
 
@@ -165,9 +166,10 @@ namespace Tapeti.Connection
             {
                 public string QueueName;
                 public List<Type> MessageClasses;
+                public IReadOnlyDictionary<string, string> Arguments;
             }
 
-            private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new Dictionary<string, List<DynamicQueueInfo>>();
+            private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new();
 
 
             protected CustomBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken)
@@ -185,38 +187,38 @@ namespace Tapeti.Connection
             }
 
 
-            public abstract ValueTask BindDurable(Type messageClass, string queueName);
-            public abstract ValueTask BindDurableDirect(string queueName);
+            public abstract ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments);
+            public abstract ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments);
             public abstract ValueTask BindDurableObsolete(string queueName);
 
 
-            public async ValueTask<string> BindDynamic(Type messageClass, string queuePrefix = null)
+            public async ValueTask<string> BindDynamic(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
             {
-                var result = await DeclareDynamicQueue(messageClass, queuePrefix);
+                var result = await DeclareDynamicQueue(messageClass, queuePrefix, arguments);
                 if (!result.IsNewMessageClass) 
                     return result.QueueName;
 
                 var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
                 var exchange = ExchangeStrategy.GetExchange(messageClass);
 
-                await ClientFactory().DynamicQueueBind(CancellationToken, result.QueueName, new QueueBinding(exchange, routingKey));
+                await ClientFactory().DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey), CancellationToken);
 
                 return result.QueueName;
             }
 
 
-            public async ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix = null)
+            public async ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
             {
-                var result = await DeclareDynamicQueue(messageClass, queuePrefix);
+                var result = await DeclareDynamicQueue(messageClass, queuePrefix, arguments);
                 return result.QueueName;
             }
 
 
-            public async ValueTask<string> BindDynamicDirect(string queuePrefix = null)
+            public async ValueTask<string> BindDynamicDirect(string queuePrefix, IReadOnlyDictionary<string, string> arguments)
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
-                return await ClientFactory().DynamicQueueDeclare(CancellationToken, queuePrefix);
+                return await ClientFactory().DynamicQueueDeclare(queuePrefix, arguments, CancellationToken);
             }
 
 
@@ -226,7 +228,7 @@ namespace Tapeti.Connection
                 public bool IsNewMessageClass;
             }
 
-            private async Task<DeclareDynamicQueueResult> DeclareDynamicQueue(Type messageClass, string queuePrefix)
+            private async Task<DeclareDynamicQueueResult> DeclareDynamicQueue(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
             {
                 // Group by prefix
                 var key = queuePrefix ?? "";
@@ -241,7 +243,7 @@ namespace Tapeti.Connection
                 foreach (var existingQueueInfo in prefixQueues)
                 {
                     // ReSharper disable once InvertIf
-                    if (!existingQueueInfo.MessageClasses.Contains(messageClass))
+                    if (!existingQueueInfo.MessageClasses.Contains(messageClass) && existingQueueInfo.Arguments.NullSafeSameValues(arguments))
                     {
                         // Allow this routing key in the existing dynamic queue
                         var result = new DeclareDynamicQueueResult
@@ -258,11 +260,12 @@ namespace Tapeti.Connection
                 }
 
                 // Declare a new queue
-                var queueName = await ClientFactory().DynamicQueueDeclare(CancellationToken, queuePrefix);
+                var queueName = await ClientFactory().DynamicQueueDeclare(queuePrefix, arguments, CancellationToken);
                 var queueInfo = new DynamicQueueInfo
                 {
                     QueueName = queueName,
-                    MessageClasses = new List<Type> { messageClass }
+                    MessageClasses = new List<Type> { messageClass },
+                    Arguments = arguments
                 };
 
                 prefixQueues.Add(queueInfo);
@@ -278,8 +281,15 @@ namespace Tapeti.Connection
 
         private class DeclareDurableQueuesBindingTarget : CustomBindingTarget
         {
-            private readonly Dictionary<string, List<Type>> durableQueues = new Dictionary<string, List<Type>>();
-            private readonly HashSet<string> obsoleteDurableQueues = new HashSet<string>();
+            private struct DurableQueueInfo
+            {
+                public List<Type> MessageClasses;
+                public IReadOnlyDictionary<string, string> Arguments;
+            }
+
+
+            private readonly Dictionary<string, DurableQueueInfo> durableQueues = new();
+            private readonly HashSet<string> obsoleteDurableQueues = new();
 
 
             public DeclareDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
@@ -287,29 +297,50 @@ namespace Tapeti.Connection
             }
 
 
-            public override ValueTask BindDurable(Type messageClass, string queueName)
+            public override ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
             {
                 // Collect the message classes per queue so we can determine afterwards
                 // if any of the bindings currently set on the durable queue are no
                 // longer valid and should be removed.
-                if (!durableQueues.TryGetValue(queueName, out var messageClasses))
+                if (!durableQueues.TryGetValue(queueName, out var durableQueueInfo))
                 {
-                    durableQueues.Add(queueName, new List<Type>
+                    durableQueues.Add(queueName, new DurableQueueInfo
                     {
-                        messageClass
+                        MessageClasses = new List<Type>
+                        {
+                            messageClass
+                        },
+                        Arguments = arguments
                     });
                 }
-                else if (!messageClasses.Contains(messageClass))
-                    messageClasses.Add(messageClass);
+                else
+                {
+                    if (!durableQueueInfo.Arguments.NullSafeSameValues(arguments))
+                        throw new TopologyConfigurationException($"Multiple conflicting QueueArguments attributes specified for queue {queueName}");
 
+                    if (!durableQueueInfo.MessageClasses.Contains(messageClass))
+                        durableQueueInfo.MessageClasses.Add(messageClass);
+                }
+                
                 return default;
-            }
+        }
 
 
-            public override ValueTask BindDurableDirect(string queueName)
+            public override ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
             {
-                if (!durableQueues.ContainsKey(queueName))
-                    durableQueues.Add(queueName, new List<Type>());
+                if (!durableQueues.TryGetValue(queueName, out var durableQueueInfo))
+                {
+                    durableQueues.Add(queueName, new DurableQueueInfo
+                    {
+                        MessageClasses = new List<Type>(),
+                        Arguments = arguments
+                    });
+                }
+                else
+                {
+                    if (!durableQueueInfo.Arguments.NullSafeSameValues(arguments))
+                        throw new TopologyConfigurationException($"Multiple conflicting QueueArguments attributes specified for queue {queueName}");
+                }
 
                 return default;
             }
@@ -334,7 +365,7 @@ namespace Tapeti.Connection
             {
                 await Task.WhenAll(durableQueues.Select(async queue =>
                 {
-                    var bindings = queue.Value.Select(messageClass =>
+                    var bindings = queue.Value.MessageClasses.Select(messageClass =>
                     {
                         var exchange = ExchangeStrategy.GetExchange(messageClass);
                         var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
@@ -342,7 +373,7 @@ namespace Tapeti.Connection
                         return new QueueBinding(exchange, routingKey);
                     });
 
-                    await client.DurableQueueDeclare(CancellationToken, queue.Key, bindings);
+                    await client.DurableQueueDeclare(queue.Key, bindings, queue.Value.Arguments, CancellationToken);
                 }));
             }
 
@@ -351,7 +382,7 @@ namespace Tapeti.Connection
             {
                 await Task.WhenAll(obsoleteDurableQueues.Except(durableQueues.Keys).Select(async queue =>
                 {
-                    await client.DurableQueueDelete(CancellationToken, queue);
+                    await client.DurableQueueDelete(queue, true, CancellationToken);
                 }));
             }
         }
@@ -359,7 +390,7 @@ namespace Tapeti.Connection
 
         private class PassiveDurableQueuesBindingTarget : CustomBindingTarget
         {
-            private readonly HashSet<string> durableQueues = new HashSet<string>();
+            private readonly HashSet<string> durableQueues = new();
 
 
             public PassiveDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
@@ -367,14 +398,14 @@ namespace Tapeti.Connection
             }
 
 
-            public override async ValueTask BindDurable(Type messageClass, string queueName)
+            public override async ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
             {
-                await VerifyDurableQueue(queueName);
+                await VerifyDurableQueue(queueName, arguments);
             }
 
-            public override async ValueTask BindDurableDirect(string queueName)
+            public override async ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
             {
-                await VerifyDurableQueue(queueName);
+                await VerifyDurableQueue(queueName, arguments);
             }
 
             public override ValueTask BindDurableObsolete(string queueName)
@@ -383,12 +414,12 @@ namespace Tapeti.Connection
             }
 
 
-            private async Task VerifyDurableQueue(string queueName)
+            private async Task VerifyDurableQueue(string queueName, IReadOnlyDictionary<string, string> arguments)
             {
                 if (!durableQueues.Add(queueName))
                     return;
 
-                await ClientFactory().DurableQueueVerify(CancellationToken, queueName);
+                await ClientFactory().DurableQueueVerify(queueName, arguments, CancellationToken);
             }
         }
 
@@ -400,12 +431,12 @@ namespace Tapeti.Connection
             }
 
 
-            public override ValueTask BindDurable(Type messageClass, string queueName)
+            public override ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
             {
                 return default;
             }
 
-            public override ValueTask BindDurableDirect(string queueName)
+            public override ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
             {
                 return default;
             }

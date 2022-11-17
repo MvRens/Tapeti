@@ -24,7 +24,7 @@ namespace ExampleLib
         private readonly IDependencyContainer dependencyResolver;
         private readonly int expectedDoneCount;
         private int doneCount;
-        private readonly TaskCompletionSource<bool> doneSignal = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<bool> doneSignal = new();
 
 
         /// <param name="dependencyResolver">Uses Tapeti's IDependencyContainer interface so you can easily switch an example to your favourite IoC container</param>

@@ -18,7 +18,7 @@ namespace Tapeti
     public class TapetiConfig : ITapetiConfigBuilder, ITapetiConfigBuilderAccess
     {
         private Config config;
-        private readonly List<IControllerBindingMiddleware> bindingMiddleware = new List<IControllerBindingMiddleware>();
+        private readonly List<IControllerBindingMiddleware> bindingMiddleware = new();
 
 
         /// <inheritdoc />
@@ -225,9 +225,9 @@ namespace Tapeti
         /// <inheritdoc />
         internal class Config : ITapetiConfig
         {
-            private readonly ConfigFeatures features = new ConfigFeatures();
-            private readonly ConfigMiddleware middleware = new ConfigMiddleware();
-            private readonly ConfigBindings bindings = new ConfigBindings();
+            private readonly ConfigFeatures features = new();
+            private readonly ConfigMiddleware middleware = new();
+            private readonly ConfigBindings bindings = new();
 
             public IDependencyResolver DependencyResolver { get; }
             public ITapetiConfigFeatues Features => features;
@@ -291,8 +291,8 @@ namespace Tapeti
 
         internal class ConfigMiddleware : ITapetiConfigMiddleware
         {
-            private readonly List<IMessageMiddleware> messageMiddleware = new List<IMessageMiddleware>();
-            private readonly List<IPublishMiddleware> publishMiddleware = new List<IPublishMiddleware>();
+            private readonly List<IMessageMiddleware> messageMiddleware = new();
+            private readonly List<IPublishMiddleware> publishMiddleware = new();
 
 
             public IReadOnlyList<IMessageMiddleware> Message => messageMiddleware;

@@ -13,6 +13,7 @@ using RabbitMQ.Client.Exceptions;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Exceptions;
+using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
@@ -50,7 +51,7 @@ namespace Tapeti.Connection
         private readonly HttpClient managementClient;
 
         // These fields must be locked using connectionLock
-        private readonly object connectionLock = new object();
+        private readonly object connectionLock = new();
         private long connectionReference;
         private RabbitMQ.Client.IConnection connection;
         private IModel consumeChannelModel;
@@ -61,12 +62,12 @@ namespace Tapeti.Connection
 
         // These fields are for use in a single TapetiChannel's queue only!
         private ulong lastDeliveryTag;
-        private readonly HashSet<string> deletedQueues = new HashSet<string>();
+        private readonly HashSet<string> deletedQueues = new();
 
         // These fields must be locked using confirmLock, since the callbacks for BasicAck/BasicReturn can run in a different thread
-        private readonly object confirmLock = new object();
-        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new Dictionary<ulong, ConfirmMessageInfo>();
-        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new Dictionary<string, ReturnInfo>();
+        private readonly object confirmLock = new();
+        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new();
+        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new();
 
 
         private class ConfirmMessageInfo
@@ -198,7 +199,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<TapetiConsumerTag> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer)
+        public async Task<TapetiConsumerTag> Consume(string queueName, IConsumer consumer, CancellationToken cancellationToken)
         {
             if (deletedQueues.Contains(queueName))
                 return null;
@@ -285,7 +286,7 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task<bool> GetDurableQueueDeclareRequired(string queueName)
+        private async Task<bool> GetDurableQueueDeclareRequired(string queueName, IReadOnlyDictionary<string, string> arguments)
         {
             var existingQueue = await GetQueueInfo(queueName);
             if (existingQueue == null) 
@@ -294,18 +295,22 @@ namespace Tapeti.Connection
             if (!existingQueue.Durable || existingQueue.AutoDelete || existingQueue.Exclusive)
                 throw new InvalidOperationException($"Durable queue {queueName} already exists with incompatible parameters, durable = {existingQueue.Durable} (expected True), autoDelete = {existingQueue.AutoDelete} (expected False), exclusive = {existingQueue.Exclusive} (expected False)");
 
-            if (existingQueue.Arguments.Count <= 0) 
+            if (arguments == null && existingQueue.Arguments.Count == 0)
                 return true;
-            
-            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingQueue.Arguments);
+
+            if (existingQueue.Arguments.NullSafeSameValues(arguments))
+                return true;
+
+            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingQueue.Arguments, arguments);
             return false;
         }
-        
+
+
 
         /// <inheritdoc />
-        public async Task DurableQueueDeclare(CancellationToken cancellationToken, string queueName, IEnumerable<QueueBinding> bindings)
+        public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
         {
-            var declareRequired = await GetDurableQueueDeclareRequired(queueName);
+            var declareRequired = await GetDurableQueueDeclareRequired(queueName, arguments);
 
             var existingBindings = (await GetQueueBindings(queueName)).ToList();
             var currentBindings = bindings.ToList();
@@ -319,7 +324,7 @@ namespace Tapeti.Connection
                 if (declareRequired)
                 {
                     bindingLogger?.QueueDeclare(queueName, true, false);
-                    channel.QueueDeclare(queueName, true, false, false);
+                    channel.QueueDeclare(queueName, true, false, false, GetDeclareArguments(arguments));
                 }
 
                 foreach (var binding in currentBindings.Except(existingBindings))
@@ -337,10 +342,20 @@ namespace Tapeti.Connection
             });
         }
 
-        /// <inheritdoc />
-        public async Task DurableQueueVerify(CancellationToken cancellationToken, string queueName)
+
+        private static IDictionary<string, object> GetDeclareArguments(IReadOnlyDictionary<string, string> arguments)
         {
-            if (!await GetDurableQueueDeclareRequired(queueName))
+            if (arguments == null || arguments.Count == 0)
+                return null;
+
+            return arguments.ToDictionary(p => p.Key, p => (object)Encoding.UTF8.GetBytes(p.Value));
+        }
+
+
+        /// <inheritdoc />
+        public async Task DurableQueueVerify(string queueName, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
+        {
+            if (!await GetDurableQueueDeclareRequired(queueName, arguments))
                 return;
 
             await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
@@ -355,7 +370,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task DurableQueueDelete(CancellationToken cancellationToken, string queueName, bool onlyIfEmpty = true)
+        public async Task DurableQueueDelete(string queueName, bool onlyIfEmpty, CancellationToken cancellationToken)
         {
             if (!onlyIfEmpty)
             {
@@ -440,7 +455,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<string> DynamicQueueDeclare(CancellationToken cancellationToken, string queuePrefix = null)
+        public async Task<string> DynamicQueueDeclare(string queuePrefix, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
         {
             string queueName = null;
             var bindingLogger = logger as IBindingLogger;
@@ -454,11 +469,11 @@ namespace Tapeti.Connection
                 {
                     queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
                     bindingLogger?.QueueDeclare(queueName, false, false);
-                    channel.QueueDeclare(queueName);
+                    channel.QueueDeclare(queueName, arguments: GetDeclareArguments(arguments));
                 }
                 else
                 {
-                    queueName = channel.QueueDeclare().QueueName;
+                    queueName = channel.QueueDeclare(arguments: GetDeclareArguments(arguments)).QueueName;
                     bindingLogger?.QueueDeclare(queueName, false, false);
                 }
             });
@@ -467,7 +482,7 @@ namespace Tapeti.Connection
         }
 
         /// <inheritdoc />
-        public async Task DynamicQueueBind(CancellationToken cancellationToken, string queueName, QueueBinding binding)
+        public async Task DynamicQueueBind(string queueName, QueueBinding binding, CancellationToken cancellationToken)
         {
             await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
             {
@@ -523,7 +538,7 @@ namespace Tapeti.Connection
         }
 
 
-        private static readonly List<HttpStatusCode> TransientStatusCodes = new List<HttpStatusCode>()
+        private static readonly List<HttpStatusCode> TransientStatusCodes = new()
         {
             HttpStatusCode.GatewayTimeout,
             HttpStatusCode.RequestTimeout,
@@ -675,7 +690,7 @@ namespace Tapeti.Connection
         }
 
 
-        private readonly HashSet<string> declaredExchanges = new HashSet<string>();
+        private readonly HashSet<string> declaredExchanges = new();
 
         private void DeclareExchange(IModel channel, string exchange)
         {
@@ -842,7 +857,7 @@ namespace Tapeti.Connection
                             GetTapetiChannel(TapetiChannelType.Consume).QueueRetryable(_ => { });
                     };
 
-                    capturedPublishChannelModel.ModelShutdown += (sender, args) =>
+                    capturedPublishChannelModel.ModelShutdown += (_, _) =>
                     {
                         lock (connectionLock)
                         {

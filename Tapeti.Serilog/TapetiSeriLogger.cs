@@ -129,10 +129,11 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void QueueExistsWarning(string queueName, Dictionary<string, string> arguments)
+        public void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments)
         {
-            seriLogger.Warning("Tapeti: durable queue {queueName} exists with incompatible x-arguments ({arguments}) and will not be redeclared, queue will be consumed as-is",
+            seriLogger.Warning("Tapeti: durable queue {queueName} exists with incompatible x-arguments ({existingArguments} vs. {arguments}) and will not be redeclared, queue will be consumed as-is",
                 queueName,
+                existingArguments,
                 arguments);
         }
 
