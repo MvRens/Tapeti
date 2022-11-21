@@ -1,4 +1,6 @@
-﻿using System.Threading;
+﻿// Do not include in the Release build for AppVeyor due to the Docker requirement
+#if DEBUG
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Tapeti.Connection;
@@ -73,3 +75,4 @@ namespace Tapeti.Tests.Client
         }
     }
 }
+#endif
