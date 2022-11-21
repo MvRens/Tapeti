@@ -38,7 +38,7 @@ namespace Tapeti
             if (!controller.IsClass)
                 throw new ArgumentException($"Controller {controller.Name} must be a class");
 
-            var controllerQueueInfo = GetQueueInfo(controller);
+            var controllerQueueInfo = GetQueueInfo(controller, null);
             (builderAccess.DependencyResolver as IDependencyContainer)?.RegisterController(controller);
 
             var controllerIsObsolete = controller.GetCustomAttribute<ObsoleteAttribute>() != null;
@@ -79,7 +79,7 @@ namespace Tapeti
                     throw new TopologyConfigurationException($"Method {method.Name} in controller {method.DeclaringType?.Name} has unknown parameters: {parameterNames}");
                 }
 
-                var methodQueueInfo = GetQueueInfo(method) ?? controllerQueueInfo;
+                var methodQueueInfo = GetQueueInfo(method, controllerQueueInfo);
                 if (methodQueueInfo is not { IsValid: true })
                     throw new TopologyConfigurationException(
                         $"Method {method.Name} or controller {controller.Name} requires a queue attribute");
@@ -129,23 +129,45 @@ namespace Tapeti
         }
 
 
-        private static ControllerMethodBinding.QueueInfo GetQueueInfo(MemberInfo member)
+        private static ControllerMethodBinding.QueueInfo GetQueueInfo(MemberInfo member, ControllerMethodBinding.QueueInfo fallbackQueueInfo)
         {
             var dynamicQueueAttribute = member.GetCustomAttribute<DynamicQueueAttribute>();
             var durableQueueAttribute = member.GetCustomAttribute<DurableQueueAttribute>();
+            var queueArgumentsAttribute = member.GetCustomAttribute<QueueArgumentsAttribute>();
 
             if (dynamicQueueAttribute != null && durableQueueAttribute != null)
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on controller {member.DeclaringType?.Name} method {member.Name}");
 
+            if (dynamicQueueAttribute == null && durableQueueAttribute == null && (queueArgumentsAttribute == null || fallbackQueueInfo == null))
+                return fallbackQueueInfo;
 
-            var queueArgumentsAttribute = member.GetCustomAttribute<QueueArgumentsAttribute>();
+
+            QueueType queueType;
+            string name;
+            
 
             if (dynamicQueueAttribute != null)
-                return new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Dynamic, Name = dynamicQueueAttribute.Prefix, QueueArguments = GetQueueArguments(queueArgumentsAttribute) };
+            {
+                queueType = QueueType.Dynamic;
+                name = dynamicQueueAttribute.Prefix;
+            }
+            else if (durableQueueAttribute != null)
+            {
+                queueType = QueueType.Durable;
+                name = durableQueueAttribute.Name;
+            }
+            else
+            {
+                queueType = fallbackQueueInfo.QueueType;
+                name = fallbackQueueInfo.Name;
+            }
 
-            return durableQueueAttribute != null 
-                ? new ControllerMethodBinding.QueueInfo { QueueType = QueueType.Durable, Name = durableQueueAttribute.Name, QueueArguments = GetQueueArguments(queueArgumentsAttribute) } 
-                : null;
+            return new ControllerMethodBinding.QueueInfo
+            {
+                QueueType = queueType,
+                Name = name,
+                QueueArguments = GetQueueArguments(queueArgumentsAttribute) ?? fallbackQueueInfo?.QueueArguments
+            };
         }
 
 

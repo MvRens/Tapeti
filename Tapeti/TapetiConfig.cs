@@ -15,7 +15,7 @@ namespace Tapeti
     /// Default implementation of the Tapeti config builder.
     /// Automatically registers the default middleware for injecting the message parameter and handling the return value.
     /// </summary>
-    public class TapetiConfig : ITapetiConfigBuilder, ITapetiConfigBuilderAccess
+    public class TapetiConfig : ITapetiConfigBuilderAccess
     {
         private Config config;
         private readonly List<IControllerBindingMiddleware> bindingMiddleware = new();
