@@ -5,7 +5,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Binds a parameter of type CancellationToken to a token which is cancelled when the RabbitMQ connection is closed.
     /// Similar to and very much inspired by ASP.NET's RequestAborted CancellationToken.

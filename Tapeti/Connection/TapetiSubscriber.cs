@@ -72,14 +72,12 @@ namespace Tapeti.Connection
         /// </summary>
         public void Reconnect()
         {
-            CancellationToken cancellationToken;
-
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = new CancellationTokenSource();
 
             consumerTags.Clear();
 
-            cancellationToken = initializeCancellationTokenSource.Token;
+            var cancellationToken = initializeCancellationTokenSource.Token;
 
             Task.Run(async () =>
             {
@@ -166,7 +164,7 @@ namespace Tapeti.Connection
             {
                 public string QueueName;
                 public List<Type> MessageClasses;
-                public IReadOnlyDictionary<string, string> Arguments;
+                public IRabbitMQArguments Arguments;
             }
 
             private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new();
@@ -187,12 +185,12 @@ namespace Tapeti.Connection
             }
 
 
-            public abstract ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments);
-            public abstract ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments);
+            public abstract ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments arguments);
+            public abstract ValueTask BindDurableDirect(string queueName, IRabbitMQArguments arguments);
             public abstract ValueTask BindDurableObsolete(string queueName);
 
 
-            public async ValueTask<string> BindDynamic(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
+            public async ValueTask<string> BindDynamic(Type messageClass, string queuePrefix, IRabbitMQArguments arguments)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix, arguments);
                 if (!result.IsNewMessageClass) 
@@ -207,14 +205,14 @@ namespace Tapeti.Connection
             }
 
 
-            public async ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
+            public async ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix, IRabbitMQArguments arguments)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix, arguments);
                 return result.QueueName;
             }
 
 
-            public async ValueTask<string> BindDynamicDirect(string queuePrefix, IReadOnlyDictionary<string, string> arguments)
+            public async ValueTask<string> BindDynamicDirect(string queuePrefix, IRabbitMQArguments arguments)
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
@@ -228,7 +226,7 @@ namespace Tapeti.Connection
                 public bool IsNewMessageClass;
             }
 
-            private async Task<DeclareDynamicQueueResult> DeclareDynamicQueue(Type messageClass, string queuePrefix, IReadOnlyDictionary<string, string> arguments)
+            private async Task<DeclareDynamicQueueResult> DeclareDynamicQueue(Type messageClass, string queuePrefix, IRabbitMQArguments arguments)
             {
                 // Group by prefix
                 var key = queuePrefix ?? "";
@@ -284,7 +282,7 @@ namespace Tapeti.Connection
             private struct DurableQueueInfo
             {
                 public List<Type> MessageClasses;
-                public IReadOnlyDictionary<string, string> Arguments;
+                public IRabbitMQArguments Arguments;
             }
 
 
@@ -297,7 +295,7 @@ namespace Tapeti.Connection
             }
 
 
-            public override ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments arguments)
             {
                 // Collect the message classes per queue so we can determine afterwards
                 // if any of the bindings currently set on the durable queue are no
@@ -326,7 +324,7 @@ namespace Tapeti.Connection
         }
 
 
-            public override ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override ValueTask BindDurableDirect(string queueName, IRabbitMQArguments arguments)
             {
                 if (!durableQueues.TryGetValue(queueName, out var durableQueueInfo))
                 {
@@ -398,12 +396,12 @@ namespace Tapeti.Connection
             }
 
 
-            public override async ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override async ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments arguments)
             {
                 await VerifyDurableQueue(queueName, arguments);
             }
 
-            public override async ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override async ValueTask BindDurableDirect(string queueName, IRabbitMQArguments arguments)
             {
                 await VerifyDurableQueue(queueName, arguments);
             }
@@ -414,7 +412,7 @@ namespace Tapeti.Connection
             }
 
 
-            private async Task VerifyDurableQueue(string queueName, IReadOnlyDictionary<string, string> arguments)
+            private async Task VerifyDurableQueue(string queueName, IRabbitMQArguments arguments)
             {
                 if (!durableQueues.Add(queueName))
                     return;
@@ -431,12 +429,12 @@ namespace Tapeti.Connection
             }
 
 
-            public override ValueTask BindDurable(Type messageClass, string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments arguments)
             {
                 return default;
             }
 
-            public override ValueTask BindDurableDirect(string queueName, IReadOnlyDictionary<string, string> arguments)
+            public override ValueTask BindDurableDirect(string queueName, IRabbitMQArguments arguments)
             {
                 return default;
             }

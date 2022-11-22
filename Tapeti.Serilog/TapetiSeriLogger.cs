@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Tapeti.Config;
+using Tapeti.Connection;
 using ISerilogLogger = Serilog.ILogger;
 
 // ReSharper disable UnusedMember.Global
@@ -129,7 +130,7 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments)
         {
             seriLogger.Warning("Tapeti: durable queue {queueName} exists with incompatible x-arguments ({existingArguments} vs. {arguments}) and will not be redeclared, queue will be consumed as-is",
                 queueName,

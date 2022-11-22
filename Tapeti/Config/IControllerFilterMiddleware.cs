@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Denotes middleware that runs before the controller is instantiated.
     /// </summary>

@@ -9,7 +9,6 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation of IFlowStore.
     /// </summary>
@@ -119,7 +118,7 @@ namespace Tapeti.Flow.Default
             if (!loaded)
                 throw new InvalidOperationException("Flow store is not yet loaded.");
 
-            return new ValueTask<Guid?>(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
+            return new ValueTask<Guid?>(continuationLookup.TryGetValue(continuationID, out var result) ? result : null);
         }
 
 

@@ -4,7 +4,6 @@ using SimpleInjector;
 
 namespace Tapeti.SimpleInjector
 {
-    /// <inheritdoc />
     /// <summary>
     /// Dependency resolver and container implementation for SimpleInjector.
     /// </summary>

@@ -1,9 +1,12 @@
 ﻿// Do not include in the Release build for AppVeyor due to the Docker requirement
 #if DEBUG
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Tapeti.Connection;
+using Tapeti.Default;
+using Tapeti.Exceptions;
 using Tapeti.Tests.Mock;
 using Xunit;
 using Xunit.Abstractions;
@@ -11,10 +14,13 @@ using Xunit.Abstractions;
 namespace Tapeti.Tests.Client
 {
     [Collection(RabbitMQCollection.Name)]
-    public class TapetiClientTests
+    public class TapetiClientTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
         private readonly MockDependencyResolver dependencyResolver = new();
+
+        private TapetiClient client;
+
 
         public TapetiClientTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
         {
@@ -22,6 +28,22 @@ namespace Tapeti.Tests.Client
 
             dependencyResolver.Set<ILogger>(new MockLogger(testOutputHelper));
         }
+
+
+        public Task InitializeAsync()
+        {
+            client = CreateClient();
+
+            return Task.CompletedTask;
+        }
+
+
+        public async Task DisposeAsync()
+        {
+            await client.Close();
+            client = null;
+        }
+
 
 
         [Fact]
@@ -35,31 +57,50 @@ namespace Tapeti.Tests.Client
         [Fact]
         public async Task DynamicQueueDeclareNoPrefix()
         {
-            var client = CreateCilent();
-
             var queueName = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
             queueName.Should().NotBeNullOrEmpty();
-
-            await client.Close();
         }
 
 
         [Fact]
         public async Task DynamicQueueDeclarePrefix()
         {
-            var client = CreateCilent();
-
             var queueName = await client.DynamicQueueDeclare("dynamicprefix", null, CancellationToken.None);
             queueName.Should().StartWith("dynamicprefix");
+        }
 
-            await client.Close();
+
+        [Fact]
+        public async Task PublishHandleOverflow()
+        {
+            var queue1 = await client.DynamicQueueDeclare(null, new RabbitMQArguments
+            {
+                { "x-max-length", 5 },
+                { "x-overflow", "reject-publish" }
+            }, CancellationToken.None);
+
+            var queue2 = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
+
+            var body = Encoding.UTF8.GetBytes("Hello world!");
+            var properties = new MessageProperties();
+
+
+            for (var i = 0; i < 5; i++)
+                await client.Publish(body, properties, null, queue1, true);
+
+
+            var publishOverMaxLength = () => client.Publish(body, properties, null, queue1, true);
+            await publishOverMaxLength.Should().ThrowAsync<NackException>();
+
+            // The channel should recover and allow further publishing
+            await client.Publish(body, properties, null, queue2, true);
         }
 
 
         // TODO test the other methods
 
 
-        private TapetiClient CreateCilent()
+        private TapetiClient CreateClient()
         {
             return new TapetiClient(
                 new TapetiConfig.Config(dependencyResolver),

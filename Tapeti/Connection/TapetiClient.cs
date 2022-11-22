@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
@@ -24,7 +25,6 @@ namespace Tapeti.Connection
     }
     
     
-    /// <inheritdoc />
     /// <summary>
     /// Implementation of ITapetiClient for the RabbitMQ Client library
     /// </summary>
@@ -185,15 +185,18 @@ namespace Tapeti.Connection
 
                 var replyCode = publishResultTask.Result;
 
-                // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
-                // at the time of writing...
-                if (replyCode == 312)
-                    throw new NoRouteException(
-                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
+                switch (replyCode)
+                {
+                    // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                    // at the time of writing...
+                    case 312:
+                        throw new NoRouteException(
+                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
 
-                if (replyCode > 0)
-                    throw new NoRouteException(
-                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
+                    case > 0:
+                        throw new NoRouteException(
+                            $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
+                }
             });
         }
 
@@ -286,7 +289,7 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task<bool> GetDurableQueueDeclareRequired(string queueName, IReadOnlyDictionary<string, string> arguments)
+        private async Task<bool> GetDurableQueueDeclareRequired(string queueName, IRabbitMQArguments arguments)
         {
             var existingQueue = await GetQueueInfo(queueName);
             if (existingQueue == null) 
@@ -298,17 +301,44 @@ namespace Tapeti.Connection
             if (arguments == null && existingQueue.Arguments.Count == 0)
                 return true;
 
-            if (existingQueue.Arguments.NullSafeSameValues(arguments))
+            var existingArguments = ConvertJsonArguments(existingQueue.Arguments);
+            if (existingArguments.NullSafeSameValues(arguments))
                 return true;
 
-            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingQueue.Arguments, arguments);
+            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingArguments, arguments);
             return false;
+        }
+
+
+        private static RabbitMQArguments ConvertJsonArguments(IReadOnlyDictionary<string, JObject> arguments)
+        {
+            if (arguments == null)
+                return null;
+
+            var result = new RabbitMQArguments();
+            foreach (var pair in arguments)
+            {
+                // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault - by design
+                object value = pair.Value.Type switch
+                {
+                    JTokenType.Integer => pair.Value.Value<int>(),
+                    JTokenType.Float => pair.Value.Value<double>(),
+                    JTokenType.String => Encoding.UTF8.GetBytes(pair.Value.Value<string>() ?? string.Empty),
+                    JTokenType.Boolean => pair.Value.Value<bool>(),
+                    JTokenType.Null => null,
+                    _ => throw new ArgumentOutOfRangeException(nameof(arguments))
+                };
+
+                result.Add(pair.Key, value);
+            }
+
+            return result;
         }
 
 
 
         /// <inheritdoc />
-        public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
+        public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments arguments, CancellationToken cancellationToken)
         {
             var declareRequired = await GetDurableQueueDeclareRequired(queueName, arguments);
 
@@ -343,17 +373,16 @@ namespace Tapeti.Connection
         }
 
 
-        private static IDictionary<string, object> GetDeclareArguments(IReadOnlyDictionary<string, string> arguments)
+        private static IDictionary<string, object> GetDeclareArguments(IRabbitMQArguments arguments)
         {
-            if (arguments == null || arguments.Count == 0)
-                return null;
-
-            return arguments.ToDictionary(p => p.Key, p => (object)Encoding.UTF8.GetBytes(p.Value));
+            return arguments == null || arguments.Count == 0 
+                ? null 
+                : arguments.ToDictionary(p => p.Key, p => p.Value);
         }
 
 
         /// <inheritdoc />
-        public async Task DurableQueueVerify(string queueName, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
+        public async Task DurableQueueVerify(string queueName, IRabbitMQArguments arguments, CancellationToken cancellationToken)
         {
             if (!await GetDurableQueueDeclareRequired(queueName, arguments))
                 return;
@@ -455,7 +484,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task<string> DynamicQueueDeclare(string queuePrefix, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
+        public async Task<string> DynamicQueueDeclare(string queuePrefix, IRabbitMQArguments arguments, CancellationToken cancellationToken)
         {
             string queueName = null;
             var bindingLogger = logger as IBindingLogger;
@@ -564,7 +593,7 @@ namespace Tapeti.Connection
             public bool Exclusive { get; set; }
 
             [JsonProperty("arguments")]
-            public Dictionary<string, string> Arguments { get; set; }
+            public Dictionary<string, JObject> Arguments { get; set; }
 
             [JsonProperty("messages")]
             public uint Messages { get; set; }
@@ -675,7 +704,7 @@ namespace Tapeti.Connection
                 }
                 catch (WebException e)
                 {
-                    if (!(e.Response is HttpWebResponse response))
+                    if (e.Response is not HttpWebResponse response)
                         throw;
 
                     if (!TransientStatusCodes.Contains(response.StatusCode))

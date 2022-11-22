@@ -2,7 +2,6 @@
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Called when a Controller method is registered.
     /// </summary>

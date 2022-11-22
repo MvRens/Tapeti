@@ -6,7 +6,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// IMessageSerializer implementation for JSON encoding and decoding using Newtonsoft.Json.
     /// </summary>
@@ -49,7 +48,7 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public object Deserialize(byte[] body, IMessageProperties properties)
         {
-            if (!(properties.ContentType is ContentType))
+            if (properties.ContentType is not ContentType)
                 throw new ArgumentException($"content_type must be {ContentType}");
 
             var typeName = properties.GetHeader(ClassTypeHeader);

@@ -10,7 +10,7 @@ namespace Tapeti.Helpers
         /// <summary>
         /// Checks if two dictionaries are considered compatible. If either is null they are considered empty.
         /// </summary>
-        public static bool NullSafeSameValues(this IReadOnlyDictionary<string, string> arguments1, IReadOnlyDictionary<string, string> arguments2)
+        public static bool NullSafeSameValues(this IReadOnlyDictionary<string, object> arguments1, IReadOnlyDictionary<string, object> arguments2)
         {
             if (arguments1 == null || arguments2 == null)
                 return (arguments1 == null || arguments1.Count == 0) && (arguments2 == null || arguments2.Count == 0);

@@ -1,5 +1,7 @@
 ﻿using Tapeti.Config;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Flow
 {
     /// <summary>

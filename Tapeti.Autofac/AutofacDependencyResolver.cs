@@ -2,9 +2,10 @@
 using Autofac;
 using Autofac.Builder;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Autofac
 {
-    /// <inheritdoc />
     /// <summary>
     /// Dependency resolver and container implementation for Autofac.
     /// Since this class needs access to both the ContainerBuilder and the built IContainer,
@@ -83,7 +84,7 @@ namespace Tapeti.Autofac
         {
             CheckContainerBuilder();
             containerBuilder
-                .Register(context => factory())
+                .Register(_ => factory())
                 .As<TService>()
                 .PreserveExistingDefaults();
         }
@@ -116,7 +117,7 @@ namespace Tapeti.Autofac
         {
             CheckContainerBuilder();
             containerBuilder
-                .Register(context => factory())
+                .Register(_ => factory())
                 .As<TService>()
                 .SingleInstance()
                 .PreserveExistingDefaults();

@@ -1,6 +1,5 @@
 ﻿namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Extends the message context with information about the controller.
     /// </summary>

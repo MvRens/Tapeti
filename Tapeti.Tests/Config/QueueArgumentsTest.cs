@@ -18,7 +18,7 @@ namespace Tapeti.Tests.Config
         private static readonly MockRepository MoqRepository = new(MockBehavior.Strict);
 
         private readonly Mock<ITapetiClient> client;
-        private readonly Dictionary<string, IReadOnlyDictionary<string, string>> declaredQueues = new();
+        private readonly Dictionary<string, IRabbitMQArguments> declaredQueues = new();
 
 
         public QueueArgumentsTest()
@@ -45,8 +45,8 @@ namespace Tapeti.Tests.Config
 
             var queue = 0;
             client
-                .Setup(c => c.DynamicQueueDeclare(null, It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-                .Callback((string _, IReadOnlyDictionary<string, string> arguments, CancellationToken _) =>
+                .Setup(c => c.DynamicQueueDeclare(null, It.IsAny<IRabbitMQArguments>(), It.IsAny<CancellationToken>()))
+                .Callback((string _, IRabbitMQArguments arguments, CancellationToken _) =>
                 {
                     queue++;
                     declaredQueues.Add($"queue-{queue}", arguments);
@@ -54,8 +54,8 @@ namespace Tapeti.Tests.Config
                 .ReturnsAsync(() => $"queue-{queue}");
 
             client
-                .Setup(c => c.DurableQueueDeclare(It.IsAny<string>(), It.IsAny<IEnumerable<QueueBinding>>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
-                .Callback((string queueName, IEnumerable<QueueBinding> _, IReadOnlyDictionary<string, string> arguments, CancellationToken _) =>
+                .Setup(c => c.DurableQueueDeclare(It.IsAny<string>(), It.IsAny<IEnumerable<QueueBinding>>(), It.IsAny<IRabbitMQArguments>(), It.IsAny<CancellationToken>()))
+                .Callback((string queueName, IEnumerable<QueueBinding> _, IRabbitMQArguments arguments, CancellationToken _) =>
                 {
                     declaredQueues.Add(queueName, arguments);
                 })
@@ -89,10 +89,10 @@ namespace Tapeti.Tests.Config
             var arguments = declaredQueues["queue-1"];
 
             arguments.Should().ContainKey("x-custom").WhoseValue.Should().Be("custom value");
-            arguments.Should().ContainKey("x-another").WhoseValue.Should().Be("another value");
-            arguments.Should().ContainKey("x-max-length").WhoseValue.Should().Be("100");
-            arguments.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be("100000");
-            arguments.Should().ContainKey("x-message-ttl").WhoseValue.Should().Be("4269");
+            arguments.Should().ContainKey("x-another").WhoseValue.Should().Be(true);
+            arguments.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
+            arguments.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
+            arguments.Should().ContainKey("x-message-ttl").WhoseValue.Should().Be(4269);
             arguments.Should().ContainKey("x-overflow").WhoseValue.Should().Be("reject-publish");
         }
 
@@ -108,10 +108,10 @@ namespace Tapeti.Tests.Config
             declaredQueues.Should().HaveCount(2);
 
             var arguments1 = declaredQueues["queue-1"];
-            arguments1.Should().ContainKey("x-max-length").WhoseValue.Should().Be("100");
+            arguments1.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
 
             var arguments2 = declaredQueues["queue-2"];
-            arguments2.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be("100000");
+            arguments2.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
         }
 
 
@@ -148,7 +148,7 @@ namespace Tapeti.Tests.Config
 
 
         [DynamicQueue]
-        [QueueArguments("x-custom", "custom value", "x-another", "another value", MaxLength = 100, MaxLengthBytes = 100000, MessageTTL = 4269, Overflow = RabbitMQOverflow.RejectPublish)]
+        [QueueArguments("x-custom", "custom value", "x-another", true, MaxLength = 100, MaxLengthBytes = 100000, MessageTTL = 4269, Overflow = RabbitMQOverflow.RejectPublish)]
         private class TestController
         {
             public void HandleMessage1(TestMessage1 message)

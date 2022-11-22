@@ -6,7 +6,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IFlowStarter.
     /// </summary>

@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Tasks
 {
-    /// <inheritdoc />
     /// <summary>
     /// An implementation of a queue which runs tasks on a single thread.
     /// </summary>

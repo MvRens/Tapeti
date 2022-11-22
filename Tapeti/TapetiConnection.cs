@@ -9,7 +9,6 @@ using Tapeti.Connection;
 
 namespace Tapeti
 {
-    /// <inheritdoc />
     /// <summary>
     /// Creates a connection to RabbitMQ based on the provided Tapeti config.
     /// </summary>

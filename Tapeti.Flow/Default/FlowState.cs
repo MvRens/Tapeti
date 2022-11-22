@@ -18,7 +18,7 @@ namespace Tapeti.Flow.Default
         /// </summary>
         public FlowMetadata Metadata
         {
-            get => metadata ?? (metadata = new FlowMetadata());
+            get => metadata ??= new FlowMetadata();
             set => metadata = value;
         }
 
@@ -34,7 +34,7 @@ namespace Tapeti.Flow.Default
         /// </summary>
         public Dictionary<Guid, ContinuationMetadata> Continuations
         {
-            get => continuations ?? (continuations = new Dictionary<Guid, ContinuationMetadata>());
+            get => continuations ??= new Dictionary<Guid, ContinuationMetadata>();
             set => continuations = value;
         }
 

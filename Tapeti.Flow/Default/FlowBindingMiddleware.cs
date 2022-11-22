@@ -60,7 +60,7 @@ namespace Tapeti.Flow.Default
             }
             else if (context.Result.Info.ParameterType == typeof(void))
             {
-                context.Result.SetHandler((messageContext, value) => HandleParallelResponse(messageContext));
+                context.Result.SetHandler((messageContext, _) => HandleParallelResponse(messageContext));
             }
             else
                 throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");

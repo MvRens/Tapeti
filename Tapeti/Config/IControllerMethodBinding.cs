@@ -3,7 +3,6 @@ using System.Reflection;
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Represents a binding to a method in a controller class to handle incoming messages.
     /// </summary>

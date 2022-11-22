@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 using Tapeti.Config;
+using Tapeti.Connection;
 using Xunit.Abstractions;
 
 namespace Tapeti.Tests.Mock
@@ -49,7 +49,7 @@ namespace Tapeti.Tests.Mock
                 : $"Declaring {(durable ? "durable" : "dynamic")} queue {queueName}");
         }
 
-        public void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments)
         {
             var argumentsText = new StringBuilder();
             foreach (var pair in arguments)

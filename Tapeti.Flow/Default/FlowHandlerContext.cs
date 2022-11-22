@@ -3,7 +3,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IFlowHandlerContext
     /// </summary>

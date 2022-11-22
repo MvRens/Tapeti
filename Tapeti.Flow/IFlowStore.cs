@@ -42,7 +42,6 @@ namespace Tapeti.Flow
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Represents a lock on the flow state, to provide thread safety.
     /// </summary>

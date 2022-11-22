@@ -4,11 +4,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
+using Tapeti.Connection;
 using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Binding implementation for controller methods. Do not instantiate this class yourself,
     /// instead use the ITapetiConfigBuilder RegisterController / RegisterAllControllers extension
@@ -319,7 +319,7 @@ namespace Tapeti.Default
             /// <summary>
             /// Optional arguments (x-arguments) passed when declaring the queue.
             /// </summary>
-            public IReadOnlyDictionary<string, string> QueueArguments { get; set; }
+            public IRabbitMQArguments QueueArguments { get; set; }
                 
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.

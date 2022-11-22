@@ -189,7 +189,7 @@ namespace Tapeti
         /// </summary>
         protected void RegisterDefaults()
         {
-            if (!(DependencyResolver is IDependencyContainer container))
+            if (DependencyResolver is not IDependencyContainer container)
                 return;
 
             if (ConsoleHelper.IsAvailable())

@@ -35,8 +35,6 @@ namespace Tapeti.Flow.FlowHelpers
             try
             {
                 assembly = Assembly.Load(match.Groups["assembly"].Value);
-                if (assembly == null)
-                    return null;
             }
             catch
             {

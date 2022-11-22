@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using Tapeti.Config;
+using Tapeti.Connection;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMemberInSuper.Global
@@ -24,7 +24,6 @@ namespace Tapeti
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Contains information about the failed connection.
     /// </summary>
@@ -37,7 +36,6 @@ namespace Tapeti
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Contains information about the established connection.
     /// </summary>
@@ -140,7 +138,7 @@ namespace Tapeti
         /// <param name="queueName">The name of the queue that is declared</param>
         /// <param name="existingArguments">The x-arguments of the existing queue</param>
         /// <param name="arguments">The x-arguments of the queue that would be declared</param>
-        void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments);
+        void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments);
 
         /// <summary>
         /// Called before a binding is added to a queue.

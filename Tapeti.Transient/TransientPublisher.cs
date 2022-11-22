@@ -2,7 +2,6 @@
 
 namespace Tapeti.Transient
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation of ITransientPublisher
     /// </summary>

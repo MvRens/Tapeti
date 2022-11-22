@@ -4,7 +4,6 @@ using Castle.Windsor;
 
 namespace Tapeti.CastleWindsor
 {
-    /// <inheritdoc />
     /// <summary>
     /// Dependency resolver and container implementation for Castle Windsor.
     /// </summary>

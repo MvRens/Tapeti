@@ -6,7 +6,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Connection
 {
-    /// <inheritdoc cref="IEquatable{T}" />
     /// <summary>
     /// Defines a queue binding to an exchange using a routing key
     /// </summary>
@@ -52,6 +51,18 @@ namespace Tapeti.Connection
                 return ((Exchange != null ? Exchange.GetHashCode() : 0) * 397) ^ (RoutingKey != null ? RoutingKey.GetHashCode() : 0);
             }
         }
+
+        /// <summary></summary>
+        public static bool operator ==(QueueBinding left, QueueBinding right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <summary></summary>
+        public static bool operator !=(QueueBinding left, QueueBinding right)
+        {
+            return !left.Equals(right);
+        }
     }
 
 
@@ -93,7 +104,7 @@ namespace Tapeti.Connection
         /// <param name="bindings">A list of bindings. Any bindings already on the queue which are not in this list will be removed</param>
         /// <param name="arguments">Optional arguments</param>
         /// <param name="cancellationToken">Cancelled when the connection is lost</param>
-        Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken);
+        Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Verifies a durable queue exists. Will raise an exception if it does not.
@@ -101,7 +112,7 @@ namespace Tapeti.Connection
         /// <param name="queueName">The name of the queue to verify</param>
         /// <param name="arguments">Optional arguments</param>
         /// <param name="cancellationToken">Cancelled when the connection is lost</param>
-        Task DurableQueueVerify(string queueName, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken);
+        Task DurableQueueVerify(string queueName, IRabbitMQArguments arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Deletes a durable queue.
@@ -117,7 +128,7 @@ namespace Tapeti.Connection
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <param name="arguments">Optional arguments</param>
         /// <param name="cancellationToken">Cancelled when the connection is lost</param>
-        Task<string> DynamicQueueDeclare(string queuePrefix, IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken);
+        Task<string> DynamicQueueDeclare(string queuePrefix, IRabbitMQArguments arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Add a binding to a dynamic queue.

@@ -99,7 +99,6 @@ namespace Tapeti.Default
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IBindingParameter
     /// </summary>
@@ -139,7 +138,6 @@ namespace Tapeti.Default
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IBindingResult
     /// </summary>

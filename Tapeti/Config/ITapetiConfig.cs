@@ -77,7 +77,6 @@ namespace Tapeti.Config
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Contains a list of registered bindings, with a few added helpers.
     /// </summary>

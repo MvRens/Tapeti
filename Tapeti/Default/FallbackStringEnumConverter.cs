@@ -4,7 +4,6 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Converts an <see cref="T:System.Enum" /> to and from its name string value. If an unknown string value is encountered
     /// it will translate to 0xDEADBEEF (-559038737) so it can be gracefully handled.

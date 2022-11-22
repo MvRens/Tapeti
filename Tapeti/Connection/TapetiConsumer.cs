@@ -9,7 +9,6 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
-    /// <inheritdoc />
     /// <summary>
     /// Implements a RabbitMQ consumer to pass messages to the Tapeti middleware.
     /// </summary>
@@ -172,8 +171,7 @@ namespace Tapeti.Connection
             return e switch
             {
                 AggregateException aggregateException => aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown),
-                TaskCanceledException _ => true,
-                OperationCanceledException _ => true,
+                OperationCanceledException => true,
                 _ => e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException)
             };
         }

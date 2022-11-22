@@ -11,7 +11,6 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Flow.SQL
 {
-    /// <inheritdoc />
     /// <summary>
     /// IFlowRepository implementation for SQL server.
     /// </summary>

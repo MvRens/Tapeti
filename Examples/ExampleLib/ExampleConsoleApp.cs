@@ -79,7 +79,7 @@ namespace ExampleLib
         {
             while (true)
             {
-                if (!(e is AggregateException aggregateException)) 
+                if (e is not AggregateException aggregateException) 
                     return e;
 
                 if (aggregateException.InnerExceptions.Count != 1)

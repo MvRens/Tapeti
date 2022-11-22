@@ -54,7 +54,6 @@ namespace Tapeti
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Low-level publisher for Tapeti internal use.
     /// </summary>

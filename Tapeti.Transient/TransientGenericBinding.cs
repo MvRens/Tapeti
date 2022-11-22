@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Transient
 {
-    /// <inheritdoc />
     /// <summary>
     /// Implements a binding for transient request response messages.
     /// Register this binding using the WithTransient config extension method.

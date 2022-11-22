@@ -206,7 +206,7 @@ namespace Tapeti.Flow.Default
         /// <inheritdoc />
         public async ValueTask Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
         {
-            if (!(yieldPoint is DelegateYieldPoint executableYieldPoint))
+            if (yieldPoint is not DelegateYieldPoint executableYieldPoint)
                 throw new YieldPointException($"Yield point is required in controller {context.Controller.GetType().Name} for method {context.Method.Name}");
 
             FlowContext flowContext = null;
@@ -297,8 +297,8 @@ namespace Tapeti.Flow.Default
         {
             private class RequestInfo
             {
-                public object Message { get; set; }
-                public ResponseHandlerInfo ResponseHandlerInfo { get; set; }
+                public object Message { get; init; }
+                public ResponseHandlerInfo ResponseHandlerInfo { get; init; }
             }
 
 
@@ -372,21 +372,13 @@ namespace Tapeti.Flow.Default
             {
                 if (requests.Count == 0)
                 {
-                    switch (noRequestsBehaviour)
+                    return noRequestsBehaviour switch
                     {
-                        case FlowNoRequestsBehaviour.Exception:
-                            throw new YieldPointException("At least one request must be added before yielding a parallel request");
-
-                        case FlowNoRequestsBehaviour.Converge:
-                            return new DelegateYieldPoint(context =>
-                                flowProvider.Converge(context, convergeMethod.Method.Name, convergeMethodSync));
-
-                        case FlowNoRequestsBehaviour.EndFlow:
-                            return new DelegateYieldPoint(EndFlow);
-
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(noRequestsBehaviour), noRequestsBehaviour, null);
-                    }
+                        FlowNoRequestsBehaviour.Exception => throw new YieldPointException("At least one request must be added before yielding a parallel request"),
+                        FlowNoRequestsBehaviour.Converge => new DelegateYieldPoint(context => flowProvider.Converge(context, convergeMethod.Method.Name, convergeMethodSync)),
+                        FlowNoRequestsBehaviour.EndFlow => new DelegateYieldPoint(EndFlow),
+                        _ => throw new ArgumentOutOfRangeException(nameof(noRequestsBehaviour), noRequestsBehaviour, null)
+                    };
                 }
 
                 if (convergeMethod?.Method == null)

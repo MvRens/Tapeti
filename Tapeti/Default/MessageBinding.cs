@@ -3,7 +3,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Gets the message class from the first parameter of a controller method.
     /// This middleware is included by default in the standard TapetiConfig.

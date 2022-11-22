@@ -13,7 +13,7 @@ namespace Tapeti.Flow.SQL
         // 2627: Violation of %ls constraint '%.*ls'. Cannot insert duplicate key in object '%.*ls'. The duplicate key value is %ls.
         public static bool IsDuplicateKey(SqlException e)
         {
-            return e != null && (e.Number == 2601 || e.Number == 2627);
+            return e is { Number: 2601 or 2627 };
         }
 
 
@@ -21,12 +21,12 @@ namespace Tapeti.Flow.SQL
         {
             switch (e)
             {
-                case TimeoutException _:
+                case TimeoutException:
                     return true;
 
-                case Exception exception:
+                case not null:
                     {
-                        var sqlExceptions = ExtractSqlExceptions(exception);
+                        var sqlExceptions = ExtractSqlExceptions(e);
                         return sqlExceptions.Select(UnwrapSqlErrors).Any(IsRecoverableSQLError);
                     }
 

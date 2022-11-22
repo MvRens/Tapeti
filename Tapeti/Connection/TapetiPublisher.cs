@@ -151,11 +151,11 @@ namespace Tapeti.Connection
 
         private class PublishContext : IPublishContext
         {
-            public ITapetiConfig Config { get; set; }
+            public ITapetiConfig Config { get; init; }
             public string Exchange { get; set; }
-            public string RoutingKey { get; set; }
-            public object Message { get; set; }
-            public IMessageProperties Properties { get; set; }
+            public string RoutingKey { get; init; }
+            public object Message { get; init; }
+            public IMessageProperties Properties { get; init; }
         }
     }
 }

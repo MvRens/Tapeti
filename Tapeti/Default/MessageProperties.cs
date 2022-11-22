@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// IMessagePropertiesReader implementation for providing properties manually
     /// </summary>

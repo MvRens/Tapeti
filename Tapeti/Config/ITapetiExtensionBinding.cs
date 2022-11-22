@@ -2,7 +2,6 @@
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides a way for Tapeti extensions to register custom bindings.
     /// </summary>

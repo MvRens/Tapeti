@@ -8,7 +8,6 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Attempts to publish a return value for Controller methods as a response to the incoming message.
     /// </summary>

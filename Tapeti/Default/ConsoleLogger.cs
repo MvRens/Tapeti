@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 using Tapeti.Config;
+using Tapeti.Connection;
 
 // ReSharper disable UnusedMember.Global - public API
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default ILogger implementation for console applications.
     /// </summary>
@@ -81,13 +80,13 @@ namespace Tapeti.Default
         }
 
         /// <inheritdoc />
-        public void QueueExistsWarning(string queueName, IReadOnlyDictionary<string, string> existingArguments, IReadOnlyDictionary<string, string> arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments)
         {
             Console.WriteLine($"[Tapeti] Durable queue {queueName} exists with incompatible x-arguments ({GetArgumentsText(existingArguments)} vs. {GetArgumentsText(arguments)}) and will not be redeclared, queue will be consumed as-is");
         }
 
 
-        private static string GetArgumentsText(IReadOnlyDictionary<string, string> arguments)
+        private static string GetArgumentsText(IRabbitMQArguments arguments)
         {
             var argumentsText = new StringBuilder();
             foreach (var pair in arguments)

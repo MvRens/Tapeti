@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Attempts to resolve any unhandled parameters to Controller methods using the IoC container.
     /// This middleware is included by default in the standard TapetiConfig.

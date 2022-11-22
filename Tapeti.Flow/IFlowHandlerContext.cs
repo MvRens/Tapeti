@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides information about the handler for the flow.
     /// </summary>

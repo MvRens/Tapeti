@@ -4,7 +4,6 @@ using Tapeti.Flow.Default;
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides the Flow middleware.
     /// </summary>

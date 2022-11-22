@@ -36,6 +36,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
-    <PackageReference Include="Tapeti.Annotations" Version="3.0.0" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.*-*" />
   </ItemGroup>
 </Project>

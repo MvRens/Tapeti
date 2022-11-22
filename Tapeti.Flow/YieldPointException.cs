@@ -2,7 +2,6 @@
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Raised when an invalid yield point is returned.
     /// </summary>

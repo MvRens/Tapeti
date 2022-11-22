@@ -55,7 +55,7 @@ namespace Tapeti.Transient
         public async Task<object> RequestResponse(IPublisher publisher, object request)
         {
             var correlation = Guid.NewGuid();
-            var tcs = map.GetOrAdd(correlation, c => new TaskCompletionSource<object>());
+            var tcs = map.GetOrAdd(correlation, _ => new TaskCompletionSource<object>());
 
             try
             {
@@ -77,7 +77,7 @@ namespace Tapeti.Transient
                 throw;
             }
 
-            using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
+            await using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
             {
                 return await tcs.Task;
             }

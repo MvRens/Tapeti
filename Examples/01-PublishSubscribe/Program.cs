@@ -13,8 +13,6 @@ using Tapeti.DataAnnotations;
 using Tapeti.Default;
 using Tapeti.Ninject;
 using Tapeti.SimpleInjector;
-using Tapeti.UnityContainer;
-using Unity;
 using Container = SimpleInjector.Container;
 
 // ReSharper disable UnusedMember.Global
@@ -30,7 +28,6 @@ namespace _01_PublishSubscribe
             // or use your IoC container of choice:
             //var dependencyResolver = GetAutofacDependencyResolver();
             //var dependencyResolver = GetCastleWindsorDependencyResolver();
-            //var dependencyResolver = GetUnityDependencyResolver();
             //var dependencyResolver = GetNinjectDependencyResolver();
 
             // This helper is used because this example is not run as a service. You do not
@@ -128,17 +125,6 @@ namespace _01_PublishSubscribe
             container.Register(Component.For<ExamplePublisher>());
 
             return new WindsorDependencyResolver(container);
-        }
-
-
-        internal static IDependencyContainer GetUnityDependencyResolver()
-        {
-            var container = new UnityContainer();
-
-            container.RegisterType<ILogger, ConsoleLogger>();
-            container.RegisterType<ExamplePublisher>();
-
-            return new UnityDependencyResolver(container);
         }
 
 

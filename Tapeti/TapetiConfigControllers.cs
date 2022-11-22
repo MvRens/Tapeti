@@ -1,16 +1,15 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Tapeti.Annotations;
 using Tapeti.Config;
+using Tapeti.Connection;
 using Tapeti.Default;
 
 // ReSharper disable UnusedMember.Global
 
 namespace Tapeti
 {
-    /// <inheritdoc />
     /// <summary>
     /// Thrown when an issue is detected in a controller configuration.
     /// </summary>
@@ -171,40 +170,34 @@ namespace Tapeti
         }
 
 
-        private static IReadOnlyDictionary<string, string> GetQueueArguments(QueueArgumentsAttribute queueArgumentsAttribute)
+        private static IRabbitMQArguments GetQueueArguments(QueueArgumentsAttribute queueArgumentsAttribute)
         {
             if (queueArgumentsAttribute == null)
                 return null;
 
-            #if NETSTANDARD2_1_OR_GREATER
-            var arguments = new Dictionary<string, string>(queueArgumentsAttribute.CustomArguments);
-            #else
-            var arguments = new Dictionary<string, string>();
-            foreach (var pair in queueArgumentsAttribute.CustomArguments)
-                arguments.Add(pair.Key, pair.Value);
-            #endif
-
+            var arguments = new RabbitMQArguments(queueArgumentsAttribute.CustomArguments);
+            
             if (queueArgumentsAttribute.MaxLength > 0)
-                arguments.Add(@"x-max-length", queueArgumentsAttribute.MaxLength.ToString());
+                arguments.Add(@"x-max-length", queueArgumentsAttribute.MaxLength);
 
             if (queueArgumentsAttribute.MaxLengthBytes > 0)
-                arguments.Add(@"x-max-length-bytes", queueArgumentsAttribute.MaxLengthBytes.ToString());
+                arguments.Add(@"x-max-length-bytes", queueArgumentsAttribute.MaxLengthBytes);
 
             if (queueArgumentsAttribute.MessageTTL > 0)
-                arguments.Add(@"x-message-ttl", queueArgumentsAttribute.MessageTTL.ToString());
+                arguments.Add(@"x-message-ttl", queueArgumentsAttribute.MessageTTL);
 
             switch (queueArgumentsAttribute.Overflow)
             {
                 case RabbitMQOverflow.NotSpecified:
                     break;
                 case RabbitMQOverflow.DropHead:
-                    arguments.Add(@"x-overflow", @"drop-head");
+                    arguments.AddUTF8(@"x-overflow", @"drop-head");
                     break;
                 case RabbitMQOverflow.RejectPublish:
-                    arguments.Add(@"x-overflow", @"reject-publish");
+                    arguments.AddUTF8(@"x-overflow", @"reject-publish");
                     break;
                 case RabbitMQOverflow.RejectPublishDeadletter:
-                    arguments.Add(@"x-overflow", @"reject-publish-dlx");
+                    arguments.AddUTF8(@"x-overflow", @"reject-publish-dlx");
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(queueArgumentsAttribute.Overflow), queueArgumentsAttribute.Overflow, "Unsupported Overflow value");

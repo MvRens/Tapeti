@@ -5,7 +5,6 @@ using Tapeti.Config;
 
 namespace Tapeti.DataAnnotations
 {
-    /// <inheritdoc />
     /// <summary>
     /// Validates consumed messages using System.ComponentModel.DataAnnotations
     /// </summary>
