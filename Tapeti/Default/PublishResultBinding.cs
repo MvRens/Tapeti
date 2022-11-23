@@ -31,7 +31,7 @@ namespace Tapeti.Default
             // Tapeti 1.2: if you just want to publish another message as a result of the incoming message, explicitly call IPublisher.Publish.
             // ReSharper disable once ConvertIfStatementToSwitchStatement
             if (!hasClassResult && expectedClassResult != null || hasClassResult && expectedClassResult != actualType)
-               throw new ArgumentException($"Message handler for non-request message type {context.MessageClass?.FullName} must return type {expectedClassResult?.FullName ?? "void"} in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}, found: {actualType?.FullName ?? "void"}");
+               throw new ArgumentException($"Message handler for non-request message type {context.MessageClass?.FullName} must return type {expectedClassResult?.FullName ?? "void"} in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}, found: {actualType.FullName ?? "void"}");
 
             if (!hasClassResult)
                 return;
@@ -48,14 +48,22 @@ namespace Tapeti.Default
                     var handler = GetType().GetMethod(nameof(PublishGenericTaskResult), BindingFlags.NonPublic | BindingFlags.Static)?.MakeGenericMethod(actualType);
                     Debug.Assert(handler != null, nameof(handler) + " != null");
 
-                    context.Result.SetHandler((messageContext, value) => (ValueTask)handler.Invoke(null, new[] { messageContext, value }));
+                    context.Result.SetHandler((messageContext, value) =>
+                    {
+                        var result = handler.Invoke(null, new[] { messageContext, value });
+                        return result != null ? (ValueTask)result : ValueTask.CompletedTask;
+                    });
                     break;
 
                 case TaskType.ValueTask:
                     var valueTaskHandler = GetType().GetMethod(nameof(PublishGenericValueTaskResult), BindingFlags.NonPublic | BindingFlags.Static)?.MakeGenericMethod(actualType);
                     Debug.Assert(valueTaskHandler != null, nameof(handler) + " != null");
 
-                    context.Result.SetHandler((messageContext, value) => (ValueTask)valueTaskHandler.Invoke(null, new[] { messageContext, value }));
+                    context.Result.SetHandler((messageContext, value) =>
+                    {
+                        var result = valueTaskHandler.Invoke(null, new[] { messageContext, value });
+                        return result != null ? (ValueTask)result : ValueTask.CompletedTask;
+                    });
                     break;
 
                 default:
@@ -79,7 +87,7 @@ namespace Tapeti.Default
         }
 
 
-        private static async ValueTask Reply(object message, IMessageContext messageContext)
+        private static async ValueTask Reply(object? message, IMessageContext messageContext)
         {
             if (message == null)
                 throw new ArgumentException("Return value of a request message handler must not be null");

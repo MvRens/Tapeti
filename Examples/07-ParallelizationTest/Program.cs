@@ -107,7 +107,7 @@ namespace _07_ParallelizationTest
         private int count;
         private readonly object waitLock = new();
         private TaskCompletionSource<bool> batchReachedTask = new();
-        private Timer messageExpectedTimer;
+        private Timer? messageExpectedTimer;
         private readonly TimeSpan messageExpectedTimeout = TimeSpan.FromMilliseconds(5000);
 
 

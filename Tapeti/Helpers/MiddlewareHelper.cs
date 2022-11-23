@@ -16,7 +16,7 @@ namespace Tapeti.Helpers
         /// <param name="handle">Receives the middleware which should be called and a reference to the action which will call the next. Pass this on to the middleware.</param>
         /// <param name="lastHandler">The action to execute when the innermost middleware calls next.</param>
         /// <typeparam name="T"></typeparam>
-        public static void Go<T>(IReadOnlyList<T> middleware, Action<T, Action> handle, Action lastHandler)
+        public static void Go<T>(IReadOnlyList<T>? middleware, Action<T, Action> handle, Action lastHandler)
         {
             var handlerIndex = middleware?.Count - 1 ?? -1;
             if (middleware == null || handlerIndex == -1)
@@ -45,7 +45,7 @@ namespace Tapeti.Helpers
         /// <param name="handle">Receives the middleware which should be called and a reference to the action which will call the next. Pass this on to the middleware.</param>
         /// <param name="lastHandler">The action to execute when the innermost middleware calls next.</param>
         /// <typeparam name="T"></typeparam>
-        public static async ValueTask GoAsync<T>(IReadOnlyList<T> middleware, Func<T, Func<ValueTask>, ValueTask> handle, Func<ValueTask> lastHandler)
+        public static async ValueTask GoAsync<T>(IReadOnlyList<T>? middleware, Func<T, Func<ValueTask>, ValueTask> handle, Func<ValueTask> lastHandler)
         {
             var handlerIndex = middleware?.Count - 1 ?? -1;
             if (middleware == null || handlerIndex == -1)

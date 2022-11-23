@@ -11,7 +11,7 @@ namespace Tapeti.Config
     /// Injects a value for a controller method parameter.
     /// </summary>
     /// <param name="context"></param>
-    public delegate object ValueFactory(IMessageContext context);
+    public delegate object? ValueFactory(IMessageContext context);
 
 
     /// <summary>
@@ -19,7 +19,7 @@ namespace Tapeti.Config
     /// </summary>
     /// <param name="context"></param>
     /// <param name="value"></param>
-    public delegate ValueTask ResultHandler(IMessageContext context, object value);
+    public delegate ValueTask ResultHandler(IMessageContext context, object? value);
 
 
     /// <summary>
@@ -48,7 +48,7 @@ namespace Tapeti.Config
         /// The message class for this method. Can be null if not yet set by the default MessageBinding or other middleware.
         /// If required, call next first to ensure it is available.
         /// </summary>
-        Type MessageClass { get; }
+        Type? MessageClass { get; }
 
         /// <summary>
         /// Determines if SetMessageClass has already been called.

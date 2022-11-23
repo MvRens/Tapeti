@@ -9,11 +9,11 @@ namespace Tapeti.Flow
     /// </summary>
     public class FlowExtension : ITapetiExtension
     {
-        private readonly IFlowRepository flowRepository;
+        private readonly IFlowRepository? flowRepository;
 
         /// <summary>
         /// </summary>
-        public FlowExtension(IFlowRepository flowRepository)
+        public FlowExtension(IFlowRepository? flowRepository)
         {
             this.flowRepository = flowRepository;
         }

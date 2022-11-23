@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -13,6 +14,16 @@ using Xunit;
 
 namespace Tapeti.Tests.Config
 {
+    internal static class UTF8StringExtensions
+    {
+        public static string AsUTF8String(this object value)
+        {
+            value.Should().BeOfType<byte[]>();
+            return Encoding.UTF8.GetString((byte[])value);
+        }
+    }
+
+
     public class QueueArgumentsTest : BaseControllerTest
     {
         private static readonly MockRepository MoqRepository = new(MockBehavior.Strict);
@@ -88,12 +99,12 @@ namespace Tapeti.Tests.Config
             declaredQueues.Should().HaveCount(1);
             var arguments = declaredQueues["queue-1"];
 
-            arguments.Should().ContainKey("x-custom").WhoseValue.Should().Be("custom value");
+            arguments.Should().ContainKey("x-custom").WhoseValue.AsUTF8String().Should().Be("custom value");
             arguments.Should().ContainKey("x-another").WhoseValue.Should().Be(true);
             arguments.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
             arguments.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
             arguments.Should().ContainKey("x-message-ttl").WhoseValue.Should().Be(4269);
-            arguments.Should().ContainKey("x-overflow").WhoseValue.Should().Be("reject-publish");
+            arguments.Should().ContainKey("x-overflow").WhoseValue.AsUTF8String().Should().Be("reject-publish");
         }
 
 
@@ -133,7 +144,7 @@ namespace Tapeti.Tests.Config
             }
         }
 
-
+        
         // ReSharper disable all
         #pragma warning disable
 

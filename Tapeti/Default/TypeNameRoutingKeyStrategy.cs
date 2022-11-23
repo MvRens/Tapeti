@@ -60,7 +60,7 @@ namespace Tapeti.Default
         }
 
 
-        private static List<string> SplitPascalCase(string value)
+        private static List<string>? SplitPascalCase(string value)
         {
             var split = SeparatorRegex.Split(value);
             if (split.Length == 0)

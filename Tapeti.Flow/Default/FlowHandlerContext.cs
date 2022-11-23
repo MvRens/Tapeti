@@ -10,8 +10,11 @@ namespace Tapeti.Flow.Default
     {
         /// <summary>
         /// </summary>
-        public FlowHandlerContext()
+        public FlowHandlerContext(ITapetiConfig config, object? controller, MethodInfo method)
         {
+            Config = config;
+            Controller = controller;
+            Method = method;
         }
 
 
@@ -19,11 +22,7 @@ namespace Tapeti.Flow.Default
         /// </summary>
         public FlowHandlerContext(IMessageContext source)
         {
-            if (source == null)
-                return;
-
-            if (!source.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
-                return;
+            var controllerPayload = source.Get<ControllerMessageContextPayload>();
 
             Config = source.Config;
             Controller = controllerPayload.Controller;
@@ -38,15 +37,15 @@ namespace Tapeti.Flow.Default
         }
 
         /// <inheritdoc />
-        public ITapetiConfig Config { get; set; }
+        public ITapetiConfig Config { get; }
 
         /// <inheritdoc />
-        public object Controller { get; set; }
+        public object? Controller { get; }
 
         /// <inheritdoc />
-        public MethodInfo Method { get; set; }
+        public MethodInfo Method { get; }
 
         /// <inheritdoc />
-        public IMessageContext MessageContext { get; set; }
+        public IMessageContext? MessageContext { get; }
     }
 }

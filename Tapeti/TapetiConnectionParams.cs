@@ -10,7 +10,7 @@ namespace Tapeti
     /// </summary>
     public class TapetiConnectionParams
     {
-        private IDictionary<string, string> clientProperties;
+        private IDictionary<string, string>? clientProperties;
 
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Tapeti
         /// If any of the default keys used by the RabbitMQ Client library (product, version) are specified their value
         /// will be overwritten. See DefaultClientProperties in Connection.cs in the RabbitMQ .NET client source for the default values.
         /// </remarks>
-        public IDictionary<string, string> ClientProperties { 
+        public IDictionary<string, string>? ClientProperties { 
             get => clientProperties ??= new Dictionary<string, string>();
             set => clientProperties = value;
         }

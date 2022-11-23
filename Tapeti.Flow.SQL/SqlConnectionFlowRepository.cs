@@ -58,7 +58,8 @@ namespace Tapeti.Flow.SQL
                         var stateJson = flowReader.GetString(2);
 
                         var state = JsonConvert.DeserializeObject<T>(stateJson);
-                        result.Add(new FlowRecord<T>(flowID, creationTime, state));
+                        if (state != null)
+                            result.Add(new FlowRecord<T>(flowID, creationTime, state));
                     }
 
                     return result;

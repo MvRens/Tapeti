@@ -60,7 +60,7 @@ namespace Tapeti.Default
             /// <summary>
             /// The return value handler.
             /// </summary>
-            public ResultHandler ResultHandler;
+            public ResultHandler? ResultHandler;
 
 
             /// <summary>
@@ -87,10 +87,10 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public string QueueName { get; private set; }
+        public string? QueueName { get; private set; }
 
         /// <inheritdoc />
-        public QueueType QueueType => bindingInfo.QueueInfo.QueueType;
+        public QueueType? QueueType => bindingInfo.QueueInfo.QueueType;
 
         /// <inheritdoc />
         public Type Controller => bindingInfo.ControllerType;
@@ -116,7 +116,7 @@ namespace Tapeti.Default
                 switch (bindingInfo.BindingTargetMode)
                 {
                     case BindingTargetMode.Default:
-                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
+                        if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
                             QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
@@ -127,7 +127,7 @@ namespace Tapeti.Default
                         break;
 
                     case BindingTargetMode.Direct:
-                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
+                        if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
                             QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
@@ -141,7 +141,7 @@ namespace Tapeti.Default
                         throw new ArgumentOutOfRangeException(nameof(bindingInfo.BindingTargetMode), bindingInfo.BindingTargetMode, "Invalid BindingTargetMode");
                 }
             }
-            else if (bindingInfo.QueueInfo.QueueType == QueueType.Durable)
+            else if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Durable)
             {
                 await target.BindDurableObsolete(bindingInfo.QueueInfo.Name);
                 QueueName = bindingInfo.QueueInfo.Name;
@@ -159,8 +159,11 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public async ValueTask Invoke(IMessageContext context)
         {
+            if (context.Binding == null)
+                throw new InvalidOperationException("Invoke should not be called on a context without a binding");
+
             var controller = Method.IsStatic ? null : dependencyResolver.Resolve(bindingInfo.ControllerType);
-            context.Store(new ControllerMessageContextPayload(controller, context.Binding as IControllerMethodBinding));
+            context.Store(new ControllerMessageContextPayload(controller, (IControllerMethodBinding)context.Binding));
             
             if (!await FilterAllowed(context))
                 return;
@@ -202,7 +205,7 @@ namespace Tapeti.Default
         private delegate ValueTask MessageHandlerFunc(IMessageContext context);
 
 
-        private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler? resultHandler)
         {
             if (resultHandler != null)
                 return WrapResultHandlerMethod(method.CreateExpressionInvoke(), parameterFactories, resultHandler);
@@ -245,7 +248,7 @@ namespace Tapeti.Default
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
-                { 
+                {
                     invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return default;
                 }
@@ -296,8 +299,8 @@ namespace Tapeti.Default
 
         private void AddExceptionData(Exception exception)
         {
-            exception.Data["Tapeti.Controller.Name"] = bindingInfo.ControllerType?.FullName;
-            exception.Data["Tapeti.Controller.Method"] = bindingInfo.Method?.Name;
+            exception.Data["Tapeti.Controller.Name"] = bindingInfo.ControllerType.FullName;
+            exception.Data["Tapeti.Controller.Method"] = bindingInfo.Method.Name;
         }
 
 
@@ -319,12 +322,19 @@ namespace Tapeti.Default
             /// <summary>
             /// Optional arguments (x-arguments) passed when declaring the queue.
             /// </summary>
-            public IRabbitMQArguments QueueArguments { get; set; }
+            public IRabbitMQArguments? QueueArguments { get; set; }
                 
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.
             /// </summary>
             public bool IsValid => QueueType == QueueType.Dynamic || !string.IsNullOrEmpty(Name);
+
+
+            public QueueInfo(QueueType queueType, string name)
+            {
+                QueueType = queueType;
+                Name = name;
+            }
         }
     }
 }

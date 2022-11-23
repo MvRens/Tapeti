@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
@@ -49,12 +50,7 @@ namespace Tapeti
             {
                 var methodIsObsolete = controllerIsObsolete || method.GetCustomAttribute<ObsoleteAttribute>() != null;
 
-                var context = new ControllerBindingContext(method.GetParameters(), method.ReturnParameter)
-                {
-                    Controller = controller,
-                    Method = method
-                };
-
+                var context = new ControllerBindingContext(controller, method, method.GetParameters(), method.ReturnParameter);
 
                 if (method.GetCustomAttribute<ResponseHandlerAttribute>() != null)
                     context.SetBindingTargetMode(BindingTargetMode.Direct);
@@ -124,11 +120,15 @@ namespace Tapeti
         /// <param name="builder"></param>
         public static ITapetiConfigBuilder RegisterAllControllers(this ITapetiConfigBuilder builder)
         {
-            return RegisterAllControllers(builder, Assembly.GetEntryAssembly());
+            var assembly = Assembly.GetEntryAssembly();
+            if (assembly == null)
+                throw new InvalidOperationException("No EntryAssembly");
+
+            return RegisterAllControllers(builder, assembly);
         }
 
 
-        private static ControllerMethodBinding.QueueInfo GetQueueInfo(MemberInfo member, ControllerMethodBinding.QueueInfo fallbackQueueInfo)
+        private static ControllerMethodBinding.QueueInfo? GetQueueInfo(MemberInfo member, ControllerMethodBinding.QueueInfo? fallbackQueueInfo)
         {
             var dynamicQueueAttribute = member.GetCustomAttribute<DynamicQueueAttribute>();
             var durableQueueAttribute = member.GetCustomAttribute<DurableQueueAttribute>();
@@ -157,26 +157,33 @@ namespace Tapeti
             }
             else
             {
-                queueType = fallbackQueueInfo.QueueType;
+                queueType = fallbackQueueInfo!.QueueType;
                 name = fallbackQueueInfo.Name;
             }
 
-            return new ControllerMethodBinding.QueueInfo
+            return new ControllerMethodBinding.QueueInfo(queueType, name)
             {
-                QueueType = queueType,
-                Name = name,
                 QueueArguments = GetQueueArguments(queueArgumentsAttribute) ?? fallbackQueueInfo?.QueueArguments
             };
         }
 
 
-        private static IRabbitMQArguments GetQueueArguments(QueueArgumentsAttribute queueArgumentsAttribute)
+        private static IRabbitMQArguments? GetQueueArguments(QueueArgumentsAttribute? queueArgumentsAttribute)
         {
             if (queueArgumentsAttribute == null)
                 return null;
 
-            var arguments = new RabbitMQArguments(queueArgumentsAttribute.CustomArguments);
-            
+            var arguments = new RabbitMQArguments(queueArgumentsAttribute.CustomArguments.ToDictionary(
+                    p => p.Key, 
+                    p => p.Value switch
+                    {
+                        string stringValue => Encoding.UTF8.GetBytes(stringValue),
+                        _ => p.Value
+                    }
+                ))
+            {
+
+            };
             if (queueArgumentsAttribute.MaxLength > 0)
                 arguments.Add(@"x-max-length", queueArgumentsAttribute.MaxLength);
 

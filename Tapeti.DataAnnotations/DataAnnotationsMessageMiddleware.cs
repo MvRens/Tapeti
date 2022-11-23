@@ -13,6 +13,9 @@ namespace Tapeti.DataAnnotations
         /// <inheritdoc />
         public ValueTask Handle(IMessageContext context, Func<ValueTask> next)
         {
+            if (context.Message == null) 
+                return next();
+
             var validationContext = new ValidationContext(context.Message);
             Validator.ValidateObject(context.Message, validationContext, true);
 

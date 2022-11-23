@@ -25,7 +25,7 @@ namespace Tapeti.Flow.FlowHelpers
         /// Deserializes the serialized method representation back into it's MethodInfo, or null if not found.
         /// </summary>
         /// <param name="serializedMethod"></param>
-        public static MethodInfo Deserialize(string serializedMethod)
+        public static MethodInfo? Deserialize(string serializedMethod)
         {
             var match = DeserializeRegex.Match(serializedMethod);
             if (!match.Success)

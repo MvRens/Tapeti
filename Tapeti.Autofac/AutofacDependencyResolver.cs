@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using Autofac;
 using Autofac.Builder;
 
@@ -14,22 +15,21 @@ namespace Tapeti.Autofac
     /// </summary>
     public class AutofacDependencyResolver : IDependencyContainer
     {
-        private ContainerBuilder containerBuilder;
-        private IContainer container;
+        private ContainerBuilder? containerBuilder;
+        private IContainer? container;
 
 
         /// <summary>
-        /// The built container. Either set directly, or use the Build method to built the
+        /// The built container. Either set directly, or use the Build method to build the
         /// update this reference.
         /// </summary>
         public IContainer Container
         {
-            get => container;
+            get => container ?? throw new ArgumentNullException(nameof(container));
             set
             {
                 container = value;
-                if (value != null)
-                    containerBuilder = null;
+                containerBuilder = null;
             }
         }
 
@@ -50,7 +50,7 @@ namespace Tapeti.Autofac
             CheckContainerBuilder();
             Container = containerBuilder.Build(options);
 
-            return container;
+            return Container;
         }
 
 
@@ -141,6 +141,7 @@ namespace Tapeti.Autofac
         }
 
 
+        [MemberNotNull(nameof(containerBuilder))]
         private void CheckContainerBuilder()
         {
             if (containerBuilder == null)

@@ -29,13 +29,13 @@ namespace Tapeti.Config
         /// <summary>
         /// The name of the queue the binding is consuming. May change after a reconnect for dynamic queues.
         /// </summary>
-        string QueueName { get; }
+        string? QueueName { get; }
 
 
         /// <summary>
         /// Determines the type of queue the binding registers
         /// </summary>
-        QueueType QueueType { get; }
+        QueueType? QueueType { get; }
 
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Tapeti.Config
         /// <param name="messageClass">The message class to be bound to the queue</param>
         /// <param name="queueName">The name of the durable queue</param>
         /// <param name="arguments">Optional arguments</param>
-        ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments arguments);
+        ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Binds the messageClass to a dynamic auto-delete queue.
@@ -95,7 +95,7 @@ namespace Tapeti.Config
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <param name="arguments">Optional arguments</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        ValueTask<string> BindDynamic(Type messageClass, string queuePrefix, IRabbitMQArguments arguments);
+        ValueTask<string> BindDynamic(Type messageClass, string? queuePrefix, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Declares a durable queue but does not add a binding for a messageClass' routing key.
@@ -103,7 +103,7 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="queueName">The name of the durable queue</param>
         /// <param name="arguments">Optional arguments</param>
-        ValueTask BindDurableDirect(string queueName, IRabbitMQArguments arguments);
+        ValueTask BindDurableDirect(string queueName, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -113,7 +113,7 @@ namespace Tapeti.Config
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <param name="arguments">Optional arguments</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        ValueTask<string> BindDynamicDirect(Type messageClass, string queuePrefix, IRabbitMQArguments arguments);
+        ValueTask<string> BindDynamicDirect(Type messageClass, string? queuePrefix, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Declares a dynamic queue but does not add a binding for a messageClass' routing key.
@@ -122,7 +122,7 @@ namespace Tapeti.Config
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
         /// <param name="arguments">Optional arguments</param>
         /// <returns>The generated name of the dynamic queue</returns>
-        ValueTask<string> BindDynamicDirect(string queuePrefix, IRabbitMQArguments arguments);
+        ValueTask<string> BindDynamicDirect(string? queuePrefix, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Marks the specified durable queue as having an obsolete binding. If after all bindings have subscribed, the queue only contains obsolete

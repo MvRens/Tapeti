@@ -20,7 +20,7 @@ namespace Tapeti.Flow
         /// <param name="responseHandler"></param>
         /// <typeparam name="TRequest"></typeparam>
         /// <typeparam name="TResponse"></typeparam>
-        IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task<IYieldPoint>> responseHandler);
+        IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class;
 
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace Tapeti.Flow
         /// <param name="responseHandler"></param>
         /// <typeparam name="TRequest"></typeparam>
         /// <typeparam name="TResponse"></typeparam>
-        IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask<IYieldPoint>> responseHandler);
+        IYieldPoint YieldWithRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class;
 
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace Tapeti.Flow
         /// <typeparam name="TRequest"></typeparam>
         /// <typeparam name="TResponse"></typeparam>
         /// <returns></returns>
-        IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler);
+        IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler) where TRequest : class where TResponse : class;
 
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <typeparam name="TResponse"></typeparam>
-        IYieldPoint EndWithResponse<TResponse>(TResponse message);
+        IYieldPoint EndWithResponse<TResponse>(TResponse message) where TResponse : class;
 
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace Tapeti.Flow
         /// <summary>
         /// Returns the parallel request for the given message context.
         /// </summary>
-        IFlowParallelRequest GetParallelRequest(IFlowHandlerContext context);
+        IFlowParallelRequest? GetParallelRequest(IFlowHandlerContext context);
 
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler);
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler) where TRequest : class where TResponse : class;
 
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
@@ -184,21 +184,21 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask> responseHandler);
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, ValueTask> responseHandler) where TRequest : class where TResponse : class;
 
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,Task})"/>
-        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler);
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler) where TRequest : class where TResponse : class;
 
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,ValueTask})"/>
-        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, ValueTask> responseHandler);
+        IFlowParallelRequestBuilder AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, ValueTask> responseHandler) where TRequest : class where TResponse : class;
 
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
@@ -208,14 +208,14 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
+        IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler) where TRequest : class where TResponse : class;
 
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequestSync{TRequest,TResponse}(TRequest,Action{TResponse})"/>
-        IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler);
+        IFlowParallelRequestBuilder AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse, IFlowParallelRequest> responseHandler) where TRequest : class where TResponse : class;
 
         /// There is no Sync overload with an IFlowParallelRequest parameter, as the AddRequest methods for that are
         /// async, so you should always await them.
@@ -260,14 +260,14 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler);
+        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, Task> responseHandler) where TRequest : class where TResponse : class;
 
         /// <remarks>
         /// This overload allows the response handler access to the IFlowParallelRequest interface, which
         /// can be used to add additional requests to the parallel request before the continuation method passed to the Yield method is called.
         /// </remarks>
         /// <inheritdoc cref="AddRequest{TRequest,TResponse}(TRequest,Func{TResponse,Task})"/>
-        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler);
+        Task AddRequest<TRequest, TResponse>(TRequest message, Func<TResponse, IFlowParallelRequest, Task> responseHandler) where TRequest : class where TResponse : class;
 
         /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
@@ -277,7 +277,7 @@ namespace Tapeti.Flow
         /// </summary>
         /// <param name="message"></param>
         /// <param name="responseHandler"></param>
-        Task AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler);
+        Task AddRequestSync<TRequest, TResponse>(TRequest message, Action<TResponse> responseHandler) where TRequest : class where TResponse : class;
     }
 
 

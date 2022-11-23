@@ -24,10 +24,10 @@ namespace Tapeti
         /// This property must be set before first subscribing or publishing, otherwise it
         /// will use the default connection parameters.
         /// </remarks>
-        public TapetiConnectionParams Params { get; set; }
+        public TapetiConnectionParams? Params { get; set; }
 
         private readonly Lazy<ITapetiClient> client;
-        private TapetiSubscriber subscriber;
+        private TapetiSubscriber? subscriber;
 
         private bool disposed;
 
@@ -48,13 +48,13 @@ namespace Tapeti
         }
 
         /// <inheritdoc />
-        public event ConnectedEventHandler Connected;
+        public event ConnectedEventHandler? Connected;
 
         /// <inheritdoc />
-        public event DisconnectedEventHandler Disconnected;
+        public event DisconnectedEventHandler? Disconnected;
 
         /// <inheritdoc />
-        public event ConnectedEventHandler Reconnected;
+        public event ConnectedEventHandler? Reconnected;
 
 
         /// <inheritdoc />

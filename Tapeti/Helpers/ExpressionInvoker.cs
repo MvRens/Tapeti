@@ -16,7 +16,7 @@ namespace Tapeti.Helpers
     /// </summary>
     /// <param name="target">The instance on which the method should be called.</param>
     /// <param name="args">The arguments passed to the method.</param>
-    public delegate object ExpressionInvoke(object target, params object[] args);
+    public delegate object ExpressionInvoke(object? target, params object?[] args);
 
 
     /// <summary>

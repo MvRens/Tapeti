@@ -120,7 +120,7 @@ namespace Tapeti.Tasks
             {
                 while (true)
                 {
-                    Task task;
+                    Task? task;
                     lock (scheduledTasks)
                     {
                         task = WaitAndDequeueTask();
@@ -133,7 +133,7 @@ namespace Tapeti.Tasks
                 }
             }
 
-            private Task WaitAndDequeueTask()
+            private Task? WaitAndDequeueTask()
             {
                 while (!scheduledTasks.Any() && !disposed)
                     Monitor.Wait(scheduledTasks);

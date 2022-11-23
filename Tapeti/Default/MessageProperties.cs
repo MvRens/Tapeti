@@ -13,13 +13,13 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public string ContentType { get; set; }
+        public string? ContentType { get; set; }
 
         /// <inheritdoc />
-        public string CorrelationId { get; set; }
+        public string? CorrelationId { get; set; }
 
         /// <inheritdoc />
-        public string ReplyTo { get; set; }
+        public string? ReplyTo { get; set; }
 
         /// <inheritdoc />
         public bool? Persistent { get; set; }
@@ -37,7 +37,7 @@ namespace Tapeti.Default
 
         /// <summary>
         /// </summary>
-        public MessageProperties(IMessageProperties source)
+        public MessageProperties(IMessageProperties? source)
         {
             if (source == null)
                 return;
@@ -64,7 +64,7 @@ namespace Tapeti.Default
         }
 
         /// <inheritdoc />
-        public string GetHeader(string name)
+        public string? GetHeader(string name)
         {
             return headers.TryGetValue(name, out var value) ? value : null;
         }

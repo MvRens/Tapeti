@@ -9,8 +9,8 @@ namespace Tapeti.Flow.Default
     /// </summary>
     public class FlowState
     {
-        private FlowMetadata metadata;
-        private Dictionary<Guid, ContinuationMetadata> continuations;
+        private FlowMetadata? metadata;
+        private Dictionary<Guid, ContinuationMetadata>? continuations;
 
 
         /// <summary>
@@ -18,7 +18,7 @@ namespace Tapeti.Flow.Default
         /// </summary>
         public FlowMetadata Metadata
         {
-            get => metadata ??= new FlowMetadata();
+            get => metadata ??= new FlowMetadata(null);
             set => metadata = value;
         }
 
@@ -26,7 +26,7 @@ namespace Tapeti.Flow.Default
         /// <summary>
         /// Contains the serialized state which is restored when a flow continues.
         /// </summary>
-        public string Data { get; set; }
+        public string? Data { get; set; }
 
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace Tapeti.Flow.Default
         public FlowState Clone()
         {
             return new FlowState {
-                metadata = metadata.Clone(),
+                metadata = metadata?.Clone(),
                 Data = Data,
                 continuations = continuations?.ToDictionary(kv => kv.Key, kv => kv.Value.Clone())
             };
@@ -61,18 +61,22 @@ namespace Tapeti.Flow.Default
         /// <summary>
         /// Contains information about the expected response for this flow.
         /// </summary>
-        public ReplyMetadata Reply { get; set; }
+        public ReplyMetadata? Reply { get; }
 
 
+        /// <inheritdoc cref="FlowMetadata"/>
+        public FlowMetadata(ReplyMetadata? reply)
+        {
+            Reply = reply;
+        }
+
+        
         /// <summary>
         /// Creates a deep clone of this FlowMetadata.
         /// </summary>
         public FlowMetadata Clone()
         {
-            return new FlowMetadata
-            {
-                Reply = Reply?.Clone()
-            };
+            return new FlowMetadata(Reply);
         }
     }
 
@@ -85,17 +89,17 @@ namespace Tapeti.Flow.Default
         /// <summary>
         /// The queue to which the response should be sent.
         /// </summary>
-        public string ReplyTo { get; set; }
+        public string? ReplyTo { get; set; }
 
         /// <summary>
         /// The correlation ID included in the original request.
         /// </summary>
-        public string CorrelationId { get; set; }
+        public string? CorrelationId { get; set; }
 
         /// <summary>
         /// The expected response message class.
         /// </summary>
-        public string ResponseTypeName { get; set; }
+        public string? ResponseTypeName { get; set; }
 
         /// <summary>
         /// Indicates whether the response should be sent a mandatory.
@@ -128,12 +132,12 @@ namespace Tapeti.Flow.Default
         /// <summary>
         /// The name of the method which will handle the response.
         /// </summary>
-        public string MethodName { get; set; }
+        public string? MethodName { get; set; }
 
         /// <summary>
         /// The name of the method which is called when all responses have been processed.
         /// </summary>
-        public string ConvergeMethodName { get; set; }
+        public string? ConvergeMethodName { get; set; }
 
         /// <summary>
         /// Determines if the converge method is synchronous or asynchronous.

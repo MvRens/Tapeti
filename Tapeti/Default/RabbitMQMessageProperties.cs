@@ -15,21 +15,21 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public string ContentType
+        public string? ContentType
         {
             get => BasicProperties.IsContentTypePresent() ? BasicProperties.ContentType : null;
             set { if (!string.IsNullOrEmpty(value)) BasicProperties.ContentType = value; else BasicProperties.ClearContentType(); }
         }
 
         /// <inheritdoc />
-        public string CorrelationId
+        public string? CorrelationId
         {
             get => BasicProperties.IsCorrelationIdPresent() ? BasicProperties.CorrelationId : null;
             set { if (!string.IsNullOrEmpty(value)) BasicProperties.CorrelationId = value; else BasicProperties.ClearCorrelationId(); }
         }
 
         /// <inheritdoc />
-        public string ReplyTo
+        public string? ReplyTo
         {
             get => BasicProperties.IsReplyToPresent() ? BasicProperties.ReplyTo : null;
             set { if (!string.IsNullOrEmpty(value)) BasicProperties.ReplyTo = value; else BasicProperties.ClearReplyTo(); }
@@ -66,7 +66,7 @@ namespace Tapeti.Default
 
         /// <summary>
         /// </summary>
-        public RabbitMQMessageProperties(IBasicProperties basicProperties, IMessageProperties source)
+        public RabbitMQMessageProperties(IBasicProperties basicProperties, IMessageProperties? source)
         {
             BasicProperties = basicProperties;
             if (source == null)
@@ -97,7 +97,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public string GetHeader(string name)
+        public string? GetHeader(string name)
         {
             if (BasicProperties.Headers == null)
                 return null;

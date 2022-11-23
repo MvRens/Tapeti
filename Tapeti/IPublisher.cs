@@ -29,7 +29,7 @@ namespace Tapeti
         /// </remarks>
         /// <param name="responseMethodSelector">An expression defining the method which handles the response. Example: c => c.HandleResponse</param>
         /// <param name="message">The message to send</param>
-        Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class;
+        Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class;
 
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace Tapeti
         /// </remarks>
         /// <param name="responseMethodSelector">An expression defining the method which handles the response. Example: c => c.HandleResponse</param>
         /// <param name="message">The message to send</param>
-        Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class;
+        Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class;
 
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Tapeti
         /// <param name="message">An instance of a message class</param>
         /// <param name="properties">Metadata to include in the message</param>
         /// <param name="mandatory">If true, an exception will be raised if the message can not be delivered to at least one queue</param>
-        Task Publish(object message, IMessageProperties properties, bool mandatory);
+        Task Publish(object message, IMessageProperties? properties, bool mandatory);
 
 
         /// <summary>
@@ -80,6 +80,6 @@ namespace Tapeti
         /// <param name="properties">Metadata to include in the message</param>
         /// <param name="mandatory">If true, an exception will be raised if the message can not be delivered to the queue</param>
         /// <returns></returns>
-        Task PublishDirect(object message, string queueName, IMessageProperties properties, bool mandatory);
+        Task PublishDirect(object message, string queueName, IMessageProperties? properties, bool mandatory);
     }
 }

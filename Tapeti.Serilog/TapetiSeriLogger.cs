@@ -87,7 +87,7 @@ namespace Tapeti.Serilog
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
         {
             var message = new StringBuilder("Tapeti: exception in message handler");
-            var messageParams = new List<object>();
+            var messageParams = new List<object?>();
             
             var contextLogger = seriLogger
                 .ForContext("consumeResult", consumeResult)
@@ -130,7 +130,7 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments? existingArguments, IRabbitMQArguments? arguments)
         {
             seriLogger.Warning("Tapeti: durable queue {queueName} exists with incompatible x-arguments ({existingArguments} vs. {arguments}) and will not be redeclared, queue will be consumed as-is",
                 queueName,

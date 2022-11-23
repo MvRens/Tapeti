@@ -19,7 +19,7 @@ namespace Tapeti.Tests.Client
         private readonly RabbitMQFixture fixture;
         private readonly MockDependencyResolver dependencyResolver = new();
 
-        private TapetiClient client;
+        private TapetiClient client = null!;
 
 
         public TapetiClientTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
@@ -41,7 +41,6 @@ namespace Tapeti.Tests.Client
         public async Task DisposeAsync()
         {
             await client.Close();
-            client = null;
         }
 
 

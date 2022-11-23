@@ -15,6 +15,6 @@ namespace Tapeti.Transient
         /// <param name="request"></param>
         /// <typeparam name="TRequest"></typeparam>
         /// <typeparam name="TResponse"></typeparam>
-        Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request);
+        Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request) where TRequest : class where TResponse : class;
     }
 }

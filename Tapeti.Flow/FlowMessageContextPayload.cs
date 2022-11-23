@@ -16,9 +16,8 @@ namespace Tapeti.Flow
         /// parallel flow is done and the convergeMethod will be called.
         /// Temporarily disables storing the flow state.
         /// </summary>
-        public bool FlowIsConverging => FlowContext != null && 
-                                        FlowContext.FlowState.Continuations.Count == 0 &&
-                                        FlowContext.ContinuationMetadata.ConvergeMethodName != null;
+        public bool FlowIsConverging => FlowContext.FlowState.Continuations.Count == 0 &&
+                                        FlowContext.ContinuationMetadata?.ConvergeMethodName != null;
 
         
         public FlowMessageContextPayload(FlowContext flowContext)
@@ -29,7 +28,7 @@ namespace Tapeti.Flow
         
         public void Dispose()
         {
-            FlowContext?.Dispose();
+            FlowContext.Dispose();
         }
     }
 }

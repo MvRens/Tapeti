@@ -15,17 +15,10 @@ namespace Tapeti.Connection
         {
         }
 
-        #if NETSTANDARD2_1_OR_GREATER
+
         public RabbitMQArguments(IReadOnlyDictionary<string, object> values) : base(values)
         {
         }
-        #else
-        public RabbitMQArguments(IReadOnlyDictionary<string, object> values)
-        {
-            foreach (var pair in values)
-                Add(pair.Key, pair.Value);
-        }
-        #endif
 
 
         public void AddUTF8(string key, string value)

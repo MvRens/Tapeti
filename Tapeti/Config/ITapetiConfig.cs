@@ -87,40 +87,13 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="method"></param>
         /// <returns>The binding if found, null otherwise</returns>
-        IControllerMethodBinding ForMethod(Delegate method);
+        IControllerMethodBinding? ForMethod(Delegate method);
 
         /// <summary>
         /// Searches for a binding linked to the specified method.
         /// </summary>
         /// <param name="method"></param>
         /// <returns>The binding if found, null otherwise</returns>
-        IControllerMethodBinding ForMethod(MethodInfo method);
+        IControllerMethodBinding? ForMethod(MethodInfo method);
     }
-
-
-    /*
-    public interface IBinding
-    {
-        Type Controller { get; }
-        MethodInfo Method { get; }
-        Type MessageClass { get; }
-        string QueueName { get; }
-        QueueBindingMode QueueBindingMode { get; set; }
-
-        IReadOnlyList<IMessageFilterMiddleware> MessageFilterMiddleware { get; }
-        IReadOnlyList<IMessageMiddleware> MessageMiddleware { get; }
-
-        bool Accept(Type messageClass);
-        bool Accept(IMessageContext context, object message);
-        Task Invoke(IMessageContext context, object message);
-    }
-    */
-
-
-    /*
-    public interface IBuildBinding : IBinding
-    {
-        void SetQueueName(string queueName);
-    }
-    */
 }

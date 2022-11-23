@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -46,6 +47,9 @@ namespace Tapeti.Flow.Default
             {
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
+                    if (value == null)
+                        throw new InvalidOperationException("Return value should be a Task, not null");
+
                     await (Task)value;
                     await HandleParallelResponse(messageContext);
                 });
@@ -54,6 +58,10 @@ namespace Tapeti.Flow.Default
             {
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
+                    if (value == null)
+                        // ValueTask is a struct and should never be null
+                        throw new UnreachableException("Return value should be a ValueTask, not null");
+
                     await (ValueTask)value;
                     await HandleParallelResponse(messageContext);
                 });
@@ -82,24 +90,35 @@ namespace Tapeti.Flow.Default
             switch (taskType)
             {
                 case TaskType.None:
-                    context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
+                    context.Result.SetHandler((messageContext, value) =>
+                    {
+                        if (value == null)
+                            throw new InvalidOperationException("Return value should be an IYieldPoint, not null");
+
+                        return HandleYieldPoint(messageContext, (IYieldPoint)value);
+                    });
                     break;
 
                 case TaskType.Task:
                     context.Result.SetHandler(async (messageContext, value) =>
                     {
+                        if (value == null)
+                            throw new InvalidOperationException("Return value should be a Task<IYieldPoint>, not null");
+
                         var yieldPoint = await (Task<IYieldPoint>)value;
-                        if (yieldPoint != null)
-                            await HandleYieldPoint(messageContext, yieldPoint);
+                        await HandleYieldPoint(messageContext, yieldPoint);
                     });
                     break;
 
                 case TaskType.ValueTask:
                     context.Result.SetHandler(async (messageContext, value) =>
                     {
+                        if (value == null)
+                            // ValueTask is a struct and should never be null
+                            throw new UnreachableException("Return value should be a ValueTask<IYieldPoint>, not null");
+
                         var yieldPoint = await (ValueTask<IYieldPoint>)value;
-                        if (yieldPoint != null)
-                            await HandleYieldPoint(messageContext, yieldPoint);
+                        await HandleYieldPoint(messageContext, yieldPoint);
                     });
                     break;
 
@@ -140,7 +159,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static object ParallelRequestParameterFactory(IMessageContext context)
+        private static object? ParallelRequestParameterFactory(IMessageContext context)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.GetParallelRequest(new FlowHandlerContext(context));

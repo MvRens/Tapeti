@@ -49,8 +49,17 @@ namespace Tapeti.Tests.Mock
                 : $"Declaring {(durable ? "durable" : "dynamic")} queue {queueName}");
         }
 
-        public void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments? existingArguments, IRabbitMQArguments? arguments)
         {
+            testOutputHelper.WriteLine($"[Tapeti] Durable queue {queueName} exists with incompatible x-arguments ({GetArgumentsText(existingArguments)} vs. {GetArgumentsText(arguments)}) and will not be redeclared, queue will be consumed as-is");
+        }
+
+
+        private static string GetArgumentsText(IRabbitMQArguments? arguments)
+        {
+            if (arguments == null || arguments.Count == 0)
+                return "empty";
+
             var argumentsText = new StringBuilder();
             foreach (var pair in arguments)
             {
@@ -60,8 +69,9 @@ namespace Tapeti.Tests.Mock
                 argumentsText.Append($"{pair.Key} = {pair.Value}");
             }
 
-            testOutputHelper.WriteLine($"Durable queue {queueName} exists with incompatible x-arguments ({argumentsText}) and will not be redeclared, queue will be consumed as-is");
+            return argumentsText.ToString();
         }
+
 
         public void QueueBind(string queueName, bool durable, string exchange, string routingKey)
         {

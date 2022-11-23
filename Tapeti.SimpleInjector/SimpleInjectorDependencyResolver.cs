@@ -10,12 +10,12 @@ namespace Tapeti.SimpleInjector
     public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
-        private readonly Lifestyle defaultsLifestyle;
-        private readonly Lifestyle controllersLifestyle;
+        private readonly Lifestyle? defaultsLifestyle;
+        private readonly Lifestyle? controllersLifestyle;
 
         /// <summary>
         /// </summary>
-        public SimpleInjectorDependencyResolver(Container container, Lifestyle defaultsLifestyle = null, Lifestyle controllersLifestyle = null)
+        public SimpleInjectorDependencyResolver(Container container, Lifestyle? defaultsLifestyle = null, Lifestyle? controllersLifestyle = null)
         {
             this.container = container;
             this.defaultsLifestyle = defaultsLifestyle;

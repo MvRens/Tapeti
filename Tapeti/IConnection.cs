@@ -7,19 +7,27 @@ using System.Threading.Tasks;
 namespace Tapeti
 {
     /// <summary>
-    /// 
+    /// Contains information about the established connection.
     /// </summary>
     public class ConnectedEventArgs
     {
         /// <summary>
         /// The connection parameters used to establish the connection.
         /// </summary>
-        public TapetiConnectionParams ConnectionParams;
+        public TapetiConnectionParams ConnectionParams { get; }
 
         /// <summary>
         /// The local port for the connection. Useful for identifying the connection in the management interface.
         /// </summary>
-        public int LocalPort;
+        public int LocalPort { get; }
+
+
+        /// <summary></summary>
+        public ConnectedEventArgs(TapetiConnectionParams connectionParams, int localPort)
+        {
+            ConnectionParams = connectionParams;
+            LocalPort = localPort;
+        }
     }
 
 
@@ -31,12 +39,20 @@ namespace Tapeti
         /// <summary>
         /// The ReplyCode as indicated by the client library
         /// </summary>
-        public ushort ReplyCode;
+        public ushort ReplyCode { get; }
 
         /// <summary>
         /// The ReplyText as indicated by the client library
         /// </summary>
-        public string ReplyText;
+        public string ReplyText { get; }
+
+
+        /// <summary></summary>
+        public DisconnectedEventArgs(ushort replyCode, string replyText)
+        {
+            ReplyCode = replyCode;
+            ReplyText = replyText;
+        }
     }
 
 

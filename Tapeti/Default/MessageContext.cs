@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Config;
@@ -12,28 +13,28 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public ITapetiConfig Config { get; set; }
+        public ITapetiConfig Config { get; set; } = null!;
 
         /// <inheritdoc />
-        public string Queue { get; set; }
+        public string Queue { get; set; } = null!;
 
         /// <inheritdoc />
-        public string Exchange { get; set; }
+        public string Exchange { get; set; } = null!;
 
         /// <inheritdoc />
-        public string RoutingKey { get; set; }
+        public string RoutingKey { get; set; } = null!;
 
         /// <inheritdoc />
-        public byte[] RawBody { get; set; }
+        public byte[] RawBody { get; set; } = null!;
 
         /// <inheritdoc />
-        public object Message { get; set; }
+        public object? Message { get; set; }
 
         /// <inheritdoc />
-        public IMessageProperties Properties { get; set; }
+        public IMessageProperties Properties { get; set; } = null!;
 
         /// <inheritdoc />
-        public IBinding Binding { get; set; }
+        public IBinding Binding { get; set; } = null!;
 
         /// <inheritdoc />
         public CancellationToken ConnectionClosed { get; set; }
@@ -57,7 +58,7 @@ namespace Tapeti.Default
             return (T)payloads[typeof(T)];
         }
 
-        public bool TryGet<T>(out T payload) where T : IMessageContextPayload
+        public bool TryGet<T>([NotNullWhen(true)] out T? payload) where T : IMessageContextPayload
         {
             if (payloads.TryGetValue(typeof(T), out var payloadValue))
             {
@@ -100,7 +101,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public bool Get<T>(string key, out T value) where T : class
+        public bool Get<T>(string key, out T? value) where T : class
         {
             if (!TryGet<KeyValuePayload>(out var payload) ||
                 !payload.TryGetValue(key, out var objectValue))
@@ -109,7 +110,7 @@ namespace Tapeti.Default
                 return false;
             }
 
-            value = (T)objectValue;
+            value = (T?)objectValue;
             return true;
         }
 
@@ -132,7 +133,7 @@ namespace Tapeti.Default
             }
 
 
-            public bool TryGetValue(string key, out object value)
+            public bool TryGetValue(string key, out object? value)
             {
                 return items.TryGetValue(key, out value);
             }

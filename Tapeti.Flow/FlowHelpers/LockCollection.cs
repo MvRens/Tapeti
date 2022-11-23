@@ -7,7 +7,7 @@ namespace Tapeti.Flow.FlowHelpers
     /// <summary>
     /// Implementation of an asynchronous locking mechanism.
     /// </summary>
-    public class LockCollection<T>
+    public class LockCollection<T> where T : notnull
     {
         private readonly Dictionary<T, LockItem> locks;
 
@@ -57,7 +57,7 @@ namespace Tapeti.Flow.FlowHelpers
 
         private class LockItem : IDisposable
         {
-            internal volatile LockItem Next;
+            internal volatile LockItem? Next;
 
             private readonly Dictionary<T, LockItem> locks;
             private readonly TaskCompletionSource<IDisposable> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);

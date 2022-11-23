@@ -8,7 +8,7 @@ namespace Tapeti.Tests.Mock
         private readonly Dictionary<Type, object> container = new();
 
 
-        public void Set<TInterface>(TInterface instance)
+        public void Set<TInterface>(TInterface instance) where TInterface : class
         {
             container.Add(typeof(TInterface), instance);
         }

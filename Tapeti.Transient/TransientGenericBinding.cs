@@ -14,10 +14,10 @@ namespace Tapeti.Transient
         private readonly string dynamicQueuePrefix;
 
         /// <inheritdoc />
-        public string QueueName { get; private set; }
+        public string? QueueName { get; private set; }
 
         /// <inheritdoc />
-        public QueueType QueueType => QueueType.Dynamic;
+        public QueueType? QueueType => Config.QueueType.Dynamic;
 
 
         /// <summary>

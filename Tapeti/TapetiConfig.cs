@@ -17,7 +17,7 @@ namespace Tapeti
     /// </summary>
     public class TapetiConfig : ITapetiConfigBuilderAccess
     {
-        private Config config;
+        private Config? config;
         private readonly List<IControllerBindingMiddleware> bindingMiddleware = new();
 
 
@@ -92,29 +92,25 @@ namespace Tapeti
 
             var configInstance = GetConfig();
 
-            var middlewareBundle = extension.GetMiddleware(DependencyResolver);
-            if (middlewareBundle != null)
+            foreach (var middleware in extension.GetMiddleware(DependencyResolver))
             {
-                foreach (var middleware in middlewareBundle)
+                switch (middleware)
                 {
-                    switch (middleware)
-                    {
-                        case IControllerBindingMiddleware bindingExtension:
-                            Use(bindingExtension);
-                            break;
+                    case IControllerBindingMiddleware bindingExtension:
+                        Use(bindingExtension);
+                        break;
 
-                        case IMessageMiddleware messageExtension:
-                            configInstance.Use(messageExtension);
-                            break;
+                    case IMessageMiddleware messageExtension:
+                        configInstance.Use(messageExtension);
+                        break;
 
-                        case IPublishMiddleware publishExtension:
-                            configInstance.Use(publishExtension);
-                            break;
+                    case IPublishMiddleware publishExtension:
+                        configInstance.Use(publishExtension);
+                        break;
 
-                        default:
-                            throw new ArgumentException(
-                                $"Unsupported middleware implementation: {middleware?.GetType().Name ?? "null"}");
-                    }
+                    default:
+                        throw new ArgumentException(
+                            $"Unsupported middleware implementation: {middleware.GetType().Name}");
                 }
             }
 
@@ -123,7 +119,7 @@ namespace Tapeti
                 return this;
 
             foreach (var binding in bindingBundle)
-                config.RegisterBinding(binding);
+                GetConfig().RegisterBinding(binding);
 
             return this;
         }
@@ -313,17 +309,23 @@ namespace Tapeti
 
         internal class ConfigBindings : List<IBinding>, ITapetiConfigBindings
         {
-            private Dictionary<MethodInfo, IControllerMethodBinding> methodLookup;
+            private Dictionary<MethodInfo, IControllerMethodBinding>? methodLookup;
 
 
-            public IControllerMethodBinding ForMethod(Delegate method)
+            public IControllerMethodBinding? ForMethod(Delegate method)
             {
+                if (methodLookup == null)
+                    throw new InvalidOperationException("Lock must be called first");
+
                 return methodLookup.TryGetValue(method.Method, out var binding) ? binding : null;
             }
 
 
-            public IControllerMethodBinding ForMethod(MethodInfo method)
+            public IControllerMethodBinding? ForMethod(MethodInfo method)
             {
+                if (methodLookup == null)
+                    throw new InvalidOperationException("Lock must be called first");
+
                 return methodLookup.TryGetValue(method, out var binding) ? binding : null;
             }
 

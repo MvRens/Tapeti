@@ -32,7 +32,7 @@ namespace Tapeti
         /// <summary>
         /// The exception that caused the connection to fail.
         /// </summary>
-        Exception Exception { get; }
+        Exception? Exception { get; }
     }
 
 
@@ -138,7 +138,7 @@ namespace Tapeti
         /// <param name="queueName">The name of the queue that is declared</param>
         /// <param name="existingArguments">The x-arguments of the existing queue</param>
         /// <param name="arguments">The x-arguments of the queue that would be declared</param>
-        void QueueExistsWarning(string queueName, IRabbitMQArguments existingArguments, IRabbitMQArguments arguments);
+        void QueueExistsWarning(string queueName, IRabbitMQArguments? existingArguments, IRabbitMQArguments? arguments);
 
         /// <summary>
         /// Called before a binding is added to a queue.

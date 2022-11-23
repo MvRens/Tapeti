@@ -27,7 +27,7 @@ namespace Tapeti.Tests.Client
         public ushort RabbitMQManagementPort { get; private set; }
 
 
-        private TestcontainerMessageBroker testcontainers;
+        private TestcontainerMessageBroker? testcontainers;
 
         private const int DefaultRabbitMQPort = 5672;
         private const int DefaultRabbitMQManagementPort = 15672;
