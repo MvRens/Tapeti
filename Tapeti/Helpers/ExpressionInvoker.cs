@@ -44,22 +44,25 @@ namespace Tapeti.Helpers
                 .ToArray();
 
 
-            var target = Expression.Parameter(typeof(object), "target");
-            var castTarget = Expression.Convert(target, method.DeclaringType);
-            var invoke = Expression.Call(castTarget, method, parameters);
+            var instanceParameter = Expression.Parameter(typeof(object), "target");
+            Expression? instance = method.IsStatic
+                ? null
+                : Expression.Convert(instanceParameter, method.DeclaringType);
+
+            var invoke = Expression.Call(instance, method, parameters);
 
             Expression<ExpressionInvoke> lambda;
 
             if (method.ReturnType != typeof(void))
             {
                 var result = Expression.Convert(invoke, typeof(object));
-                lambda = Expression.Lambda<ExpressionInvoke>(result, target, argsParameter);
+                lambda = Expression.Lambda<ExpressionInvoke>(result, instanceParameter, argsParameter);
             }
             else
             {
                 var nullResult = Expression.Constant(null, typeof(object));
                 var body = Expression.Block(invoke, nullResult);
-                lambda = Expression.Lambda<ExpressionInvoke>(body, target, argsParameter);
+                lambda = Expression.Lambda<ExpressionInvoke>(body, instanceParameter, argsParameter);
             }
 
             return lambda.Compile();

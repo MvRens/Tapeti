@@ -12,12 +12,19 @@ namespace Tapeti.Tests.Config
         public void RegisterController()
         {
             var bindings = GetControllerBindings<TestController>();
-            bindings.Should().HaveCount(1);
+            bindings.Should().HaveCount(2);
 
             var handleSimpleMessageBinding = bindings.Single(b => b is IControllerMethodBinding cmb &&
                                                                   cmb.Controller == typeof(TestController) &&
                                                                   cmb.Method.Name == "HandleSimpleMessage");
             handleSimpleMessageBinding.QueueType.Should().Be(QueueType.Dynamic);
+
+
+            var handleSimpleMessageStaticBinding = bindings.Single(b => b is IControllerMethodBinding cmb &&
+                                                                   cmb.Controller == typeof(TestController) &&
+                                                                   cmb.Method.Name == "HandleSimpleMessageStatic");
+            handleSimpleMessageStaticBinding.QueueType.Should().Be(QueueType.Dynamic);
+
         }
 
 
@@ -33,6 +40,10 @@ namespace Tapeti.Tests.Config
         private class TestController
         {
             public void HandleSimpleMessage(TestMessage message)
+            {
+            }
+
+            public static void HandleSimpleMessageStatic(TestMessage message)
             {
             }
         }
