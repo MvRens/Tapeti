@@ -31,10 +31,8 @@ after_build:
 build:
   project: Tapeti.sln
 
-test:
-  categories:
-    except:
-      - Requires Docker
+test_script:
+  - dotnet test Tapeti.Tests\Tapeti.Tests.csproj --configuration Release --no-build --filter "Category!=Requires Docker"
 
 platform:
   - Any CPU
