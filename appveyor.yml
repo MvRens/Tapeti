@@ -24,7 +24,6 @@ after_build:
   - cmd: dotnet pack Tapeti.Autofac\Tapeti.Autofac.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   - cmd: dotnet pack Tapeti.CastleWindsor\Tapeti.CastleWindsor.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   - cmd: dotnet pack Tapeti.Ninject\Tapeti.Ninject.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
-  - cmd: dotnet pack Tapeti.UnityContainer\Tapeti.UnityContainer.csproj %pack_params% -p:Version=%GitVersion_NuGetVersion%
   # Push artifacts
   - ps: Get-ChildItem output\*.nupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
   - ps: Get-ChildItem output\*.snupkg | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
