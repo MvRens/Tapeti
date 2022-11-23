@@ -74,7 +74,7 @@ namespace Tapeti.Flow.Default
         internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
             string? convergeMethodName = null, bool convergeMethodTaskSync = false, bool store = true)
         {
-            if (context.FlowState == null)
+            if (!context.HasFlowStateAndLock)
             {
                 await CreateNewFlowState(context);
                 Debug.Assert(context.FlowState != null, "context.FlowState != null");
