@@ -1,6 +1,4 @@
-﻿// Do not include in the Release build for AppVeyor due to the Docker requirement
-#if DEBUG
-using System.Text;
+﻿using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -14,6 +12,7 @@ using Xunit.Abstractions;
 namespace Tapeti.Tests.Client
 {
     [Collection(RabbitMQCollection.Name)]
+    [Trait("Category", "Requires Docker")]
     public class TapetiClientTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
@@ -115,4 +114,3 @@ namespace Tapeti.Tests.Client
         }
     }
 }
-#endif
