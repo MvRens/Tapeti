@@ -10,6 +10,17 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
+    #if !NET7_0_OR_GREATER
+    #pragma warning disable CS1591
+    public class UnreachableException : Exception
+    {
+        public UnreachableException(string message) : base(message)
+        {
+        }
+    }
+    #pragma warning restore CS1591
+    #endif
+
     internal class FlowBindingMiddleware : IControllerBindingMiddleware
     {
         public void Handle(IControllerBindingContext context, Action next)
