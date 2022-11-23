@@ -1,6 +1,4 @@
-﻿// Do not include in the Release build for AppVeyor due to the Docker requirement
-#if DEBUG
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Docker.DotNet;
 using Docker.DotNet.Models;
@@ -79,4 +77,3 @@ namespace Tapeti.Tests.Client
         }
     }
 }
-#endif

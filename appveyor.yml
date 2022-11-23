@@ -36,6 +36,7 @@ test:
   assemblies:
     only:
       - Tapeti.Tests\bin\Release\net6.0\Tapeti.Tests.dll
+      - Tapeti.Tests\bin\Release\net7.0\Tapeti.Tests.dll
   categories:
     except:
       - Requires Docker
