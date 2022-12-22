@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using ExampleLib;
 using Messaging.TapetiExample;
 using Tapeti.Annotations;
@@ -16,6 +17,7 @@ namespace _03_FlowRequestResponse
 
         public string FirstQuote;
         public string SecondQuote;
+        public string ThirdQuote;
 
 
         public ParallelFlowController(IFlowProvider flowProvider, IExampleState exampleState)
@@ -35,7 +37,7 @@ namespace _03_FlowRequestResponse
                         Amount = 1
                     },
                     HandleFirstQuoteResponse)
-                .AddRequestSync<QuoteRequestMessage, QuoteResponseMessage>(
+                .AddRequest<QuoteRequestMessage, QuoteResponseMessage>(
                     new QuoteRequestMessage
                     {
                         Amount = 2
@@ -54,10 +56,26 @@ namespace _03_FlowRequestResponse
 
 
         [Continuation]
-        public void HandleSecondQuoteResponse(QuoteResponseMessage message)
+        public async Task HandleSecondQuoteResponse(QuoteResponseMessage message, IFlowParallelRequest parallelRequest)
         {
             Console.WriteLine("[ParallelFlowController] Second quote response received");
             SecondQuote = message.Quote;
+
+            // Example of adding a request to an ongoing parallel request
+            await parallelRequest.AddRequestSync<QuoteRequestMessage, QuoteResponseMessage>(
+                new QuoteRequestMessage
+                {
+                    Amount = 3
+                },
+                HandleThirdQuoteResponse);
+        }
+
+
+        [Continuation]
+        public void HandleThirdQuoteResponse(QuoteResponseMessage message)
+        {
+            Console.WriteLine("[ParallelFlowController] First quote response received");
+            ThirdQuote = message.Quote;
         }
 
 
@@ -65,6 +83,16 @@ namespace _03_FlowRequestResponse
         {
             Console.WriteLine("[ParallelFlowController] First quote: " + FirstQuote);
             Console.WriteLine("[ParallelFlowController] Second quote: " + SecondQuote);
+            Console.WriteLine("[ParallelFlowController] Third quote: " + ThirdQuote);
+
+            return flowProvider.YieldWithParallelRequest()
+                .YieldSync(ImmediateConvergeTest, FlowNoRequestsBehaviour.Converge);
+        }
+
+
+        private IYieldPoint ImmediateConvergeTest()
+        {
+            Console.WriteLine("[ParallelFlowController] Second parallel flow immediately converged");
 
             exampleState.Done();
             return flowProvider.End();
