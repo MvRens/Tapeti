@@ -13,7 +13,7 @@ namespace Tapeti.Flow.SQL
         // 2627: Violation of %ls constraint '%.*ls'. Cannot insert duplicate key in object '%.*ls'. The duplicate key value is %ls.
         public static bool IsDuplicateKey(SqlException e)
         {
-            return e != null && (e.Number == 2601 || e.Number == 2627);
+            return e is { Number: 2601 or 2627 };
         }
 
 
@@ -21,12 +21,12 @@ namespace Tapeti.Flow.SQL
         {
             switch (e)
             {
-                case TimeoutException _:
+                case TimeoutException:
                     return true;
 
-                case Exception exception:
+                case not null:
                     {
-                        var sqlExceptions = ExtractSqlExceptions(exception);
+                        var sqlExceptions = ExtractSqlExceptions(e);
                         return sqlExceptions.Select(UnwrapSqlErrors).Any(IsRecoverableSQLError);
                     }
 
@@ -38,11 +38,13 @@ namespace Tapeti.Flow.SQL
         /// <summary>
         /// Extracts alls SqlExceptions from the main and inner or aggregate exceptions
         /// </summary>
-        public static IEnumerable<SqlException> ExtractSqlExceptions(Exception e)
+        public static IEnumerable<SqlException> ExtractSqlExceptions(Exception exception)
         {
-            while (e != null)
+            var exceptionHead = exception;
+
+            while (exceptionHead != null)
             {
-                switch (e)
+                switch (exceptionHead)
                 {
                     case AggregateException aggregateException:
                         foreach (var innerException in aggregateException.InnerExceptions)
@@ -56,7 +58,8 @@ namespace Tapeti.Flow.SQL
                         yield return sqlException;
                         break;
                 }
-                e = e.InnerException;
+
+                exceptionHead = exceptionHead.InnerException;
             }
         }
 
@@ -66,12 +69,14 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static IEnumerable<SqlError> UnwrapSqlErrors(SqlException exception)
         {
-            while (exception != null)
+            var exceptionHead = exception;
+
+            while (exceptionHead != null)
             {
-                foreach (SqlError error in exception.Errors)
+                foreach (SqlError error in exceptionHead.Errors)
                     yield return error;
 
-                exception = exception.InnerException as SqlException;
+                exceptionHead = exceptionHead.InnerException as SqlException;
             }
         }
 

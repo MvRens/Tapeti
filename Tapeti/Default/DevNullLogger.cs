@@ -3,7 +3,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default ILogger implementation which does not log anything.
     /// </summary>

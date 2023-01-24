@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// IExchangeStrategy implementation which uses the first identifier in the namespace in lower case,
     /// skipping the first identifier if it is 'Messaging'.

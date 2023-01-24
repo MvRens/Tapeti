@@ -16,9 +16,11 @@ namespace _07_ParallelizationTest
         }
 
 
+        #pragma warning disable IDE0060 // Remove unused parameter
         public async Task HandleSpeedTestMessage(SpeedTestMessage message)
         {
             await messageParallelization.WaitForBatch();
         }
+        #pragma warning restore IDE0060
     }
 }

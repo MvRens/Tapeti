@@ -9,7 +9,6 @@ using Tapeti.Connection;
 
 namespace Tapeti
 {
-    /// <inheritdoc />
     /// <summary>
     /// Creates a connection to RabbitMQ based on the provided Tapeti config.
     /// </summary>
@@ -25,10 +24,10 @@ namespace Tapeti
         /// This property must be set before first subscribing or publishing, otherwise it
         /// will use the default connection parameters.
         /// </remarks>
-        public TapetiConnectionParams Params { get; set; }
+        public TapetiConnectionParams? Params { get; set; }
 
         private readonly Lazy<ITapetiClient> client;
-        private TapetiSubscriber subscriber;
+        private TapetiSubscriber? subscriber;
 
         private bool disposed;
 
@@ -49,13 +48,13 @@ namespace Tapeti
         }
 
         /// <inheritdoc />
-        public event ConnectedEventHandler Connected;
+        public event ConnectedEventHandler? Connected;
 
         /// <inheritdoc />
-        public event DisconnectedEventHandler Disconnected;
+        public event DisconnectedEventHandler? Disconnected;
 
         /// <inheritdoc />
-        public event ConnectedEventHandler Reconnected;
+        public event ConnectedEventHandler? Reconnected;
 
 
         /// <inheritdoc />
@@ -164,7 +163,7 @@ namespace Tapeti
 
             var reconnectedEvent = Reconnected;
             if (reconnectedEvent != null)
-                Task.Run(() => reconnectedEvent?.Invoke(this, e));
+                Task.Run(() => reconnectedEvent.Invoke(this, e));
         }
 
         /// <summary>

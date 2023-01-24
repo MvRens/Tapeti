@@ -4,7 +4,6 @@ using Newtonsoft.Json;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Converts an <see cref="T:System.Enum" /> to and from its name string value. If an unknown string value is encountered
     /// it will translate to 0xDEADBEEF (-559038737) so it can be gracefully handled.
@@ -25,7 +24,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
             if (value == null)
             {
@@ -42,7 +41,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var isNullable = IsNullableType(objectType);
 

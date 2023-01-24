@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Transient
 {
-    /// <inheritdoc />
     /// <summary>
     /// Implements a binding for transient request response messages.
     /// Register this binding using the WithTransient config extension method.
@@ -15,10 +14,10 @@ namespace Tapeti.Transient
         private readonly string dynamicQueuePrefix;
 
         /// <inheritdoc />
-        public string QueueName { get; private set; }
+        public string? QueueName { get; private set; }
 
         /// <inheritdoc />
-        public QueueType QueueType => QueueType.Dynamic;
+        public QueueType? QueueType => Config.QueueType.Dynamic;
 
 
         /// <summary>
@@ -31,9 +30,9 @@ namespace Tapeti.Transient
 
 
         /// <inheritdoc />
-        public async Task Apply(IBindingTarget target)
+        public async ValueTask Apply(IBindingTarget target)
         {
-            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix);
+            QueueName = await target.BindDynamicDirect(dynamicQueuePrefix, null);
             router.TransientResponseQueueName = QueueName;
         }
 
@@ -46,17 +45,17 @@ namespace Tapeti.Transient
 
 
         /// <inheritdoc />
-        public Task Invoke(IMessageContext context)
+        public ValueTask Invoke(IMessageContext context)
         {
             router.HandleMessage(context);
-            return Task.CompletedTask;
+            return default;
         }
 
 
         /// <inheritdoc />
-        public Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
+        public ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

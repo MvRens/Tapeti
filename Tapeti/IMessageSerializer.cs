@@ -21,6 +21,6 @@ namespace Tapeti
         /// <param name="body">The encoded message</param>
         /// <param name="properties">The properties as sent along with the message</param>
         /// <returns>A decoded instance of the message</returns>
-        object Deserialize(byte[] body, IMessageProperties properties);
+        object? Deserialize(byte[] body, IMessageProperties properties);
     }
 }

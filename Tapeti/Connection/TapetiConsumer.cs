@@ -9,7 +9,6 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Connection
 {
-    /// <inheritdoc />
     /// <summary>
     /// Implements a RabbitMQ consumer to pass messages to the Tapeti middleware.
     /// </summary>
@@ -41,7 +40,7 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task<ConsumeResult> Consume(string exchange, string routingKey, IMessageProperties properties, byte[] body)
         {
-            object message = null;
+            object? message = null;
             try
             {
                 try
@@ -74,7 +73,7 @@ namespace Tapeti.Connection
                     RawBody = body,
                     Message = message,
                     Properties = properties,
-                    Binding = null,
+                    Binding = new ExceptionContextBinding(queueName),
                     ConnectionClosed = CancellationToken.None
                 };
                 
@@ -172,7 +171,7 @@ namespace Tapeti.Connection
             return e switch
             {
                 AggregateException aggregateException => aggregateException.InnerExceptions.Any(IgnoreExceptionDuringShutdown),
-                TaskCanceledException or OperationCanceledException => true,
+                OperationCanceledException => true,
                 _ => e.InnerException != null && IgnoreExceptionDuringShutdown(e.InnerException)
             };
         }
@@ -184,6 +183,43 @@ namespace Tapeti.Connection
             public string Exchange;
             public string RoutingKey;
             public IMessageProperties Properties;
+        }
+
+
+        private class ExceptionContextBinding : IBinding
+        {
+            public string? QueueName { get; }
+            public QueueType? QueueType => null;
+
+
+            public ExceptionContextBinding(string? queueName)
+            {
+                QueueName = queueName;
+            }
+
+
+            public ValueTask Apply(IBindingTarget target)
+            {
+                throw new InvalidOperationException("Apply method should not be called on a binding in an Exception context");
+            }
+
+
+            public bool Accept(Type messageClass)
+            {
+                throw new InvalidOperationException("Accept method should not be called on a binding in an Exception context");
+            }
+
+
+            public ValueTask Invoke(IMessageContext context)
+            {
+                throw new InvalidOperationException("Invoke method should not be called on a binding in an Exception context");
+            }
+
+
+            public ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult)
+            {
+                throw new InvalidOperationException("Cleanup method should not be called on a binding in an Exception context");
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Tapeti.Serilog.Default
     public class DiagnosticContext : IDiagnosticContext
     {
         private readonly global::Serilog.ILogger logger;
-        private readonly List<LogEventProperty> properties = new List<LogEventProperty>();
+        private readonly List<LogEventProperty> properties = new();
 
         
         /// <summary>

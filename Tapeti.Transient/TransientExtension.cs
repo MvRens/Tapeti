@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Tapeti.Config;
 
 namespace Tapeti.Transient
@@ -31,7 +32,7 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
         {
-            return null;
+            return Enumerable.Empty<object>();
         }
 
 

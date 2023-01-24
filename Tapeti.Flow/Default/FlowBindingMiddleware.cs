@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -9,6 +10,17 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
+    #if !NET7_0_OR_GREATER
+    #pragma warning disable CS1591
+    public class UnreachableException : Exception
+    {
+        public UnreachableException(string message) : base(message)
+        {
+        }
+    }
+    #pragma warning restore CS1591
+    #endif
+
     internal class FlowBindingMiddleware : IControllerBindingMiddleware
     {
         public void Handle(IControllerBindingContext context, Action next)
@@ -31,6 +43,9 @@ namespace Tapeti.Flow.Default
             if (continuationAttribute == null)
                 return;
 
+            if (context.Method.IsStatic)
+                throw new ArgumentException($"Continuation attribute is not valid on static methods in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
+
             context.SetBindingTargetMode(BindingTargetMode.Direct);
             context.Use(new FlowContinuationMiddleware());
 
@@ -43,16 +58,31 @@ namespace Tapeti.Flow.Default
             {
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
+                    if (value == null)
+                        throw new InvalidOperationException("Return value should be a Task, not null");
+
                     await (Task)value;
+                    await HandleParallelResponse(messageContext);
+                });
+            }
+            if (context.Result.Info.ParameterType == typeof(ValueTask))
+            {
+                context.Result.SetHandler(async (messageContext, value) =>
+                {
+                    if (value == null)
+                        // ValueTask is a struct and should never be null
+                        throw new UnreachableException("Return value should be a ValueTask, not null");
+
+                    await (ValueTask)value;
                     await HandleParallelResponse(messageContext);
                 });
             }
             else if (context.Result.Info.ParameterType == typeof(void))
             {
-                context.Result.SetHandler((messageContext, value) => HandleParallelResponse(messageContext));
+                context.Result.SetHandler((messageContext, _) => HandleParallelResponse(messageContext));
             }
             else
-                throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context. Method.DeclaringType?.FullName}, method {context.Method.Name}");
+                throw new ArgumentException($"Result type must be IYieldPoint, Task or void in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
 
 
             foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType == typeof(IFlowParallelRequest)))
@@ -62,34 +92,64 @@ namespace Tapeti.Flow.Default
 
         private static void RegisterYieldPointResult(IControllerBindingContext context)
         {
-            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var isTaskOf))
+            if (!context.Result.Info.ParameterType.IsTypeOrTaskOf(typeof(IYieldPoint), out var taskType))
                 return;
 
-            if (isTaskOf)
+            if (context.Method.IsStatic)
+                throw new ArgumentException($"Yield points are not valid on static methods in controller {context.Method.DeclaringType?.FullName}, method {context.Method.Name}");
+
+            switch (taskType)
             {
-                context.Result.SetHandler(async (messageContext, value) =>
-                {
-                    var yieldPoint = await (Task<IYieldPoint>)value;
-                    if (yieldPoint != null)
+                case TaskType.None:
+                    context.Result.SetHandler((messageContext, value) =>
+                    {
+                        if (value == null)
+                            throw new InvalidOperationException("Return value should be an IYieldPoint, not null");
+
+                        return HandleYieldPoint(messageContext, (IYieldPoint)value);
+                    });
+                    break;
+
+                case TaskType.Task:
+                    context.Result.SetHandler(async (messageContext, value) =>
+                    {
+                        if (value == null)
+                            throw new InvalidOperationException("Return value should be a Task<IYieldPoint>, not null");
+
+                        var yieldPoint = await (Task<IYieldPoint>)value;
                         await HandleYieldPoint(messageContext, yieldPoint);
-                });
+                    });
+                    break;
+
+                case TaskType.ValueTask:
+                    context.Result.SetHandler(async (messageContext, value) =>
+                    {
+                        if (value == null)
+                            // ValueTask is a struct and should never be null
+                            throw new UnreachableException("Return value should be a ValueTask<IYieldPoint>, not null");
+
+                        var yieldPoint = await (ValueTask<IYieldPoint>)value;
+                        await HandleYieldPoint(messageContext, yieldPoint);
+                    });
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
-            else
-                context.Result.SetHandler((messageContext, value) => HandleYieldPoint(messageContext, (IYieldPoint)value));
         }
 
 
-        private static Task HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
+        private static ValueTask HandleYieldPoint(IMessageContext context, IYieldPoint yieldPoint)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), yieldPoint);
         }
 
 
-        private static Task HandleParallelResponse(IMessageContext context)
+        private static ValueTask HandleParallelResponse(IMessageContext context)
         {
             if (context.TryGet<FlowMessageContextPayload>(out var flowPayload) && flowPayload.FlowIsConverging)
-                return Task.CompletedTask;
+                return default;
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>
@@ -110,7 +170,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        private static object ParallelRequestParameterFactory(IMessageContext context)
+        private static object? ParallelRequestParameterFactory(IMessageContext context)
         {
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.GetParallelRequest(new FlowHandlerContext(context));

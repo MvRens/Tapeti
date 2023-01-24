@@ -3,7 +3,6 @@ using Tapeti.Config;
 
 namespace Tapeti.DataAnnotations
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides the DataAnnotations validation middleware.
     /// </summary>

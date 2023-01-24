@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Flow.FlowHelpers;
@@ -12,7 +11,7 @@ namespace Tapeti.Flow.Default
     /// </summary>
     internal class FlowContinuationMiddleware : IControllerFilterMiddleware, IControllerMessageMiddleware, IControllerCleanupMiddleware
     {
-        public async Task Filter(IMessageContext context, Func<Task> next)
+        public async ValueTask Filter(IMessageContext context, Func<ValueTask> next)
         {
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
@@ -28,15 +27,19 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Handle(IMessageContext context, Func<Task> next)
+        public async ValueTask Handle(IMessageContext context, Func<ValueTask> next)
         {
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
 
             if (context.TryGet<FlowMessageContextPayload>(out var flowPayload))
             {
+                if (controllerPayload.Controller == null)
+                    throw new InvalidOperationException("Controller is not available (method is static?)");
+
                 var flowContext = flowPayload.FlowContext;
-                Newtonsoft.Json.JsonConvert.PopulateObject(flowContext.FlowState.Data, controllerPayload.Controller);
+                if (!string.IsNullOrEmpty(flowContext.FlowState.Data))
+                    Newtonsoft.Json.JsonConvert.PopulateObject(flowContext.FlowState.Data, controllerPayload.Controller);
 
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
                 flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
@@ -54,7 +57,7 @@ namespace Tapeti.Flow.Default
         }
 
 
-        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<Task> next)
+        public async ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<ValueTask> next)
         {
             await next();
 
@@ -66,11 +69,11 @@ namespace Tapeti.Flow.Default
 
             var flowContext = flowPayload.FlowContext;
 
-            if (flowContext.ContinuationMetadata.MethodName != MethodSerializer.Serialize(controllerPayload.Binding.Method))
+            if (flowContext.ContinuationMetadata == null || flowContext.ContinuationMetadata.MethodName != MethodSerializer.Serialize(controllerPayload.Binding.Method))
                 // Do not call when the controller method was filtered, if the same message has two methods
                 return;
 
-            if (flowContext.FlowStateLock != null)
+            if (flowContext.HasFlowStateAndLock)
             {
                 if (!flowContext.IsStoredOrDeleted())
                     // The exception strategy can set the consume result to Success. Instead, check if the yield point
@@ -83,7 +86,7 @@ namespace Tapeti.Flow.Default
 
 
 
-        private static async Task<FlowContext> EnrichWithFlowContext(IMessageContext context)
+        private static async ValueTask<FlowContext?> EnrichWithFlowContext(IMessageContext context)
         {
             if (context.TryGet<FlowMessageContextPayload>(out var flowPayload))
                 return flowPayload.FlowContext;
@@ -107,13 +110,8 @@ namespace Tapeti.Flow.Default
             if (flowState == null)
                 return null;
 
-            var flowContext = new FlowContext
+            var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock)
             {
-                HandlerContext = new FlowHandlerContext(context),
-
-                FlowStateLock = flowStateLock,
-                FlowState = flowState,
-
                 ContinuationID = continuationID,
                 ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out var continuation) ? continuation : null
             };

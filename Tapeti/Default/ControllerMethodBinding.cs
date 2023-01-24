@@ -4,11 +4,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
+using Tapeti.Connection;
 using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Binding implementation for controller methods. Do not instantiate this class yourself,
     /// instead use the ITapetiConfigBuilder RegisterController / RegisterAllControllers extension
@@ -60,7 +60,7 @@ namespace Tapeti.Default
             /// <summary>
             /// The return value handler.
             /// </summary>
-            public ResultHandler ResultHandler;
+            public ResultHandler? ResultHandler;
 
 
             /// <summary>
@@ -87,10 +87,10 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public string QueueName { get; private set; }
+        public string? QueueName { get; private set; }
 
         /// <inheritdoc />
-        public QueueType QueueType => bindingInfo.QueueInfo.QueueType;
+        public QueueType? QueueType => bindingInfo.QueueInfo.QueueType;
 
         /// <inheritdoc />
         public Type Controller => bindingInfo.ControllerType;
@@ -109,29 +109,29 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Apply(IBindingTarget target)
+        public async ValueTask Apply(IBindingTarget target)
         {
             if (!bindingInfo.IsObsolete)
             {
                 switch (bindingInfo.BindingTargetMode)
                 {
                     case BindingTargetMode.Default:
-                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                        if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
+                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
                         break;
 
                     case BindingTargetMode.Direct:
-                        if (bindingInfo.QueueInfo.QueueType == QueueType.Dynamic)
-                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name);
+                        if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
+                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name);
+                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -141,7 +141,7 @@ namespace Tapeti.Default
                         throw new ArgumentOutOfRangeException(nameof(bindingInfo.BindingTargetMode), bindingInfo.BindingTargetMode, "Invalid BindingTargetMode");
                 }
             }
-            else if (bindingInfo.QueueInfo.QueueType == QueueType.Durable)
+            else if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Durable)
             {
                 await target.BindDurableObsolete(bindingInfo.QueueInfo.Name);
                 QueueName = bindingInfo.QueueInfo.Name;
@@ -157,10 +157,13 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Invoke(IMessageContext context)
+        public async ValueTask Invoke(IMessageContext context)
         {
-            var controller = dependencyResolver.Resolve(bindingInfo.ControllerType);
-            context.Store(new ControllerMessageContextPayload(controller, context.Binding as IControllerMethodBinding));
+            if (context.Binding == null)
+                throw new InvalidOperationException("Invoke should not be called on a context without a binding");
+
+            var controller = Method.IsStatic ? null : dependencyResolver.Resolve(bindingInfo.ControllerType);
+            context.Store(new ControllerMessageContextPayload(controller, (IControllerMethodBinding)context.Binding));
             
             if (!await FilterAllowed(context))
                 return;
@@ -174,12 +177,12 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public async Task Cleanup(IMessageContext context, ConsumeResult consumeResult)
+        public async ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult)
         {
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,
                 async (handler, next) => await handler.Cleanup(context, consumeResult, next),
-                () => Task.CompletedTask);
+                () => default);
         }
 
 
@@ -192,42 +195,43 @@ namespace Tapeti.Default
                 () =>
                 {
                     allowed = true;
-                    return Task.CompletedTask;
+                    return default;
                 });
 
             return allowed;
         }
 
 
-        private delegate Task MessageHandlerFunc(IMessageContext context);
+        private delegate ValueTask MessageHandlerFunc(IMessageContext context);
 
 
-        private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapMethod(MethodInfo method, IEnumerable<ValueFactory> parameterFactories, ResultHandler? resultHandler)
         {
             if (resultHandler != null)
-                return WrapResultHandlerMethod(method, parameterFactories, resultHandler);
+                return WrapResultHandlerMethod(method.CreateExpressionInvoke(), parameterFactories, resultHandler);
 
             if (method.ReturnType == typeof(void))
-                return WrapNullMethod(method, parameterFactories);
+                return WrapNullMethod(method.CreateExpressionInvoke(), parameterFactories);
 
             if (method.ReturnType == typeof(Task))
-                return WrapTaskMethod(method, parameterFactories);
+                return WrapTaskMethod(method.CreateExpressionInvoke(), parameterFactories);
 
-            if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
-                return WrapGenericTaskMethod(method, parameterFactories);
+            if (method.ReturnType == typeof(ValueTask))
+                return WrapValueTaskMethod(method.CreateExpressionInvoke(), parameterFactories);
 
-            return WrapObjectMethod(method, parameterFactories);
+            // Breaking change in Tapeti 2.9: PublishResultBinding or other middleware should have taken care of the return value. If not, don't silently discard it.
+            throw new ArgumentException($"Method {method.Name} on controller {method.DeclaringType?.FullName} returns type {method.ReturnType.FullName}, which can not be handled by Tapeti or any registered middleware");
         }
 
 
-        private MessageHandlerFunc WrapResultHandlerMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
+        private MessageHandlerFunc WrapResultHandlerMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories, ResultHandler resultHandler)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    var result = method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    var result = invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                     return resultHandler(context, result);
                 }
                 catch (Exception e)
@@ -238,15 +242,15 @@ namespace Tapeti.Default
             };
         }
 
-        private MessageHandlerFunc WrapNullMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapNullMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
-                { 
-                    method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                    return Task.CompletedTask;
+                {
+                    invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return default;
                 }
                 catch (Exception e)
                 {
@@ -257,14 +261,14 @@ namespace Tapeti.Default
         }
 
 
-        private MessageHandlerFunc WrapTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapTaskMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return (Task) method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
+                    return new ValueTask((Task) invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
                 }
                 catch (Exception e)
                 {
@@ -275,32 +279,14 @@ namespace Tapeti.Default
         }
 
 
-        private MessageHandlerFunc WrapGenericTaskMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
-        {
-            return context =>
-            {
-                var controllerPayload = context.Get<ControllerMessageContextPayload>();
-                try
-                { 
-                    return (Task<object>)method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
-                }
-                catch (Exception e)
-                {
-                    AddExceptionData(e);
-                    throw;
-                }
-            };
-        }
-
-
-        private MessageHandlerFunc WrapObjectMethod(MethodBase method, IEnumerable<ValueFactory> parameterFactories)
+        private MessageHandlerFunc WrapValueTaskMethod(ExpressionInvoke invoke, IEnumerable<ValueFactory> parameterFactories)
         {
             return context =>
             {
                 var controllerPayload = context.Get<ControllerMessageContextPayload>();
                 try
                 {
-                    return Task.FromResult(method.Invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray()));
+                    return (ValueTask)invoke(controllerPayload.Controller, parameterFactories.Select(p => p(context)).ToArray());
                 }
                 catch (Exception e)
                 {
@@ -313,8 +299,8 @@ namespace Tapeti.Default
 
         private void AddExceptionData(Exception exception)
         {
-            exception.Data["Tapeti.Controller.Name"] = bindingInfo.ControllerType?.FullName;
-            exception.Data["Tapeti.Controller.Method"] = bindingInfo.Method?.Name;
+            exception.Data["Tapeti.Controller.Name"] = bindingInfo.ControllerType.FullName;
+            exception.Data["Tapeti.Controller.Method"] = bindingInfo.Method.Name;
         }
 
 
@@ -333,11 +319,22 @@ namespace Tapeti.Default
             /// </summary>
             public string Name { get; set; }
 
-
+            /// <summary>
+            /// Optional arguments (x-arguments) passed when declaring the queue.
+            /// </summary>
+            public IRabbitMQArguments? QueueArguments { get; set; }
+                
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.
             /// </summary>
             public bool IsValid => QueueType == QueueType.Dynamic || !string.IsNullOrEmpty(Name);
+
+
+            public QueueInfo(QueueType queueType, string name)
+            {
+                QueueType = queueType;
+                Name = name;
+            }
         }
     }
 }

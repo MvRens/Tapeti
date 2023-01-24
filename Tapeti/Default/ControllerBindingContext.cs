@@ -26,7 +26,7 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
-        public Type MessageClass { get; set; }
+        public Type? MessageClass { get; set; }
 
         /// <inheritdoc />
         public bool HasMessageClass => MessageClass != null;
@@ -44,10 +44,12 @@ namespace Tapeti.Default
         public IBindingResult Result => result;
 
 
-        public ControllerBindingContext(IEnumerable<ParameterInfo> parameters, ParameterInfo result)
+        public ControllerBindingContext(Type controller, MethodInfo method, IEnumerable<ParameterInfo> parameters, ParameterInfo result)
         {
-            this.parameters = parameters.Select(parameter => new ControllerBindingParameter(parameter)).ToList();
+            Controller = controller;
+            Method = method;
 
+            this.parameters = parameters.Select(parameter => new ControllerBindingParameter(parameter)).ToList();
             this.result = new ControllerBindingResult(result);
         }
 
@@ -84,7 +86,13 @@ namespace Tapeti.Default
         /// </summary>
         public IEnumerable<ValueFactory> GetParameterHandlers()
         {
-            return parameters.Select(p => p.Binding);
+            return parameters.Select(p =>
+            {
+                if (p.Binding == null)
+                    throw new TopologyConfigurationException($"No Binding for parameter {p.Info.Name}");
+
+                return p.Binding;
+            });
         }
 
 
@@ -92,14 +100,13 @@ namespace Tapeti.Default
         /// Returns the configured result handler.
         /// </summary>
         /// <returns></returns>
-        public ResultHandler GetResultHandler()
+        public ResultHandler? GetResultHandler()
         {
             return result.Handler;
         }
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IBindingParameter
     /// </summary>
@@ -108,7 +115,7 @@ namespace Tapeti.Default
         /// <summary>
         /// Provides access to the configured binding.
         /// </summary>
-        public ValueFactory Binding { get; set; }
+        public ValueFactory? Binding { get; set; }
 
 
         /// <inheritdoc />
@@ -139,7 +146,6 @@ namespace Tapeti.Default
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IBindingResult
     /// </summary>
@@ -148,7 +154,7 @@ namespace Tapeti.Default
         /// <summary>
         /// Provides access to the configured handler.
         /// </summary>
-        public ResultHandler Handler { get; set; }
+        public ResultHandler? Handler { get; set; }
 
 
         /// <inheritdoc />

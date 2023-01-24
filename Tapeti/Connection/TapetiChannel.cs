@@ -21,7 +21,7 @@ namespace Tapeti.Connection
     {
         private readonly Func<IModel> modelFactory;
         private readonly object taskQueueLock = new();
-        private SingleThreadTaskQueue taskQueue;
+        private SingleThreadTaskQueue? taskQueue;
         private readonly ModelProvider modelProvider;
 
 
@@ -34,7 +34,7 @@ namespace Tapeti.Connection
 
         public async Task Reset()
         {
-            SingleThreadTaskQueue capturedTaskQueue;
+            SingleThreadTaskQueue? capturedTaskQueue;
             
             lock (taskQueueLock)
             {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 // ReSharper disable UnusedMemberInSuper.Global - public API
@@ -34,12 +35,12 @@ namespace Tapeti.Config
         /// <summary>
         /// Contains the raw body of the message.
         /// </summary>
-        byte[] RawBody { get; }
+        byte[]? RawBody { get; }
         
         /// <summary>
         /// Contains the decoded message instance.
         /// </summary>
-        object Message { get; }
+        object? Message { get; }
 
         /// <summary>
         /// Provides access to the message metadata.
@@ -55,7 +56,7 @@ namespace Tapeti.Config
         /// Contains a CancellationToken which is cancelled when the connection to the RabbitMQ server is closed.
         /// Note that this token is cancelled regardless of whether the connection will be reestablished, as any
         /// messages still in the queue will be redelivered with a new token.
-       /// </summary>
+        /// </summary>
         CancellationToken ConnectionClosed { get; }
 
         /// <summary>
@@ -87,7 +88,7 @@ namespace Tapeti.Config
         /// Returns true and the payload value if this message context was previously enriched with the payload T.
         /// </summary>
         /// <typeparam name="T">The payload type as passed to Enrich</typeparam>
-        bool TryGet<T>(out T payload) where T : IMessageContextPayload;
+        bool TryGet<T>([NotNullWhen(true)] out T? payload) where T : IMessageContextPayload;
 
         /// <summary>
         /// Stores a key-value pair in the context for passing information between the various
@@ -105,7 +106,7 @@ namespace Tapeti.Config
         /// <param name="value"></param>
         /// <returns>True if the value was found, False otherwise</returns>
         [Obsolete("For backwards compatibility only. Use Get<T> payload overload for typed properties instead")]
-        bool Get<T>(string key, out T value) where T : class;
+        bool Get<T>(string key, out T? value) where T : class;
     }
 
 

@@ -105,9 +105,9 @@ namespace _07_ParallelizationTest
         private readonly Func<bool> done;
         private readonly Action<int> timeout;
         private int count;
-        private readonly object waitLock = new object();
-        private TaskCompletionSource<bool> batchReachedTask = new TaskCompletionSource<bool>();
-        private Timer messageExpectedTimer;
+        private readonly object waitLock = new();
+        private TaskCompletionSource<bool> batchReachedTask = new();
+        private Timer? messageExpectedTimer;
         private readonly TimeSpan messageExpectedTimeout = TimeSpan.FromMilliseconds(5000);
 
 
@@ -124,7 +124,7 @@ namespace _07_ParallelizationTest
             lock (waitLock)
             {
                 if (messageExpectedTimer == null)
-                    messageExpectedTimer = new Timer(state =>
+                    messageExpectedTimer = new Timer(_ =>
                     {
                         timeout(count);
                     }, null, messageExpectedTimeout, Timeout.InfiniteTimeSpan);

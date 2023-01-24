@@ -12,7 +12,7 @@ namespace _06_StatelessRequestResponse
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
             var container = new Container();
             var dependencyResolver = new SimpleInjectorDependencyResolver(container);
@@ -32,20 +32,18 @@ namespace _06_StatelessRequestResponse
                 .Build();
 
 
-            using (var connection = new TapetiConnection(config))
-            {
-                await connection.Subscribe();
+            await using var connection = new TapetiConnection(config);
+            await connection.Subscribe();
 
-                var publisher = dependencyResolver.Resolve<IPublisher>();
-                await publisher.PublishRequest<ExampleMessageController, QuoteRequestMessage, QuoteResponseMessage>(
-                    new QuoteRequestMessage
-                    {
-                        Amount = 1
-                    }, 
-                    c => c.HandleQuoteResponse);
+            var publisher = dependencyResolver.Resolve<IPublisher>();
+            await publisher.PublishRequest<ExampleMessageController, QuoteRequestMessage, QuoteResponseMessage>(
+                new QuoteRequestMessage
+                {
+                    Amount = 1
+                }, 
+                c => c.HandleQuoteResponse);
 
-                await waitForDone();
-            }
+            await waitForDone();
         }
     }
 }

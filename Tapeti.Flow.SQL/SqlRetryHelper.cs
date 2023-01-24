@@ -54,7 +54,7 @@ namespace Tapeti.Flow.SQL
                 returnValue = await callback();
             });
 
-            return returnValue;
+            return returnValue!;
         }
     }
 }

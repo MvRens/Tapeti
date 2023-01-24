@@ -5,7 +5,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Example exception strategy which requeues all messages that result in an error.
     /// </summary>

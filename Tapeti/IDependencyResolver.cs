@@ -23,7 +23,6 @@ namespace Tapeti
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Allows registering controller classes into the IoC container. Also registers default implementations,
     /// so that the calling application may override these.
