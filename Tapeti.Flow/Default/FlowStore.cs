@@ -9,7 +9,6 @@ using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation of IFlowStore.
     /// </summary>
@@ -17,11 +16,11 @@ namespace Tapeti.Flow.Default
     {
         private class CachedFlowState
         {
-            public readonly FlowState FlowState;
+            public readonly FlowState? FlowState;
             public readonly DateTime CreationTime;
             public readonly bool IsPersistent;
 
-            public CachedFlowState(FlowState flowState, DateTime creationTime, bool isPersistent)
+            public CachedFlowState(FlowState? flowState, DateTime creationTime, bool isPersistent)
             {
                 FlowState = flowState;
                 CreationTime = creationTime;
@@ -29,10 +28,10 @@ namespace Tapeti.Flow.Default
             }
         }
 
-        private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new ConcurrentDictionary<Guid, CachedFlowState>();
-        private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new ConcurrentDictionary<Guid, Guid>();
-        private readonly LockCollection<Guid> locks = new LockCollection<Guid>(EqualityComparer<Guid>.Default);
-        private HashSet<string> validatedMethods;
+        private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
+        private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
+        private readonly LockCollection<Guid> locks = new(EqualityComparer<Guid>.Default);
+        private HashSet<string>? validatedMethods;
 
         private readonly IFlowRepository repository;
         private readonly ITapetiConfig config;
@@ -51,7 +50,7 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public async Task Load()
+        public async ValueTask Load()
         {
             if (inUse)
                 throw new InvalidOperationException("Can only load the saved state once.");
@@ -86,10 +85,13 @@ namespace Tapeti.Flow.Default
 
         private void ValidateContinuation(Guid flowId, Guid continuationId, ContinuationMetadata metadata)
         {
+            if (string.IsNullOrEmpty(metadata.MethodName))
+                return;
+
             // We could check all the things that are required for a continuation or converge method, but this should suffice
             // for the common scenario where you change code without realizing that it's signature has been persisted
             // ReSharper disable once InvertIf
-            if (validatedMethods.Add(metadata.MethodName))
+            if (validatedMethods!.Add(metadata.MethodName))
             {
                 var methodInfo = MethodSerializer.Deserialize(metadata.MethodName);
                 if (methodInfo == null)
@@ -114,17 +116,17 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public Task<Guid?> FindFlowID(Guid continuationID)
+        public ValueTask<Guid?> FindFlowID(Guid continuationID)
         {
             if (!loaded)
                 throw new InvalidOperationException("Flow store is not yet loaded.");
 
-            return Task.FromResult(continuationLookup.TryGetValue(continuationID, out var result) ? result : (Guid?)null);
+            return new ValueTask<Guid?>(continuationLookup.TryGetValue(continuationID, out var result) ? result : null);
         }
 
 
         /// <inheritdoc />
-        public async Task<IFlowStateLock> LockFlowState(Guid flowID)
+        public async ValueTask<IFlowStateLock> LockFlowState(Guid flowID)
         {
             if (!loaded)
                 throw new InvalidOperationException("Flow store should be loaded before storing flows.");
@@ -137,22 +139,22 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public Task<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
         {
             var maximumDateTime = DateTime.UtcNow - minimumAge;
 
-            return Task.FromResult(flowStates
+            return new ValueTask<IEnumerable<ActiveFlow>>(flowStates
                 .Where(p => p.Value.CreationTime <= maximumDateTime)
                 .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
-                .ToArray() as IEnumerable<ActiveFlow>);
+                .ToArray());
         }
 
 
         private class FlowStateLock : IFlowStateLock
         {
             private readonly FlowStore owner;
-            private volatile IDisposable flowLock;
-            private CachedFlowState cachedFlowState;
+            private volatile IDisposable? flowLock;
+            private CachedFlowState? cachedFlowState;
 
             public Guid FlowID { get; }
 
@@ -173,15 +175,15 @@ namespace Tapeti.Flow.Default
                 l?.Dispose();
             }
 
-            public Task<FlowState> GetFlowState()
+            public ValueTask<FlowState?> GetFlowState()
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                return Task.FromResult(cachedFlowState?.FlowState?.Clone());
+                return new ValueTask<FlowState?>(cachedFlowState?.FlowState?.Clone());
             }
 
-            public async Task StoreFlowState(FlowState newFlowState, bool persistent)
+            public async ValueTask StoreFlowState(FlowState newFlowState, bool persistent)
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
@@ -190,13 +192,13 @@ namespace Tapeti.Flow.Default
                 newFlowState = newFlowState.Clone();
 
                 // Update the lookup dictionary for the ContinuationIDs
-                if (cachedFlowState != null)
+                if (cachedFlowState?.FlowState != null)
                 {
                     foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
                         owner.continuationLookup.TryRemove(removedContinuation, out _);
                 }
 
-                foreach (var addedContinuation in newFlowState.Continuations.Where(c => cachedFlowState == null || !cachedFlowState.FlowState.Continuations.ContainsKey(c.Key)))
+                foreach (var addedContinuation in newFlowState.Continuations.Where(c => cachedFlowState?.FlowState == null || !cachedFlowState.FlowState.Continuations.ContainsKey(c.Key)))
                 {
                     owner.continuationLookup.TryAdd(addedContinuation.Key, FlowID);
                 }
@@ -204,7 +206,7 @@ namespace Tapeti.Flow.Default
                 var isNew = cachedFlowState == null;
                 var wasPersistent = cachedFlowState?.IsPersistent ?? false;
 
-                cachedFlowState = new CachedFlowState(newFlowState, isNew ? DateTime.UtcNow : cachedFlowState.CreationTime, persistent);
+                cachedFlowState = new CachedFlowState(newFlowState, isNew ? DateTime.UtcNow : cachedFlowState!.CreationTime, persistent);
                 owner.flowStates[FlowID] = cachedFlowState;
 
                 if (persistent)
@@ -227,12 +229,12 @@ namespace Tapeti.Flow.Default
                 }
             }
 
-            public async Task DeleteFlowState()
+            public async ValueTask DeleteFlowState()
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                if (cachedFlowState != null)
+                if (cachedFlowState?.FlowState != null)
                 {
                     foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys)
                         owner.continuationLookup.TryRemove(removedContinuation, out _);
@@ -240,7 +242,7 @@ namespace Tapeti.Flow.Default
                     owner.flowStates.TryRemove(FlowID, out var removedFlowState);
                     cachedFlowState = null;
 
-                    if (removedFlowState.IsPersistent)
+                    if (removedFlowState is { IsPersistent: true })
                         await owner.repository.DeleteState(FlowID);
                 }
             }

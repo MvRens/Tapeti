@@ -3,7 +3,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation of an exception strategy which marks the messages as Error.
     /// </summary>

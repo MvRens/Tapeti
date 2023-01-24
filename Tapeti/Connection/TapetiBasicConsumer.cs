@@ -14,7 +14,6 @@ namespace Tapeti.Connection
     public delegate Task ResponseFunc(long expectedConnectionReference, ulong deliveryTag, ConsumeResult result);
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
     /// </summary>

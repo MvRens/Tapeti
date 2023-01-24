@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Version>2.0.0</Version>
     <Authors>Mark van Renswoude</Authors>
@@ -11,18 +11,27 @@
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
     <PackageIcon>Tapeti.png</PackageIcon>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>9</LangVersion>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <NoWarn>1701;1702</NoWarn>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <DefineConstants></DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.*" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="RabbitMQ.Client" Version="6.2.1" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,7 +42,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="Tapeti.Annotations" Version="3.0.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.*-*" />
   </ItemGroup>
 </Project>

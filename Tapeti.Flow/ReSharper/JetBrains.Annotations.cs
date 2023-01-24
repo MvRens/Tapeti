@@ -170,11 +170,11 @@ namespace JetBrains.Annotations
     {
         public PublicAPIAttribute() { }
 
-        public PublicAPIAttribute([NotNull] string comment)
+        public PublicAPIAttribute(string comment)
         {
             Comment = comment;
         }
 
-        [CanBeNull] public string Comment { get; }
+        public string? Comment { get; }
     }
 }

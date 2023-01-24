@@ -18,14 +18,14 @@ namespace Tapeti.Flow.FlowHelpers
         }
 
 
-        private static readonly Regex DeserializeRegex = new Regex("^(?<method>.+?)@(?<assembly>.+?):(?<type>.+?)$");
+        private static readonly Regex DeserializeRegex = new("^(?<method>.+?)@(?<assembly>.+?):(?<type>.+?)$");
 
         
         /// <summary>
         /// Deserializes the serialized method representation back into it's MethodInfo, or null if not found.
         /// </summary>
         /// <param name="serializedMethod"></param>
-        public static MethodInfo Deserialize(string serializedMethod)
+        public static MethodInfo? Deserialize(string serializedMethod)
         {
             var match = DeserializeRegex.Match(serializedMethod);
             if (!match.Success)
@@ -35,8 +35,6 @@ namespace Tapeti.Flow.FlowHelpers
             try
             {
                 assembly = Assembly.Load(match.Groups["assembly"].Value);
-                if (assembly == null)
-                    return null;
             }
             catch
             {

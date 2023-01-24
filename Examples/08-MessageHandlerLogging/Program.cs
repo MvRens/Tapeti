@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using ExampleLib;
 using Messaging.TapetiExample;
 using Serilog;
-using Serilog.Events;
 using SimpleInjector;
 using Tapeti;
 using Tapeti.Serilog;

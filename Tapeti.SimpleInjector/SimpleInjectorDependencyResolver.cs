@@ -4,19 +4,18 @@ using SimpleInjector;
 
 namespace Tapeti.SimpleInjector
 {
-    /// <inheritdoc />
     /// <summary>
     /// Dependency resolver and container implementation for SimpleInjector.
     /// </summary>
     public class SimpleInjectorDependencyResolver : IDependencyContainer
     {
         private readonly Container container;
-        private readonly Lifestyle defaultsLifestyle;
-        private readonly Lifestyle controllersLifestyle;
+        private readonly Lifestyle? defaultsLifestyle;
+        private readonly Lifestyle? controllersLifestyle;
 
         /// <summary>
         /// </summary>
-        public SimpleInjectorDependencyResolver(Container container, Lifestyle defaultsLifestyle = null, Lifestyle controllersLifestyle = null)
+        public SimpleInjectorDependencyResolver(Container container, Lifestyle? defaultsLifestyle = null, Lifestyle? controllersLifestyle = null)
         {
             this.container = container;
             this.defaultsLifestyle = defaultsLifestyle;

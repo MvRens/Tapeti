@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -9,10 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="5.10.3" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
-    <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
+    <PackageReference Include="FluentAssertions" Version="6.8.0" />
+    <PackageReference Include="JetBrains.Annotations" Version="2022.3.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
+    <PackageReference Include="Moq" Version="4.18.2" />
+    <PackageReference Include="Testcontainers" Version="2.2.0" />
+    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
@@ -20,10 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tapeti\Tapeti.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Core\" />
   </ItemGroup>
 
 </Project>

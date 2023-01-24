@@ -2,7 +2,6 @@
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Raised when a response is expected to end a flow, but none was provided.
     /// </summary>

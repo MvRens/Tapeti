@@ -15,9 +15,9 @@ namespace _03_FlowRequestResponse
         private readonly IFlowProvider flowProvider;
         private readonly IExampleState exampleState;
 
-        public string FirstQuote;
-        public string SecondQuote;
-        public string ThirdQuote;
+        public string? FirstQuote;
+        public string? SecondQuote;
+        public string? ThirdQuote;
 
 
         public ParallelFlowController(IFlowProvider flowProvider, IExampleState exampleState)
@@ -56,7 +56,7 @@ namespace _03_FlowRequestResponse
 
 
         [Continuation]
-        public async Task HandleSecondQuoteResponse(QuoteResponseMessage message, IFlowParallelRequest parallelRequest)
+        public async ValueTask HandleSecondQuoteResponse(QuoteResponseMessage message, IFlowParallelRequest parallelRequest)
         {
             Console.WriteLine("[ParallelFlowController] Second quote response received");
             SecondQuote = message.Quote;

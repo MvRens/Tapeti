@@ -6,7 +6,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Connection
 {
-    /// <inheritdoc cref="IEquatable{T}" />
     /// <summary>
     /// Defines a queue binding to an exchange using a routing key
     /// </summary>
@@ -38,9 +37,9 @@ namespace Tapeti.Connection
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
+            if (obj is null) return false;
             return obj is QueueBinding other && Equals(other);
         }
 
@@ -51,6 +50,18 @@ namespace Tapeti.Connection
             {
                 return ((Exchange != null ? Exchange.GetHashCode() : 0) * 397) ^ (RoutingKey != null ? RoutingKey.GetHashCode() : 0);
             }
+        }
+
+        /// <summary></summary>
+        public static bool operator ==(QueueBinding left, QueueBinding right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <summary></summary>
+        public static bool operator !=(QueueBinding left, QueueBinding right)
+        {
+            return !left.Equals(right);
         }
     }
 
@@ -68,17 +79,17 @@ namespace Tapeti.Connection
         /// <param name="exchange">The exchange to publish the message to, or empty to send it directly to a queue</param>
         /// <param name="routingKey">The routing key for the message, or queue name if exchange is empty</param>
         /// <param name="mandatory">If true, an exception will be raised if the message can not be delivered to at least one queue</param>
-        Task Publish(byte[] body, IMessageProperties properties, string exchange, string routingKey, bool mandatory);
+        Task Publish(byte[] body, IMessageProperties properties, string? exchange, string routingKey, bool mandatory);
 
 
         /// <summary>
         /// Starts a consumer for the specified queue, using the provided bindings to handle messages.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName"></param>
         /// <param name="consumer">The consumer implementation which will receive the messages from the queue</param>
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <returns>The consumer tag as returned by BasicConsume.</returns>
-        Task<TapetiConsumerTag> Consume(CancellationToken cancellationToken, string queueName, IConsumer consumer);
+        Task<TapetiConsumerTag?> Consume(string queueName, IConsumer consumer, CancellationToken cancellationToken);
 
         /// <summary>
         /// Stops the consumer with the specified tag.
@@ -89,40 +100,43 @@ namespace Tapeti.Connection
         /// <summary>
         /// Creates a durable queue if it does not already exist, and updates the bindings.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName">The name of the queue to create</param>
         /// <param name="bindings">A list of bindings. Any bindings already on the queue which are not in this list will be removed</param>
-        Task DurableQueueDeclare(CancellationToken cancellationToken, string queueName, IEnumerable<QueueBinding> bindings);
+        /// <param name="arguments">Optional arguments</param>
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+        Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments? arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Verifies a durable queue exists. Will raise an exception if it does not.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName">The name of the queue to verify</param>
-        Task DurableQueueVerify(CancellationToken cancellationToken, string queueName);
+        /// <param name="arguments">Optional arguments</param>
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+        Task DurableQueueVerify(string queueName, IRabbitMQArguments? arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Deletes a durable queue.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName">The name of the queue to delete</param>
         /// <param name="onlyIfEmpty">If true, the queue will only be deleted if it is empty otherwise all bindings will be removed. If false, the queue is deleted even if there are queued messages.</param>
-        Task DurableQueueDelete(CancellationToken cancellationToken, string queueName, bool onlyIfEmpty = true);
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+        Task DurableQueueDelete(string queueName, bool onlyIfEmpty, CancellationToken cancellationToken);
 
         /// <summary>
         /// Creates a dynamic queue.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queuePrefix">An optional prefix for the dynamic queue's name. If not provided, RabbitMQ's default logic will be used to create an amq.gen queue.</param>
-        Task<string> DynamicQueueDeclare(CancellationToken cancellationToken, string queuePrefix = null);
+        /// <param name="arguments">Optional arguments</param>
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+        Task<string> DynamicQueueDeclare(string? queuePrefix, IRabbitMQArguments? arguments, CancellationToken cancellationToken);
 
         /// <summary>
         /// Add a binding to a dynamic queue.
         /// </summary>
-        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
         /// <param name="queueName">The name of the dynamic queue previously created using DynamicQueueDeclare</param>
         /// <param name="binding">The binding to add to the dynamic queue</param>
-        Task DynamicQueueBind(CancellationToken cancellationToken, string queueName, QueueBinding binding);
+        /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+        Task DynamicQueueBind(string queueName, QueueBinding binding, CancellationToken cancellationToken);
 
         /// <summary>
         /// Closes the connection to RabbitMQ gracefully.

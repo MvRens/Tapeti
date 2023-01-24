@@ -1,5 +1,7 @@
 ﻿using Tapeti.Config;
 
+// ReSharper disable UnusedMember.Global
+
 namespace Tapeti.Flow
 {
     /// <summary>
@@ -13,7 +15,7 @@ namespace Tapeti.Flow
         /// <param name="config"></param>
         /// <param name="flowRepository">An optional IFlowRepository implementation to persist flow state. If not provided, flow state will be lost when the application restarts.</param>
         /// <returns></returns>
-        public static ITapetiConfigBuilder WithFlow(this ITapetiConfigBuilder config, IFlowRepository flowRepository = null)
+        public static ITapetiConfigBuilder WithFlow(this ITapetiConfigBuilder config, IFlowRepository? flowRepository = null)
         {
             config.Use(new FlowExtension(flowRepository));
             return config;

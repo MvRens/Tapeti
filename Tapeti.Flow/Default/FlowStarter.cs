@@ -6,7 +6,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation for IFlowStarter.
     /// </summary>
@@ -26,39 +25,38 @@ namespace Tapeti.Flow.Default
         /// <inheritdoc />
         public async Task Start<TController>(Expression<Func<TController, Func<IYieldPoint>>> methodSelector) where TController : class
         {
-            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] { });
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), Array.Empty<object?>());
         }
 
         /// <inheritdoc />
         public async Task Start<TController>(Expression<Func<TController, Func<Task<IYieldPoint>>>> methodSelector) where TController : class
         {
-            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, Array.Empty<object?>());
         }
 
         /// <inheritdoc />
         public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, IYieldPoint>>> methodSelector, TParameter parameter) where TController : class
         {
-            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => Task.FromResult((IYieldPoint)value), new object?[] {parameter});
         }
 
         /// <inheritdoc />
         public async Task Start<TController, TParameter>(Expression<Func<TController, Func<TParameter, Task<IYieldPoint>>>> methodSelector, TParameter parameter) where TController : class
         {
-            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object[] {parameter});
+            await CallControllerMethod<TController>(GetExpressionMethod(methodSelector), value => (Task<IYieldPoint>)value, new object?[] {parameter});
         }
 
 
-        private async Task CallControllerMethod<TController>(MethodInfo method, Func<object, Task<IYieldPoint>> getYieldPointResult, object[] parameters) where TController : class
+        private async Task CallControllerMethod<TController>(MethodInfo method, Func<object, Task<IYieldPoint>> getYieldPointResult, object?[] parameters) where TController : class
         {
             var controller = config.DependencyResolver.Resolve<TController>();
-            var yieldPoint = await getYieldPointResult(method.Invoke(controller, parameters));
+            var result = method.Invoke(controller, parameters);
+            if (result == null)
+                throw new InvalidOperationException($"Method {method.Name} must return an IYieldPoint or Task<IYieldPoint>, got null");
 
-            var context = new FlowHandlerContext
-            {
-                Config = config,
-                Controller = controller,
-                Method = method
-            };
+            var yieldPoint = await getYieldPointResult(result);
+
+            var context = new FlowHandlerContext(config, controller, method);
 
             var flowHandler = config.DependencyResolver.Resolve<IFlowHandler>();
             await flowHandler.Execute(context, yieldPoint);

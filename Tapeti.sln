@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31005.135
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti", "Tapeti\Tapeti.csproj", "{2952B141-C54D-4E6F-8108-CAD735B0279F}"
 EndProject
@@ -45,8 +45,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.CastleWindsor", "Tap
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Autofac", "Tapeti.Autofac\Tapeti.Autofac.csproj", "{B3802005-C941-41B6-A9A5-20573A7C24AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.UnityContainer", "Tapeti.UnityContainer\Tapeti.UnityContainer.csproj", "{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Ninject", "Tapeti.Ninject\Tapeti.Ninject.csproj", "{29478B10-FC53-4E93-ADEF-A775D9408131}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "06-StatelessRequestResponse", "Examples\06-StatelessRequestResponse\06-StatelessRequestResponse.csproj", "{152227AA-3165-4550-8997-6EA80C84516E}"
@@ -54,6 +52,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "07-ParallelizationTest", "Examples\07-ParallelizationTest\07-ParallelizationTest.csproj", "{E69E6BA5-68E7-4A4D-A38C-B2526AA66E96}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "08-MessageHandlerLogging", "Examples\08-MessageHandlerLogging\08-MessageHandlerLogging.csproj", "{906605A6-2CAB-4B29-B0DD-B735BF265E39}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tapeti.Benchmarks", "Tapeti.Benchmarks\Tapeti.Benchmarks.csproj", "{DBE56131-9207-4CEA-BA3E-031351677C48}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -129,10 +129,6 @@ Global
 		{B3802005-C941-41B6-A9A5-20573A7C24AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B3802005-C941-41B6-A9A5-20573A7C24AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B3802005-C941-41B6-A9A5-20573A7C24AE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29478B10-FC53-4E93-ADEF-A775D9408131}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -149,6 +145,10 @@ Global
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{906605A6-2CAB-4B29-B0DD-B735BF265E39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBE56131-9207-4CEA-BA3E-031351677C48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -170,7 +170,6 @@ Global
 		{330D05CE-5321-4C7D-8017-2070B891289E} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{374AAE64-598B-4F67-8870-4A05168FF987} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
 		{B3802005-C941-41B6-A9A5-20573A7C24AE} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
-		{BA8CA9A2-BAFF-42BB-8439-3DD9D1F6C32E} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
 		{29478B10-FC53-4E93-ADEF-A775D9408131} = {99380F97-AD1A-459F-8AB3-D404E1E6AD4F}
 		{152227AA-3165-4550-8997-6EA80C84516E} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}
 		{E69E6BA5-68E7-4A4D-A38C-B2526AA66E96} = {266B9B94-A4D2-41C2-860C-24A7C3B63B56}

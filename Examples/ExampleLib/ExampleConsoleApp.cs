@@ -24,7 +24,7 @@ namespace ExampleLib
         private readonly IDependencyContainer dependencyResolver;
         private readonly int expectedDoneCount;
         private int doneCount;
-        private readonly TaskCompletionSource<bool> doneSignal = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<bool> doneSignal = new();
 
 
         /// <param name="dependencyResolver">Uses Tapeti's IDependencyContainer interface so you can easily switch an example to your favourite IoC container</param>
@@ -79,7 +79,7 @@ namespace ExampleLib
         {
             while (true)
             {
-                if (!(e is AggregateException aggregateException)) 
+                if (e is not AggregateException aggregateException) 
                     return e;
 
                 if (aggregateException.InnerExceptions.Count != 1)

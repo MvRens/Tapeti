@@ -9,13 +9,13 @@ namespace Tapeti.Config
     public interface IMessageProperties
     {
         /// <summary></summary>
-        string ContentType { get; set; }
+        string? ContentType { get; set; }
 
         /// <summary></summary>
-        string CorrelationId { get; set; }
+        string? CorrelationId { get; set; }
 
         /// <summary></summary>
-        string ReplyTo { get; set; }
+        string? ReplyTo { get; set; }
 
         /// <summary></summary>
         bool? Persistent { get; set; }
@@ -37,7 +37,7 @@ namespace Tapeti.Config
         /// </summary>
         /// <param name="name"></param>
         /// <returns>The value if found, null otherwise</returns>
-        string GetHeader(string name);
+        string? GetHeader(string name);
 
 
         /// <summary>

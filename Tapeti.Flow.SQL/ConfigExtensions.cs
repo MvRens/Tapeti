@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Tapeti.Config;
 
 // ReSharper disable UnusedMember.Global
@@ -45,7 +46,7 @@ namespace Tapeti.Flow.SQL
 
         public IEnumerable<object> GetMiddleware(IDependencyResolver dependencyResolver)
         {
-            return null;
+            return Enumerable.Empty<object>();
         }
     }
 }

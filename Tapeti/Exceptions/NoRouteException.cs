@@ -2,7 +2,6 @@
 
 namespace Tapeti.Exceptions
 {
-    /// <inheritdoc />
     /// <summary>
     /// Raised when a mandatory message has no route.
     /// </summary>

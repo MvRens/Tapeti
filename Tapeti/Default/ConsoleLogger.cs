@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 using Tapeti.Config;
+using Tapeti.Connection;
 
 // ReSharper disable UnusedMember.Global - public API
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default ILogger implementation for console applications.
     /// </summary>
@@ -81,8 +80,17 @@ namespace Tapeti.Default
         }
 
         /// <inheritdoc />
-        public void QueueExistsWarning(string queueName, Dictionary<string, string> arguments)
+        public void QueueExistsWarning(string queueName, IRabbitMQArguments? existingArguments, IRabbitMQArguments? arguments)
         {
+            Console.WriteLine($"[Tapeti] Durable queue {queueName} exists with incompatible x-arguments ({GetArgumentsText(existingArguments)} vs. {GetArgumentsText(arguments)}) and will not be redeclared, queue will be consumed as-is");
+        }
+
+
+        private static string GetArgumentsText(IRabbitMQArguments? arguments)
+        {
+            if (arguments == null || arguments.Count == 0)
+                return "empty";
+
             var argumentsText = new StringBuilder();
             foreach (var pair in arguments)
             {
@@ -91,9 +99,10 @@ namespace Tapeti.Default
 
                 argumentsText.Append($"{pair.Key} = {pair.Value}");
             }
-            
-            Console.WriteLine($"[Tapeti] Durable queue {queueName} exists with incompatible x-arguments ({argumentsText}) and will not be redeclared, queue will be consumed as-is");
+
+            return argumentsText.ToString();
         }
+
 
         /// <inheritdoc />
         public void QueueBind(string queueName, bool durable, string exchange, string routingKey)

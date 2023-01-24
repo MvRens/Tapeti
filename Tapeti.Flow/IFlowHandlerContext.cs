@@ -4,7 +4,6 @@ using Tapeti.Config;
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides information about the handler for the flow.
     /// </summary>
@@ -19,7 +18,7 @@ namespace Tapeti.Flow
         /// <summary>
         /// An instance of the controller which starts or continues the flow.
         /// </summary>
-        object Controller { get; }
+        object? Controller { get; }
 
 
         /// <summary>
@@ -32,6 +31,6 @@ namespace Tapeti.Flow
         /// Access to the message context if this is a continuated flow.
         /// Will be null when in a starting flow.
         /// </summary>
-        IMessageContext MessageContext { get; }
+        IMessageContext? MessageContext { get; }
     }
 }

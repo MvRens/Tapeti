@@ -2,7 +2,6 @@
 
 namespace Tapeti.Transient
 {
-    /// <inheritdoc />
     /// <summary>
     /// Default implementation of ITransientPublisher
     /// </summary>
@@ -22,7 +21,7 @@ namespace Tapeti.Transient
 
 
         /// <inheritdoc />
-        public async Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request)
+        public async Task<TResponse> RequestResponse<TRequest, TResponse>(TRequest request) where TRequest : class where TResponse : class
         {
             return (TResponse)await router.RequestResponse(publisher, request);
         }

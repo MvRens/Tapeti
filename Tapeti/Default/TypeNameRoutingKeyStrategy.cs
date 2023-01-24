@@ -7,7 +7,6 @@ using Tapeti.Helpers;
 
 namespace Tapeti.Default
 {
-    /// <inheritdoc />
     /// <summary>
     /// IRoutingKeyStrategy implementation which transforms the class name into a dot-separated routing key based
     /// on the casing. Accounts for acronyms. If the class name ends with 'Message' it is not included in the routing key.
@@ -61,7 +60,7 @@ namespace Tapeti.Default
         }
 
 
-        private static List<string> SplitPascalCase(string value)
+        private static List<string>? SplitPascalCase(string value)
         {
             var split = SeparatorRegex.Split(value);
             if (split.Length == 0)

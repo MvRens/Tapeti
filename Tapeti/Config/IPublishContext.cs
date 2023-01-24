@@ -16,7 +16,7 @@ namespace Tapeti.Config
         /// <summary>
         /// The exchange to which the message will be published.
         /// </summary>
-        string Exchange { get; set; }
+        string? Exchange { get; set; }
 
         /// <summary>
         /// The routing key which will be included with the message.
@@ -31,6 +31,6 @@ namespace Tapeti.Config
         /// <summary>
         /// Provides access to the message metadata.
         /// </summary>
-        IMessageProperties Properties { get; }
+        IMessageProperties? Properties { get; }
     }
 }

@@ -118,7 +118,7 @@ namespace Tapeti.Config
     /// before the configuration is built. Implementations of ITapetiConfigBuilder should also implement this interface.
     /// Should not be used outside of Tapeti packages.
     /// </summary>
-    public interface ITapetiConfigBuilderAccess
+    public interface ITapetiConfigBuilderAccess : ITapetiConfigBuilder
     {
         /// <summary>
         /// Provides access to the dependency resolver.

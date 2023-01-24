@@ -43,7 +43,7 @@ namespace Tapeti.Serilog.Middleware
         }
 
 
-        private static object DiagnosticContextFactory(IMessageContext context)
+        private static object? DiagnosticContextFactory(IMessageContext context)
         {
             return context.TryGet<DiagnosticContextPayload>(out var diagnosticContextPayload)
                 ? diagnosticContextPayload.DiagnosticContext

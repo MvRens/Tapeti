@@ -17,19 +17,19 @@ namespace Tapeti.Flow
         /// If using an IFlowRepository that requires an update (such as creating tables) make
         /// sure it is called before calling Load.
         /// </summary>
-        Task Load();
+        ValueTask Load();
 
         /// <summary>
         /// Looks up the FlowID corresponding to a ContinuationID. For internal use.
         /// </summary>
         /// <param name="continuationID"></param>
-        Task<Guid?> FindFlowID(Guid continuationID);
+        ValueTask<Guid?> FindFlowID(Guid continuationID);
 
         /// <summary>
         /// Acquires a lock on the flow with the specified FlowID.
         /// </summary>
         /// <param name="flowID"></param>
-        Task<IFlowStateLock> LockFlowState(Guid flowID);
+        ValueTask<IFlowStateLock> LockFlowState(Guid flowID);
 
         /// <summary>
         /// Returns information about the currently active flows.
@@ -38,11 +38,10 @@ namespace Tapeti.Flow
         /// This is intended for monitoring purposes and should be treated as a snapshot.
         /// </remarks>
         /// <param name="minimumAge">The minimum age of the flow before it is included in the result. Set to TimeSpan.Zero to return all active flows.</param>
-        Task<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge);
+        ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge);
     }
 
 
-    /// <inheritdoc />
     /// <summary>
     /// Represents a lock on the flow state, to provide thread safety.
     /// </summary>
@@ -56,19 +55,19 @@ namespace Tapeti.Flow
         /// <summary>
         /// Acquires a copy of the flow state.
         /// </summary>
-        Task<FlowState> GetFlowState();
+        ValueTask<FlowState?> GetFlowState();
 
         /// <summary>
         /// Stores the new flow state.
         /// </summary>
         /// <param name="flowState"></param>
         /// <param name="persistent"></param>
-        Task StoreFlowState(FlowState flowState, bool persistent);
+        ValueTask StoreFlowState(FlowState flowState, bool persistent);
 
         /// <summary>
         /// Disposes of the flow state corresponding to this Flow ID.
         /// </summary>
-        Task DeleteFlowState();
+        ValueTask DeleteFlowState();
     }
 
 

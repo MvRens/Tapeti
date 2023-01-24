@@ -13,7 +13,7 @@ namespace _04_Transient
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
             var container = new Container();
             var dependencyResolver = new SimpleInjectorDependencyResolver(container);
@@ -34,22 +34,20 @@ namespace _04_Transient
                 .Build();
 
 
-            using (var connection = new TapetiConnection(config))
-            {
-                await connection.Subscribe();
+            await using var connection = new TapetiConnection(config);
+            await connection.Subscribe();
 
 
-                Console.WriteLine("Sending request...");
+            Console.WriteLine("Sending request...");
 
-                var transientPublisher = dependencyResolver.Resolve<ITransientPublisher>();
-                var response = await transientPublisher.RequestResponse<LoggedInUsersRequestMessage, LoggedInUsersResponseMessage>(
-                    new LoggedInUsersRequestMessage());
+            var transientPublisher = dependencyResolver.Resolve<ITransientPublisher>();
+            var response = await transientPublisher.RequestResponse<LoggedInUsersRequestMessage, LoggedInUsersResponseMessage>(
+                new LoggedInUsersRequestMessage());
 
-                Console.WriteLine("Response: " + response.Count);
+            Console.WriteLine("Response: " + response.Count);
 
 
-                // Unlike the other example, there is no need to call waitForDone, once we're here the response has been handled.
-            }
+            // Unlike the other example, there is no need to call waitForDone, once we're here the response has been handled.
         }
     }
 }

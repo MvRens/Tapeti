@@ -13,12 +13,12 @@ namespace Tapeti.Transient
     internal class TransientRouter
     {
         private readonly int defaultTimeoutMs;
-        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new ConcurrentDictionary<Guid, TaskCompletionSource<object>>();
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<object>> map = new();
 
         /// <summary>
         /// The generated name of the dynamic queue to which responses should be sent.
         /// </summary>
-        public string TransientResponseQueueName { get; set; }
+        public string? TransientResponseQueueName { get; set; }
 
 
         /// <summary>
@@ -41,8 +41,13 @@ namespace Tapeti.Transient
             if (!Guid.TryParse(context.Properties.CorrelationId, out var continuationID))
                 return;
 
-            if (map.TryRemove(continuationID, out var tcs))
-                tcs.TrySetResult(context.Message);
+            if (!map.TryRemove(continuationID, out var tcs)) 
+                return;
+
+            if (context.Message == null)
+                throw new InvalidOperationException();
+
+            tcs.TrySetResult(context.Message);
         }
 
 
@@ -55,7 +60,7 @@ namespace Tapeti.Transient
         public async Task<object> RequestResponse(IPublisher publisher, object request)
         {
             var correlation = Guid.NewGuid();
-            var tcs = map.GetOrAdd(correlation, c => new TaskCompletionSource<object>());
+            var tcs = map.GetOrAdd(correlation, _ => new TaskCompletionSource<object>());
 
             try
             {
@@ -72,20 +77,22 @@ namespace Tapeti.Transient
             {
                 // Simple cleanup of the task and map dictionary.
                 if (map.TryRemove(correlation, out tcs))
-                    tcs.TrySetResult(null);
+                    tcs.TrySetResult(null!);
 
                 throw;
             }
 
-            using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
+            await using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
             {
                 return await tcs.Task;
             }
         }
 
 
-        private void TimeoutResponse(object tcs)
+        private void TimeoutResponse(object? tcs)
         {
+            ArgumentNullException.ThrowIfNull(tcs, nameof(tcs));
+
             ((TaskCompletionSource<object>)tcs).TrySetException(new TimeoutException("Transient RequestResponse timed out at (ms) " + defaultTimeoutMs));
         }
     }

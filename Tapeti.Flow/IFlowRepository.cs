@@ -13,7 +13,7 @@ namespace Tapeti.Flow
         /// Load the previously persisted flow states.
         /// </summary>
         /// <returns>A list of flow states, where the key is the unique Flow ID and the value is the deserialized T.</returns>
-        Task<IEnumerable<FlowRecord<T>>> GetStates<T>();
+        ValueTask<IEnumerable<FlowRecord<T>>> GetStates<T>();
 
         /// <summary>
         /// Stores a new flow state. Guaranteed to be run in a lock for the specified flow ID.
@@ -22,20 +22,20 @@ namespace Tapeti.Flow
         /// <param name="state">The flow state to be stored.</param>
         /// <param name="timestamp">The time when the flow was initially created.</param>
         /// <returns></returns>
-        Task CreateState<T>(Guid flowID, T state, DateTime timestamp);
+        ValueTask CreateState<T>(Guid flowID, T state, DateTime timestamp);
 
         /// <summary>
         /// Updates an existing flow state. Guaranteed to be run in a lock for the specified flow ID.
         /// </summary>
         /// <param name="flowID">The unique ID of the flow.</param>
         /// <param name="state">The flow state to be stored.</param>
-        Task UpdateState<T>(Guid flowID, T state);
+        ValueTask UpdateState<T>(Guid flowID, T state);
 
         /// <summary>
         /// Delete a flow state. Guaranteed to be run in a lock for the specified flow ID.
         /// </summary>
         /// <param name="flowID">The unique ID of the flow.</param>
-        Task DeleteState(Guid flowID);
+        ValueTask DeleteState(Guid flowID);
     }
 
 

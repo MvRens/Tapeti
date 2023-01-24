@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Config
 {
-    /// <inheritdoc />
     /// <summary>
     /// Denotes middleware that runs before the controller is instantiated.
     /// </summary>
@@ -15,6 +14,6 @@ namespace Tapeti.Config
         /// <param name="context"></param>
         /// <param name="next"></param>
         /// <returns></returns>
-        Task Filter(IMessageContext context, Func<Task> next);
+        ValueTask Filter(IMessageContext context, Func<ValueTask> next);
     }
 }

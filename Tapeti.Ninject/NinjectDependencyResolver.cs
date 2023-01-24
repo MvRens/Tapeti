@@ -4,7 +4,6 @@ using Ninject;
 
 namespace Tapeti.Ninject
 {
-    /// <inheritdoc />
     /// <summary>
     /// Dependency resolver and container implementation for Ninject.
     /// </summary>
@@ -49,7 +48,7 @@ namespace Tapeti.Ninject
             if (kernel.GetBindings(typeof(TService)).Any())
                 return;
 
-            kernel.Bind<TService>().ToMethod(context => factory());
+            kernel.Bind<TService>().ToMethod(_ => factory());
         }
 
 
@@ -77,7 +76,7 @@ namespace Tapeti.Ninject
             if (kernel.GetBindings(typeof(TService)).Any())
                 return;
 
-            kernel.Bind<TService>().ToMethod(context => factory()).InSingletonScope();
+            kernel.Bind<TService>().ToMethod(_ => factory()).InSingletonScope();
         }
 
 

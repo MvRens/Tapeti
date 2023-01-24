@@ -38,14 +38,14 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class
+        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class
         {
             await PublishRequest(message, responseMethodSelector.Body);
         }
 
 
         /// <inheritdoc />
-        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class
+        public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class
         {
             await PublishRequest(message, responseMethodSelector.Body);
         }
@@ -97,7 +97,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task Publish(object message, IMessageProperties properties, bool mandatory)
+        public async Task Publish(object message, IMessageProperties? properties, bool mandatory)
         {
             var messageClass = message.GetType();
             var exchange = exchangeStrategy.GetExchange(messageClass);
@@ -108,13 +108,13 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public async Task PublishDirect(object message, string queueName, IMessageProperties properties, bool mandatory)
+        public async Task PublishDirect(object message, string queueName, IMessageProperties? properties, bool mandatory)
         {
             await Publish(message, properties, null, queueName, mandatory);
         }
 
 
-        private async Task Publish(object message, IMessageProperties properties, string exchange, string routingKey, bool mandatory)
+        private async Task Publish(object message, IMessageProperties? properties, string? exchange, string routingKey, bool mandatory)
         {
             var writableProperties = new MessageProperties(properties);
 
@@ -151,11 +151,11 @@ namespace Tapeti.Connection
 
         private class PublishContext : IPublishContext
         {
-            public ITapetiConfig Config { get; set; }
-            public string Exchange { get; set; }
-            public string RoutingKey { get; set; }
-            public object Message { get; set; }
-            public IMessageProperties Properties { get; set; }
+            public ITapetiConfig Config { get; init; } = null!;
+            public string? Exchange { get; set; }
+            public string RoutingKey { get; init; } = null!;
+            public object Message { get; init; } = null!;
+            public IMessageProperties? Properties { get; init; }
         }
     }
 }

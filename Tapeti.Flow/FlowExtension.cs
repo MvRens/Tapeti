@@ -4,17 +4,16 @@ using Tapeti.Flow.Default;
 
 namespace Tapeti.Flow
 {
-    /// <inheritdoc />
     /// <summary>
     /// Provides the Flow middleware.
     /// </summary>
     public class FlowExtension : ITapetiExtension
     {
-        private readonly IFlowRepository flowRepository;
+        private readonly IFlowRepository? flowRepository;
 
         /// <summary>
         /// </summary>
-        public FlowExtension(IFlowRepository flowRepository)
+        public FlowExtension(IFlowRepository? flowRepository)
         {
             this.flowRepository = flowRepository;
         }
