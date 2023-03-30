@@ -313,7 +313,7 @@ namespace Tapeti.Connection
         }
 
 
-        private static RabbitMQArguments? ConvertJsonArguments(IReadOnlyDictionary<string, JObject>? arguments)
+        private static RabbitMQArguments? ConvertJsonArguments(IReadOnlyDictionary<string, JValue>? arguments)
         {
             if (arguments == null)
                 return null;
@@ -326,7 +326,7 @@ namespace Tapeti.Connection
                 {
                     JTokenType.Integer => pair.Value.Value<int>(),
                     JTokenType.Float => pair.Value.Value<double>(),
-                    JTokenType.String => Encoding.UTF8.GetBytes(pair.Value.Value<string>() ?? string.Empty),
+                    JTokenType.String => pair.Value.Value<string>() ?? string.Empty,
                     JTokenType.Boolean => pair.Value.Value<bool>(),
                     _ => throw new ArgumentOutOfRangeException(nameof(arguments))
                 };
@@ -599,7 +599,7 @@ namespace Tapeti.Connection
             public bool Exclusive { get; set; }
 
             [JsonProperty("arguments")]
-            public Dictionary<string, JObject>? Arguments { get; set; }
+            public Dictionary<string, JValue>? Arguments { get; set; }
 
             [JsonProperty("messages")]
             public uint Messages { get; set; }
