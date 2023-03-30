@@ -33,7 +33,7 @@ namespace Tapeti.Tests.Client
 
 
         private const string ImageName = "rabbitmq";
-        private const string ImageTag = "3.11.3-alpine";
+        private const string ImageTag = "3.11.3-management-alpine";
 
 
         public async Task InitializeAsync()
