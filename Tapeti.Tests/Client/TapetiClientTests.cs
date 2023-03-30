@@ -1,7 +1,10 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using RabbitMQ.Client;
 using Tapeti.Connection;
 using Tapeti.Default;
 using Tapeti.Exceptions;
@@ -69,6 +72,31 @@ namespace Tapeti.Tests.Client
 
 
         [Fact]
+        public async Task DurableQueueDeclareIncompatibleArguments()
+        {
+            using var rabbitmqClient = CreateRabbitMQClient();
+            using var model = rabbitmqClient.CreateModel();
+
+            var ok = model.QueueDeclare("incompatibleargs", true, false, false, new Dictionary<string, object>
+            {
+                { "x-dead-letter-exchange", "d34db33f" }
+            });
+
+            model.Close();
+            rabbitmqClient.Close();
+
+
+            ok.Should().NotBeNull();
+
+
+            await client.DurableQueueDeclare("incompatibleargs", new QueueBinding[]
+            {
+                new("test", "#")
+            }, null, CancellationToken.None);
+        }
+
+
+        [Fact]
         public async Task PublishHandleOverflow()
         {
             var queue1 = await client.DynamicQueueDeclare(null, new RabbitMQArguments
@@ -96,6 +124,21 @@ namespace Tapeti.Tests.Client
 
 
         // TODO test the other methods
+
+        private RabbitMQ.Client.IConnection CreateRabbitMQClient()
+        {
+            var connectionFactory = new ConnectionFactory
+            {
+                HostName = "127.0.0.1",
+                Port = fixture.RabbitMQPort,
+                UserName = RabbitMQFixture.RabbitMQUsername,
+                Password = RabbitMQFixture.RabbitMQPassword,
+                AutomaticRecoveryEnabled = false,
+                TopologyRecoveryEnabled = false
+            };
+
+            return connectionFactory.CreateConnection();
+        }
 
 
         private TapetiClient CreateClient()
