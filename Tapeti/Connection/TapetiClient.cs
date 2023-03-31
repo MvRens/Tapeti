@@ -820,7 +820,7 @@ namespace Tapeti.Connection
                         }
                         finally
                         {
-                            capturedConnection?.Dispose();
+                            capturedConnection.Dispose();
                         }
                     }
 
