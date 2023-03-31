@@ -777,7 +777,8 @@ namespace Tapeti.Connection
                 Password = connectionParams.Password,
                 AutomaticRecoveryEnabled = false,
                 TopologyRecoveryEnabled = false,
-                RequestedHeartbeat = TimeSpan.FromSeconds(30)
+                RequestedHeartbeat = TimeSpan.FromSeconds(30),
+                DispatchConsumersAsync = true
             };
 
             if (connectionParams.ClientProperties != null)
@@ -789,6 +790,9 @@ namespace Tapeti.Connection
                         connectionFactory.ClientProperties.Add(pair.Key, Encoding.UTF8.GetBytes(pair.Value));
                 }
 
+
+            // TODO lock both channels when attempting the connection
+            // TODO when one channel is lost, do not reconnect, instead restore the channel
 
             while (true)
             {
@@ -808,25 +812,23 @@ namespace Tapeti.Connection
                     {
                         try
                         {
-                            if (connection is { IsOpen: true })
-                                connection.Close();
+                            if (capturedConnection is { IsOpen: true })
+                                capturedConnection.Close();
                         }
                         catch (AlreadyClosedException)
                         {
                         }
                         finally
                         {
-                            connection?.Dispose();
+                            capturedConnection.Dispose();
                         }
-
-                        connection = null;
                     }
 
                     logger.Connect(new ConnectContext(connectionParams, isReconnect));
                     Interlocked.Increment(ref connectionReference);
 
                     lock (connectionLock)
-                    { 
+                    {
                         connection = connectionFactory.CreateConnection();
                         capturedConnection = connection;
 
