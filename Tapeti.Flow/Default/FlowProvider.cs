@@ -407,14 +407,16 @@ namespace Tapeti.Flow.Default
                     if (convergeMethod.Method.DeclaringType != context.HandlerContext.Controller?.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");
 
-                    await Task.WhenAll(requests.Select(requestInfo =>
-                        flowProvider.SendRequest(
-                            context, 
+                    foreach (var requestInfo in requests)
+                    {
+                        await flowProvider.SendRequest(
+                            context,
                             requestInfo.Message,
                             requestInfo.ResponseHandlerInfo,
                             convergeMethod.Method.Name,
                             convergeMethodSync,
-                            false)));
+                            false);
+                    }
 
                     await context.Store(requests.Any(i => i.ResponseHandlerInfo.IsDurableQueue));
                 });
