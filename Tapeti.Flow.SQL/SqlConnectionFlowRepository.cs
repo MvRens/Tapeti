@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 
 // Neither of these are available in language version 7 required for .NET Standard 2.0
