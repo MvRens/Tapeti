@@ -65,7 +65,7 @@ namespace Tapeti.Flow.Default
                     await HandleParallelResponse(messageContext);
                 });
             }
-            if (context.Result.Info.ParameterType == typeof(ValueTask))
+            else if (context.Result.Info.ParameterType == typeof(ValueTask))
             {
                 context.Result.SetHandler(async (messageContext, value) =>
                 {
