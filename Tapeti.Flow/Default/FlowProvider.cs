@@ -9,6 +9,7 @@ using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Flow.Annotations;
 using Tapeti.Flow.FlowHelpers;
+using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {

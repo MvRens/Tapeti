@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace Tapeti.Flow.FlowHelpers
+namespace Tapeti.Helpers
 {
     /// <summary>
     /// Converts a method into a unique string representation.

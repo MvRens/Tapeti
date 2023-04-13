@@ -82,7 +82,8 @@ namespace Tapeti.Connection
 
             var properties = new MessageProperties
             {
-                ReplyTo = binding.QueueName
+                CorrelationId = ResponseFilterMiddleware.CorrelationIdRequestPrefix + MethodSerializer.Serialize(responseHandler),
+                ReplyTo = binding.QueueName,
             };
 
             await Publish(message, properties, IsMandatory(message));

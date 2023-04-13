@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using Tapeti.Annotations;
 using Tapeti.Config;
+using Tapeti.Config.Annotations;
 using Tapeti.Connection;
 using Tapeti.Default;
 
@@ -48,12 +49,18 @@ namespace Tapeti
                 .Where(m => m.MemberType == MemberTypes.Method && m.DeclaringType != typeof(object) && (m as MethodInfo)?.IsSpecialName == false)
                 .Select(m => (MethodInfo)m))
             {
+                if (method.GetCustomAttributes<NoBindingAttribute>().Any())
+                    continue;
+
                 var methodIsObsolete = controllerIsObsolete || method.GetCustomAttribute<ObsoleteAttribute>() != null;
 
                 var context = new ControllerBindingContext(controller, method, method.GetParameters(), method.ReturnParameter);
 
                 if (method.GetCustomAttribute<ResponseHandlerAttribute>() != null)
+                {
                     context.SetBindingTargetMode(BindingTargetMode.Direct);
+                    context.Use(new ResponseFilterMiddleware());
+                }
 
 
                 var allowBinding = false;
@@ -98,6 +105,14 @@ namespace Tapeti
 
             return builder;
         }
+
+
+        /// <inheritdoc cref="RegisterController"/>
+        public static ITapetiConfigBuilder RegisterController<TController>(this ITapetiConfigBuilder builder) where TController : class
+        {
+            return RegisterController(builder, typeof(TController));
+        }
+
 
 
         /// <summary>
