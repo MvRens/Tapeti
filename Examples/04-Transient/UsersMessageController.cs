@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 
 namespace _04_Transient
 {

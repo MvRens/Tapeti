@@ -51,7 +51,7 @@ namespace Tapeti.Tests.Client
                 .Build();
 
             connection = CreateConnection(config);
-            await connection.Subscribe();
+            await connection!.Subscribe();
 
 
             await connection.GetPublisher().PublishRequest<RequestResponseFilterController, FilteredRequestMessage, FilteredResponseMessage>(new FilteredRequestMessage

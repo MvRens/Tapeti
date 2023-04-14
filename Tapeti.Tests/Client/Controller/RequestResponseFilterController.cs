@@ -1,11 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
-using Tapeti.Annotations;
+﻿using System.Threading.Tasks;
 using Tapeti.Config.Annotations;
 
 namespace Tapeti.Tests.Client.Controller
 {
-    [Request(Response = typeof(FilteredResponseMessage))]
+    [Annotations.Request(Response = typeof(FilteredResponseMessage))]
     public class FilteredRequestMessage
     {
         public int ExpectedHandler { get; set; }

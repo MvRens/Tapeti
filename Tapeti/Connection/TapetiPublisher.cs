@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
 using Tapeti.Config;
+using Tapeti.Config.Annotations;
 using Tapeti.Default;
 using Tapeti.Helpers;
 
@@ -72,7 +73,7 @@ namespace Tapeti.Connection
             if (!binding.Accept(requestAttribute.Response))
                 throw new ArgumentException($"responseHandler must accept message of type {requestAttribute.Response}", nameof(responseHandler));
 
-            var responseHandleAttribute = binding.Method.GetCustomAttribute<ResponseHandlerAttribute>();
+            var responseHandleAttribute = binding.Method.GetResponseHandlerAttribute();
             if (responseHandleAttribute == null)
                 throw new ArgumentException("responseHandler must be marked with the ResponseHandler attribute", nameof(responseHandler));
 
@@ -83,7 +84,7 @@ namespace Tapeti.Connection
             var properties = new MessageProperties
             {
                 CorrelationId = ResponseFilterMiddleware.CorrelationIdRequestPrefix + MethodSerializer.Serialize(responseHandler),
-                ReplyTo = binding.QueueName,
+                ReplyTo = binding.QueueName
             };
 
             await Publish(message, properties, IsMandatory(message));

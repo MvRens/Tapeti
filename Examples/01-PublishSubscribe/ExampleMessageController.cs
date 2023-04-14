@@ -1,7 +1,7 @@
 ﻿using System;
 using ExampleLib;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 
 namespace _01_PublishSubscribe
 {

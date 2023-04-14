@@ -2,9 +2,8 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Tapeti.Annotations;
-using Tapeti.Config;
 using Tapeti.Config.Annotations;
+using Tapeti.Config;
 using Tapeti.Connection;
 using Tapeti.Default;
 
@@ -56,7 +55,7 @@ namespace Tapeti
 
                 var context = new ControllerBindingContext(controller, method, method.GetParameters(), method.ReturnParameter);
 
-                if (method.GetCustomAttribute<ResponseHandlerAttribute>() != null)
+                if (method.GetResponseHandlerAttribute() != null)
                 {
                     context.SetBindingTargetMode(BindingTargetMode.Direct);
                     context.Use(new ResponseFilterMiddleware());
@@ -122,7 +121,7 @@ namespace Tapeti
         /// <param name="assembly">The assembly to scan for controllers.</param>
         public static ITapetiConfigBuilder RegisterAllControllers(this ITapetiConfigBuilder builder, Assembly assembly)
         {
-            foreach (var type in assembly.GetTypes().Where(t => t.IsDefined(typeof(MessageControllerAttribute))))
+            foreach (var type in assembly.GetTypes().Where(t => t.HasMessageControllerAttribute()))
                 RegisterController(builder, type);
 
             return builder;
@@ -145,9 +144,9 @@ namespace Tapeti
 
         private static ControllerMethodBinding.QueueInfo? GetQueueInfo(MemberInfo member, ControllerMethodBinding.QueueInfo? fallbackQueueInfo)
         {
-            var dynamicQueueAttribute = member.GetCustomAttribute<DynamicQueueAttribute>();
-            var durableQueueAttribute = member.GetCustomAttribute<DurableQueueAttribute>();
-            var queueArgumentsAttribute = member.GetCustomAttribute<QueueArgumentsAttribute>();
+            var dynamicQueueAttribute = member.GetDynamicQueueAttribute();
+            var durableQueueAttribute = member.GetDurableQueueAttribute();
+            var queueArgumentsAttribute = member.GetQueueArgumentsAttribute();
 
             if (dynamicQueueAttribute != null && durableQueueAttribute != null)
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on controller {member.DeclaringType?.Name} method {member.Name}");
@@ -157,7 +156,7 @@ namespace Tapeti
 
 
             QueueType queueType;
-            string name;
+            string? name;
             
 
             if (dynamicQueueAttribute != null)
@@ -195,10 +194,8 @@ namespace Tapeti
                         string stringValue => Encoding.UTF8.GetBytes(stringValue),
                         _ => p.Value
                     }
-                ))
-            {
+                ));
 
-            };
             if (queueArgumentsAttribute.MaxLength > 0)
                 arguments.Add(@"x-max-length", queueArgumentsAttribute.MaxLength);
 

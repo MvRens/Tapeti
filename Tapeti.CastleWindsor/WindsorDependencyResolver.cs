@@ -1,12 +1,14 @@
 ﻿using System;
 using Castle.MicroKernel.Registration;
 using Castle.Windsor;
+using JetBrains.Annotations;
 
 namespace Tapeti.CastleWindsor
 {
     /// <summary>
     /// Dependency resolver and container implementation for Castle Windsor.
     /// </summary>
+    [PublicAPI]
     public class WindsorDependencyResolver : IDependencyContainer
     {
         private readonly IWindsorContainer container;

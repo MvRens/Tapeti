@@ -8,7 +8,6 @@ using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Flow.Annotations;
-using Tapeti.Flow.FlowHelpers;
 using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
@@ -135,7 +134,7 @@ namespace Tapeti.Flow.Default
         {
             await context.Delete();
 
-            if (context.HasFlowStateAndLock && context.FlowState.Metadata.Reply != null)
+            if (context is { HasFlowStateAndLock: true, FlowState.Metadata.Reply: { } })
                 throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
         }
 

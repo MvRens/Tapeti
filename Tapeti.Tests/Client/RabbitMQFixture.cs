@@ -63,7 +63,7 @@ namespace Tapeti.Tests.Client
 
             testcontainers = testcontainersBuilder.Build();
 
-            await testcontainers.StartAsync();
+            await testcontainers!.StartAsync();
 
             RabbitMQPort = testcontainers.GetMappedPublicPort(DefaultRabbitMQPort);
             RabbitMQManagementPort = testcontainers.GetMappedPublicPort(DefaultRabbitMQManagementPort);

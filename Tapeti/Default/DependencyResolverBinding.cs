@@ -15,7 +15,7 @@ namespace Tapeti.Default
         {
             next();
 
-            foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType.IsClass))
+            foreach (var parameter in context.Parameters.Where(p => p is { HasBinding: false, Info.ParameterType.IsClass: true }))
                 parameter.SetBinding(messageContext => messageContext.Config.DependencyResolver.Resolve(parameter.Info.ParameterType));
         }
     }
