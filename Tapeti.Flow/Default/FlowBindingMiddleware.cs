@@ -154,7 +154,9 @@ namespace Tapeti.Flow.Default
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
             return flowHandler.Execute(new FlowHandlerContext(context), new DelegateYieldPoint(async flowContext =>
             {
-                await flowContext.Store(context.Binding.QueueType == QueueType.Durable);
+                // IFlowParallelRequest.AddRequest will store the flow immediately
+                if (!flowPayload.FlowContext.IsStoredOrDeleted())
+                    await flowContext.Store(context.Binding.QueueType == QueueType.Durable);
             }));
         }
 
