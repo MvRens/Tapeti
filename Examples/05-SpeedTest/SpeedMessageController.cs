@@ -1,5 +1,5 @@
 ﻿using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 
 namespace _05_SpeedTest
 {

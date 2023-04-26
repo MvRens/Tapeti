@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 using FluentAssertions;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Xunit;
 

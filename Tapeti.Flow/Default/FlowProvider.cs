@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -8,7 +8,7 @@ using Tapeti.Annotations;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Flow.Annotations;
-using Tapeti.Flow.FlowHelpers;
+using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
@@ -55,7 +55,7 @@ namespace Tapeti.Flow.Default
         /// <inheritdoc />
         public IFlowParallelRequestBuilder YieldWithParallelRequest()
         {
-            return new ParallelRequestBuilder(config, this);
+            return new ParallelRequestBuilder(config, this, publisher);
         }
 
         /// <inheritdoc />
@@ -71,8 +71,8 @@ namespace Tapeti.Flow.Default
         }
 
 
-        internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo, 
-            string? convergeMethodName = null, bool convergeMethodTaskSync = false, bool store = true)
+        internal async Task<MessageProperties> PrepareRequest(FlowContext context, ResponseHandlerInfo responseHandlerInfo,
+            string convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
             if (!context.HasFlowStateAndLock)
             {
@@ -96,8 +96,15 @@ namespace Tapeti.Flow.Default
                 ReplyTo = responseHandlerInfo.ReplyToQueue
             };
 
-            if (store)
-                await context.Store(responseHandlerInfo.IsDurableQueue);
+            return properties;
+        }
+
+
+        internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo,
+            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+        {
+            var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync);
+            await context.Store(responseHandlerInfo.IsDurableQueue);
 
             await publisher.Publish(message, properties, true);
         }
@@ -134,7 +141,7 @@ namespace Tapeti.Flow.Default
         {
             await context.Delete();
 
-            if (context.HasFlowStateAndLock && context.FlowState.Metadata.Reply != null)
+            if (context is { HasFlowStateAndLock: true, FlowState.Metadata.Reply: { } })
                 throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
         }
 
@@ -200,7 +207,7 @@ namespace Tapeti.Flow.Default
             flowContext.SetFlowState(flowState, flowStateLock);
         }
 
-        
+
         /// <inheritdoc />
         public async ValueTask Execute(IFlowHandlerContext context, IYieldPoint yieldPoint)
         {
@@ -222,7 +229,7 @@ namespace Tapeti.Flow.Default
                 }
                 else
                     flowContext = flowPayload.FlowContext;
-                
+
                 try
                 {
                     await executableYieldPoint.Execute(flowContext);
@@ -327,13 +334,15 @@ namespace Tapeti.Flow.Default
 
             private readonly ITapetiConfig config;
             private readonly FlowProvider flowProvider;
+            private readonly IInternalPublisher publisher;
             private readonly List<RequestInfo> requests = new();
 
 
-            public ParallelRequestBuilder(ITapetiConfig config, FlowProvider flowProvider)
+            public ParallelRequestBuilder(ITapetiConfig config, FlowProvider flowProvider, IInternalPublisher publisher)
             {
                 this.config = config;
                 this.flowProvider = flowProvider;
+                this.publisher = publisher;
             }
 
 
@@ -407,18 +416,21 @@ namespace Tapeti.Flow.Default
                     if (convergeMethod.Method.DeclaringType != context.HandlerContext.Controller?.GetType())
                         throw new YieldPointException("Converge method must be in the same controller class");
 
+                    var preparedRequests = new List<PreparedRequest>();
+
                     foreach (var requestInfo in requests)
                     {
-                        await flowProvider.SendRequest(
+                        var properties = await flowProvider.PrepareRequest(
                             context,
-                            requestInfo.Message,
                             requestInfo.ResponseHandlerInfo,
                             convergeMethod.Method.Name,
-                            convergeMethodSync,
-                            false);
+                            convergeMethodSync);
+
+                        preparedRequests.Add(new PreparedRequest(requestInfo.Message, properties));
                     }
 
                     await context.Store(requests.Any(i => i.ResponseHandlerInfo.IsDurableQueue));
+                    await Task.WhenAll(preparedRequests.Select(r => publisher.Publish(r.Message, r.Properties, true)));
                 });
             }
         }
@@ -465,12 +477,11 @@ namespace Tapeti.Flow.Default
                     throw new InvalidOperationException("No ContinuationMetadata in FlowContext");
 
                 return flowProvider.SendRequest(
-                    flowContext, 
-                    message, 
-                    responseHandlerInfo, 
-                    flowContext.ContinuationMetadata.ConvergeMethodName, 
-                    flowContext.ContinuationMetadata.ConvergeMethodSync, 
-                    false);
+                    flowContext,
+                    message,
+                    responseHandlerInfo,
+                    flowContext.ContinuationMetadata.ConvergeMethodName,
+                    flowContext.ContinuationMetadata.ConvergeMethodSync);
             }
         }
 
@@ -487,6 +498,20 @@ namespace Tapeti.Flow.Default
                 MethodName = methodName;
                 ReplyToQueue = replyToQueue;
                 IsDurableQueue = isDurableQueue;
+            }
+        }
+
+
+        internal class PreparedRequest
+        {
+            public object Message { get; }
+            public MessageProperties Properties { get; }
+
+
+            public PreparedRequest(object message, MessageProperties properties)
+            {
+                Message = message;
+                Properties = properties;
             }
         }
     }

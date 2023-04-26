@@ -1,4 +1,4 @@
-﻿using Tapeti.Annotations;
+﻿using Tapeti.Config.Annotations;
 
 // ReSharper disable UnusedMember.Global
 

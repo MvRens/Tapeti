@@ -120,7 +120,7 @@ namespace Tapeti.Default
                             QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
+                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -131,7 +131,7 @@ namespace Tapeti.Default
                             QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
                         else
                         {
-                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
+                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -143,7 +143,7 @@ namespace Tapeti.Default
             }
             else if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Durable)
             {
-                await target.BindDurableObsolete(bindingInfo.QueueInfo.Name);
+                await target.BindDurableObsolete(bindingInfo.QueueInfo.Name!);
                 QueueName = bindingInfo.QueueInfo.Name;
             }
         }
@@ -317,7 +317,7 @@ namespace Tapeti.Default
             /// <summary>
             /// The name of the durable queue, or optional prefix of the dynamic queue.
             /// </summary>
-            public string Name { get; set; }
+            public string? Name { get; set; }
 
             /// <summary>
             /// Optional arguments (x-arguments) passed when declaring the queue.
@@ -330,7 +330,7 @@ namespace Tapeti.Default
             public bool IsValid => QueueType == QueueType.Dynamic || !string.IsNullOrEmpty(Name);
 
 
-            public QueueInfo(QueueType queueType, string name)
+            public QueueInfo(QueueType queueType, string? name)
             {
                 QueueType = queueType;
                 Name = name;

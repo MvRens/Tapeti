@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Moq;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
 using Xunit;
@@ -84,10 +84,10 @@ namespace Tapeti.Tests.Config
         {
             var config = GetControllerConfig<TestController>();
 
-            var binding1 = config.Bindings.Single(b => b is IControllerMethodBinding cmb && cmb.Method.Name == "HandleMessage1");
+            var binding1 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage1" });
             binding1.Should().NotBeNull();
 
-            var binding2 = config.Bindings.Single(b => b is IControllerMethodBinding cmb && cmb.Method.Name == "HandleMessage2");
+            var binding2 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage2" });
             binding2.Should().NotBeNull();
 
 

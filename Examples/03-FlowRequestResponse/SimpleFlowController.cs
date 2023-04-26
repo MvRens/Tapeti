@@ -1,7 +1,7 @@
 ﻿using System;
 using ExampleLib;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 using Tapeti.Flow;
 using Tapeti.Flow.Annotations;
 

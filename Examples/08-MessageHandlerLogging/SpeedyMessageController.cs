@@ -1,6 +1,6 @@
 ﻿using System;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 using Tapeti.Serilog;
 
 namespace _08_MessageHandlerLogging

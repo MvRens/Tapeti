@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 
 namespace _07_ParallelizationTest
 {

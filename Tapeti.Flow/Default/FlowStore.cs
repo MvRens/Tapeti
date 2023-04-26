@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Flow.FlowHelpers;
+using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {

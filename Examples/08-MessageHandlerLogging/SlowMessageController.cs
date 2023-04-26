@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using ExampleLib;
 using Messaging.TapetiExample;
-using Tapeti.Annotations;
+using Tapeti.Config.Annotations;
 
 namespace _08_MessageHandlerLogging
 {

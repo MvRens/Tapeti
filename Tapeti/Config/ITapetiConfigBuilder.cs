@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
 
@@ -8,6 +9,7 @@ namespace Tapeti.Config
     /// Configures Tapeti. Every method other than Build returns the builder instance
     /// for method chaining.
     /// </summary>
+    [PublicAPI]
     public interface ITapetiConfigBuilder
     {
         /// <summary>
