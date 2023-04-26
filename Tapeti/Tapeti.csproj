@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
     <PackageIcon>Tapeti.png</PackageIcon>
     <Nullable>enable</Nullable>
+    <DefineConstants>JETBRAINS_ANNOTATIONS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
