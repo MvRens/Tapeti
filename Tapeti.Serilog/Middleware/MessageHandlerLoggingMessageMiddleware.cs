@@ -32,11 +32,11 @@ namespace Tapeti.Serilog.Middleware
         public async ValueTask Handle(IMessageContext context, Func<ValueTask> next)
         {
             var logger = context.Config.DependencyResolver.Resolve<global::Serilog.ILogger>();
-            
-            var diagnosticContext = new DiagnosticContext(logger);
+
+            var stopwatch = new Stopwatch();
+            var diagnosticContext = new DiagnosticContext(logger, stopwatch);
             context.Store(new DiagnosticContextPayload(diagnosticContext));
             
-            var stopwatch = new Stopwatch();
             stopwatch.Start();
             
             await next();

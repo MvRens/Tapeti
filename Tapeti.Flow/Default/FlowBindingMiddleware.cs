@@ -148,7 +148,10 @@ namespace Tapeti.Flow.Default
 
         private static ValueTask HandleParallelResponse(IMessageContext context)
         {
-            if (context.TryGet<FlowMessageContextPayload>(out var flowPayload) && flowPayload.FlowIsConverging)
+            if (!context.TryGet<FlowMessageContextPayload>(out var flowPayload))
+                return default;
+
+            if (flowPayload.FlowIsConverging)
                 return default;
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();

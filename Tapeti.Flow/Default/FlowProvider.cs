@@ -72,7 +72,7 @@ namespace Tapeti.Flow.Default
 
 
         internal async Task<MessageProperties> PrepareRequest(FlowContext context, ResponseHandlerInfo responseHandlerInfo,
-            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+            string? convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
             if (!context.HasFlowStateAndLock)
             {
@@ -101,7 +101,7 @@ namespace Tapeti.Flow.Default
 
 
         internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo,
-            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+            string? convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
             var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync);
             await context.Store(responseHandlerInfo.IsDurableQueue);
