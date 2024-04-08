@@ -31,7 +31,7 @@ namespace Tapeti.Default
                     return;
             }
 
-            await next();
+            await next().ConfigureAwait(false);
         }
     }
 }

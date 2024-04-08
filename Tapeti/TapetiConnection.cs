@@ -63,11 +63,11 @@ namespace Tapeti
             if (subscriber == null)
             {
                 subscriber = new TapetiSubscriber(() => client.Value, config);
-                await subscriber.ApplyBindings();
+                await subscriber.ApplyBindings().ConfigureAwait(false);
             }
 
             if (startConsuming)
-                await subscriber.Resume();
+                await subscriber.Resume().ConfigureAwait(false);
 
             return subscriber;
         }
@@ -91,28 +91,36 @@ namespace Tapeti
         public async Task Close()
         {
             if (client.IsValueCreated)
-                await client.Value.Close();
+                await client.Value.Close().ConfigureAwait(false);
         }
 
 
         /// <inheritdoc />
         public void Dispose()
         {
-            if (!disposed)
-                DisposeAsync().GetAwaiter().GetResult();
+            GC.SuppressFinalize(this);
+
+            if (disposed) 
+                return;
+
+            var disposeAsyncTask = DisposeAsync();
+            if (!disposeAsyncTask.IsCompleted)
+                disposeAsyncTask.AsTask().GetAwaiter().GetResult();
         }
 
 
         /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
+            GC.SuppressFinalize(this);
+
             if (disposed)
                 return;
 
             if (subscriber != null)
-                await subscriber.DisposeAsync();
+                await subscriber.DisposeAsync().ConfigureAwait(false);
 
-            await Close();
+            await Close().ConfigureAwait(false);
             disposed = true;
         }
 

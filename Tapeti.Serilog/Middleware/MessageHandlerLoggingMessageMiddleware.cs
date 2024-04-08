@@ -39,7 +39,7 @@ namespace Tapeti.Serilog.Middleware
             
             stopwatch.Start();
             
-            await next();
+            await next().ConfigureAwait(false);
 
 
             stopwatch.Stop();

@@ -76,7 +76,7 @@ namespace Tapeti.Flow.Default
         {
             if (!context.HasFlowStateAndLock)
             {
-                await CreateNewFlowState(context);
+                await CreateNewFlowState(context).ConfigureAwait(false);
                 Debug.Assert(context.FlowState != null, "context.FlowState != null");
             }
 
@@ -103,10 +103,10 @@ namespace Tapeti.Flow.Default
         internal async Task SendRequest(FlowContext context, object message, ResponseHandlerInfo responseHandlerInfo,
             string? convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
-            var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync);
-            await context.Store(responseHandlerInfo.IsDurableQueue);
+            var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync).ConfigureAwait(false);
+            await context.Store(responseHandlerInfo.IsDurableQueue).ConfigureAwait(false);
 
-            await publisher.Publish(message, properties, true);
+            await publisher.Publish(message, properties, true).ConfigureAwait(false);
         }
 
 
@@ -129,17 +129,17 @@ namespace Tapeti.Flow.Default
 
             // TODO disallow if replyto is not specified?
             if (reply.ReplyTo != null)
-                await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory);
+                await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory).ConfigureAwait(false);
             else
-                await publisher.Publish(message, properties, reply.Mandatory);
+                await publisher.Publish(message, properties, reply.Mandatory).ConfigureAwait(false);
 
-            await context.Delete();
+            await context.Delete().ConfigureAwait(false);
         }
 
 
         internal static async Task EndFlow(FlowContext context)
         {
-            await context.Delete();
+            await context.Delete().ConfigureAwait(false);
 
             if (context is { HasFlowStateAndLock: true, FlowState.Metadata.Reply: { } })
                 throw new YieldPointException($"Flow must end with a response message of type {context.FlowState.Metadata.Reply.ResponseTypeName}");
@@ -194,7 +194,7 @@ namespace Tapeti.Flow.Default
             var flowStore = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowStore>();
 
             var flowID = Guid.NewGuid();
-            var flowStateLock = await flowStore.LockFlowState(flowID);
+            var flowStateLock = await flowStore.LockFlowState(flowID).ConfigureAwait(false);
 
             if (flowStateLock == null)
                 throw new InvalidOperationException("Unable to lock a new flow");
@@ -232,7 +232,7 @@ namespace Tapeti.Flow.Default
 
                 try
                 {
-                    await executableYieldPoint.Execute(flowContext);
+                    await executableYieldPoint.Execute(flowContext).ConfigureAwait(false);
                 }
                 catch (YieldPointException e)
                 {
@@ -272,7 +272,7 @@ namespace Tapeti.Flow.Default
                 if (flowContext.ContinuationMetadata.ConvergeMethodName == null)
                     throw new InvalidOperationException("Missing ConvergeMethodName in FlowContext ContinuationMetadata");
 
-                await Converge(flowContext, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync);
+                await Converge(flowContext, flowContext.ContinuationMetadata.ConvergeMethodName, flowContext.ContinuationMetadata.ConvergeMethodSync).ConfigureAwait(false);
             }));
         }
 
@@ -305,13 +305,13 @@ namespace Tapeti.Flow.Default
                 if (yieldPointTask == null)
                     throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {convergeMethodName}");
 
-                yieldPoint = await (Task<IYieldPoint>)yieldPointTask;
+                yieldPoint = await ((Task<IYieldPoint>)yieldPointTask).ConfigureAwait(false);
             }
 
             if (yieldPoint == null)
                 throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {convergeMethodName}");
 
-            await Execute(flowContext.HandlerContext, yieldPoint);
+            await Execute(flowContext.HandlerContext, yieldPoint).ConfigureAwait(false);
         }
 
 
@@ -424,13 +424,13 @@ namespace Tapeti.Flow.Default
                             context,
                             requestInfo.ResponseHandlerInfo,
                             convergeMethod.Method.Name,
-                            convergeMethodSync);
+                            convergeMethodSync).ConfigureAwait(false);
 
                         preparedRequests.Add(new PreparedRequest(requestInfo.Message, properties));
                     }
 
-                    await context.Store(requests.Any(i => i.ResponseHandlerInfo.IsDurableQueue));
-                    await Task.WhenAll(preparedRequests.Select(r => publisher.Publish(r.Message, r.Properties, true)));
+                    await context.Store(requests.Any(i => i.ResponseHandlerInfo.IsDurableQueue)).ConfigureAwait(false);
+                    await Task.WhenAll(preparedRequests.Select(r => publisher.Publish(r.Message, r.Properties, true))).ConfigureAwait(false);
                 });
             }
         }

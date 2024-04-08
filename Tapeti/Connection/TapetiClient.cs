@@ -175,7 +175,7 @@ namespace Tapeti.Connection
                 var delayCancellationTokenSource = new CancellationTokenSource();
                 var signalledTask = await Task.WhenAny(
                     publishResultTask,
-                    Task.Delay(MandatoryReturnTimeout, delayCancellationTokenSource.Token));
+                    Task.Delay(MandatoryReturnTimeout, delayCancellationTokenSource.Token)).ConfigureAwait(false);
 
                 if (signalledTask != publishResultTask)
                     throw new TimeoutException(
@@ -201,7 +201,7 @@ namespace Tapeti.Connection
                         throw new NoRouteException(
                             $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -226,7 +226,7 @@ namespace Tapeti.Connection
                 capturedConnectionReference = Interlocked.Read(ref connectionReference);
                 var basicConsumer = new TapetiBasicConsumer(consumer, capturedConnectionReference, Respond);
                 consumerTag = channel.BasicConsume(queueName, false, basicConsumer);
-            });
+            }).ConfigureAwait(false);
 
             return consumerTag == null 
                 ? null 
@@ -257,7 +257,7 @@ namespace Tapeti.Connection
                     return;
 
                 channel.BasicCancel(consumerTag.ConsumerTag);
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -291,13 +291,13 @@ namespace Tapeti.Connection
                     default:
                         throw new ArgumentOutOfRangeException(nameof(result), result, null);
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
 
         private async Task<bool> GetDurableQueueDeclareRequired(string queueName, IRabbitMQArguments? arguments)
         {
-            var existingQueue = await GetQueueInfo(queueName);
+            var existingQueue = await GetQueueInfo(queueName).ConfigureAwait(false);
             if (existingQueue == null) 
                 return true;
             
@@ -342,9 +342,9 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
         {
-            var declareRequired = await GetDurableQueueDeclareRequired(queueName, arguments);
+            var declareRequired = await GetDurableQueueDeclareRequired(queueName, arguments).ConfigureAwait(false);
 
-            var existingBindings = (await GetQueueBindings(queueName)).ToList();
+            var existingBindings = (await GetQueueBindings(queueName).ConfigureAwait(false)).ToList();
             var currentBindings = bindings.ToList();
             var bindingLogger = logger as IBindingLogger;
 
@@ -371,7 +371,7 @@ namespace Tapeti.Connection
                     bindingLogger?.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
                     channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -386,7 +386,7 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DurableQueueVerify(string queueName, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
         {
-            if (!await GetDurableQueueDeclareRequired(queueName, arguments))
+            if (!await GetDurableQueueDeclareRequired(queueName, arguments).ConfigureAwait(false))
                 return;
 
             await GetTapetiChannel(TapetiChannelType.Consume).Queue(channel =>
@@ -396,7 +396,7 @@ namespace Tapeti.Connection
 
                 (logger as IBindingLogger)?.QueueDeclare(queueName, true, true);
                 channel.QueueDeclarePassive(queueName);
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -413,7 +413,7 @@ namespace Tapeti.Connection
                         return;
 
                     deletedMessages = channel.QueueDelete(queueName);
-                });
+                }).ConfigureAwait(false);
 
                 deletedQueues.Add(queueName);
                 (logger as IBindingLogger)?.QueueObsolete(queueName, true, deletedMessages);
@@ -434,7 +434,7 @@ namespace Tapeti.Connection
                     // Get queue information from the Management API, since the AMQP operations will
                     // throw an error if the queue does not exist or still contains messages and resets
                     // the connection. The resulting reconnect will cause subscribers to reset.
-                    var queueInfo = await GetQueueInfo(queueName);
+                    var queueInfo = await GetQueueInfo(queueName).ConfigureAwait(false);
                     if (queueInfo == null)
                     {
                         deletedQueues.Add(queueName);
@@ -467,7 +467,7 @@ namespace Tapeti.Connection
                     else
                     {
                         // Remove all bindings instead
-                        var existingBindings = (await GetQueueBindings(queueName)).ToList();
+                        var existingBindings = (await GetQueueBindings(queueName).ConfigureAwait(false)).ToList();
 
                         if (existingBindings.Count > 0)
                         {
@@ -481,7 +481,7 @@ namespace Tapeti.Connection
                         (logger as IBindingLogger)?.QueueObsolete(queueName, false, queueInfo.Messages);
                     }
                 } while (retry);
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -507,7 +507,7 @@ namespace Tapeti.Connection
                     queueName = channel.QueueDeclare(arguments: GetDeclareArguments(arguments)).QueueName;
                     bindingLogger?.QueueDeclare(queueName, false, false);
                 }
-            });
+            }).ConfigureAwait(false);
 
             cancellationToken.ThrowIfCancellationRequested();
             if (queueName == null)
@@ -527,7 +527,7 @@ namespace Tapeti.Connection
                 DeclareExchange(channel, binding.Exchange);
                 (logger as IBindingLogger)?.QueueBind(queueName, false, binding.Exchange, binding.RoutingKey);
                 channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -551,8 +551,8 @@ namespace Tapeti.Connection
             }
 
             // Empty the queue
-            await consumeChannel.Reset();
-            await publishChannel.Reset();
+            await consumeChannel.Reset().ConfigureAwait(false);
+            await publishChannel.Reset().ConfigureAwait(false);
 
             // No need to close the channels as the connection will be closed
             capturedConsumeModel?.Dispose();
@@ -619,9 +619,9 @@ namespace Tapeti.Connection
 
                 response.EnsureSuccessStatusCode();
 
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 return JsonConvert.DeserializeObject<ManagementQueueInfo>(content);
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -659,7 +659,7 @@ namespace Tapeti.Connection
             {
                 response.EnsureSuccessStatusCode();
 
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var bindings = JsonConvert.DeserializeObject<IEnumerable<ManagementBinding>>(content);
 
                 // Filter out the binding to an empty source, which is always present for direct-to-queue routing
@@ -667,7 +667,7 @@ namespace Tapeti.Connection
                     .Where(binding => !string.IsNullOrEmpty(binding.Source) && !string.IsNullOrEmpty(binding.RoutingKey))
                     .Select(binding => new QueueBinding(binding.Source!, binding.RoutingKey!)) 
                        ?? Enumerable.Empty<QueueBinding>();
-            });
+            }).ConfigureAwait(false);
         }
 
 
@@ -702,8 +702,8 @@ namespace Tapeti.Connection
             {
                 try
                 {
-                    var response = await managementClient.SendAsync(request);
-                    return await handleResponse(response);
+                    var response = await managementClient.SendAsync(request).ConfigureAwait(false);
+                    return await handleResponse(response).ConfigureAwait(false);
                 }
                 catch (TimeoutException)
                 {
@@ -717,7 +717,7 @@ namespace Tapeti.Connection
                         throw;
                 }
 
-                await Task.Delay(ExponentialBackoff[retryDelayIndex]);
+                await Task.Delay(ExponentialBackoff[retryDelayIndex]).ConfigureAwait(false);
 
                 if (retryDelayIndex < ExponentialBackoff.Length - 1)
                     retryDelayIndex++;

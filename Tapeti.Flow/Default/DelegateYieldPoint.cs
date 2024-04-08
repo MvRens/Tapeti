@@ -16,7 +16,7 @@ namespace Tapeti.Flow.Default
 
         public async Task Execute(FlowContext context)
         {
-            await onExecute(context);
+            await onExecute(context).ConfigureAwait(false);
         }
     }
 }
