@@ -51,6 +51,17 @@ namespace Tapeti
         public int ManagementPort { get; set; } = 15672;
 
         /// <summary>
+        /// The maximum number of consumers which are run concurrently.
+        /// </summary>
+        /// <remarks>
+        /// The number of consumers is usually roughly equal to the number of queues consumed.
+        /// Do not set too high to avoid overloading the thread pool.
+        /// The RabbitMQ Client library defaults to 1. Due to older Tapeti versions implementing concurrency
+        /// effectively limited by the PrefetchCount, this will default to Environment.ProcessorCount instead.
+        /// </remarks>
+        public int ConsumerDispatchConcurrency { get; set; }
+
+        /// <summary>
         /// Key-value pair of properties that are set on the connection. These will be visible in the RabbitMQ Management interface.
         /// Note that you can either set a new dictionary entirely, to allow for inline declaration, or use this property directly
         /// and use the auto-created dictionary.
@@ -69,6 +80,7 @@ namespace Tapeti
         /// </summary>
         public TapetiConnectionParams()
         {
+            ConsumerDispatchConcurrency = Environment.ProcessorCount;
         }
 
         /// <summary>
@@ -77,7 +89,7 @@ namespace Tapeti
         /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname/"))</example>
         /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname:5672/virtualHost"))</example>
         /// <param name="uri"></param>
-        public TapetiConnectionParams(Uri uri)
+        public TapetiConnectionParams(Uri uri) : this()
         {
             HostName = uri.Host;
             VirtualHost = string.IsNullOrEmpty(uri.AbsolutePath) ? "/" : uri.AbsolutePath;

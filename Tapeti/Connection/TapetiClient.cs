@@ -777,8 +777,12 @@ namespace Tapeti.Connection
                 Password = connectionParams.Password,
                 AutomaticRecoveryEnabled = false,
                 TopologyRecoveryEnabled = false,
-                RequestedHeartbeat = TimeSpan.FromSeconds(30)
+                RequestedHeartbeat = TimeSpan.FromSeconds(30),
+                DispatchConsumersAsync = true
             };
+
+            if (connectionParams.ConsumerDispatchConcurrency > 0)
+                connectionFactory.ConsumerDispatchConcurrency = connectionParams.ConsumerDispatchConcurrency;
 
             if (connectionParams.ClientProperties != null)
                 foreach (var pair in connectionParams.ClientProperties)

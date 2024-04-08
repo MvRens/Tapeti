@@ -17,7 +17,7 @@ namespace Tapeti.Connection
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
     /// </summary>
-    internal class TapetiBasicConsumer : DefaultBasicConsumer
+    internal class TapetiBasicConsumer : AsyncDefaultBasicConsumer
     {
         private readonly IConsumer consumer;
         private readonly long connectionReference;
@@ -34,7 +34,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public override void HandleBasicDeliver(string consumerTag,
+        public override async Task HandleBasicDeliver(string consumerTag,
             ulong deliveryTag,
             bool redelivered,
             string exchange,
@@ -50,20 +50,15 @@ namespace Tapeti.Connection
             // See also: https://github.com/JamesNK/Newtonsoft.Json/issues/1761
             var bodyArray = body.ToArray();
 
-            // Changing to AsyncDefaultBasicConsumer does not mean HandleBasicDeliver runs in parallel, the Task.Run would
-            // still be necessary, which is why TapetiBasicConsumer is a DefaultBasicConsumer.
-            Task.Run(async () =>
+            try
             {
-                try
-                {
-                    var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), bodyArray);
-                    await onRespond(connectionReference, deliveryTag, response);
-                }
-                catch
-                {
-                    await onRespond(connectionReference, deliveryTag, ConsumeResult.Error);
-                }
-            });
+                var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), bodyArray).ConfigureAwait(false);
+                await onRespond(connectionReference, deliveryTag, response).ConfigureAwait(false);
+            }
+            catch
+            {
+                await onRespond(connectionReference, deliveryTag, ConsumeResult.Error).ConfigureAwait(false);
+            }
         }
     }
 }
