@@ -125,9 +125,9 @@ namespace Tapeti.Connection
 
             CustomBindingTarget bindingTarget;
 
-            if (config.Features.DeclareDurableQueues)
+            if (config.GetFeatures().DeclareDurableQueues)
                 bindingTarget = new DeclareDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
-            else if (config.Features.VerifyDurableQueues)
+            else if (config.GetFeatures().VerifyDurableQueues)
                 bindingTarget = new PassiveDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
             else
                 bindingTarget = new NoVerifyBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);

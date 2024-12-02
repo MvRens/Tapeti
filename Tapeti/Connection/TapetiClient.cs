@@ -135,7 +135,7 @@ namespace Tapeti.Connection
                         DeclareExchange(channel, exchange);
 
                     // The delivery tag is lost after a reconnect, register under the new tag
-                    if (config.Features.PublisherConfirms)
+                    if (config.GetFeatures().PublisherConfirms)
                     {
                         lastDeliveryTag++;
 
@@ -848,7 +848,7 @@ namespace Tapeti.Connection
                     }
 
 
-                    if (config.Features.PublisherConfirms)
+                    if (config.GetFeatures().PublisherConfirms)
                     {
                         lastDeliveryTag = 0;
 

@@ -135,7 +135,7 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder DisablePublisherConfirms()
         {
-            GetConfig().SetPublisherConfirms(false);
+            GetConfig().GetFeaturesBuilder().DisablePublisherConfirms();
             return this;
         }
 
@@ -143,7 +143,7 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder SetPublisherConfirms(bool enabled)
         {
-            GetConfig().SetPublisherConfirms(enabled);
+            GetConfig().GetFeaturesBuilder().SetPublisherConfirms(enabled);
             return this;
         }
 
@@ -151,7 +151,7 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder EnableDeclareDurableQueues()
         {
-            GetConfig().SetDeclareDurableQueues(true);
+            GetConfig().GetFeaturesBuilder().EnableDeclareDurableQueues();
             return this;
         }
 
@@ -159,7 +159,7 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder SetDeclareDurableQueues(bool enabled)
         {
-            GetConfig().SetDeclareDurableQueues(enabled);
+            GetConfig().GetFeaturesBuilder().SetDeclareDurableQueues(enabled);
             return this;
         }
 
@@ -167,7 +167,7 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder DisableVerifyDurableQueues()
         {
-            GetConfig().SetVerifyDurableQueues(false);
+            GetConfig().GetFeaturesBuilder().DisablePublisherConfirms();
             return this;
         }
 
@@ -175,7 +175,15 @@ namespace Tapeti
         /// <inheritdoc />
         public ITapetiConfigBuilder SetVerifyDurableQueues(bool enabled)
         {
-            GetConfig().SetVerifyDurableQueues(enabled);
+            GetConfig().GetFeaturesBuilder().SetVerifyDurableQueues(enabled);
+            return this;
+        }
+
+
+        /// <inheritdoc />
+        public ITapetiConfigBuilder DelayFeatures(Action<ITapetiConfigFeaturesBuilder> onBuild)
+        {
+            GetConfig().GetFeaturesBuilder().DelayFeatures(onBuild);
             return this;
         }
 
@@ -221,12 +229,13 @@ namespace Tapeti
         /// <inheritdoc />
         internal class Config : ITapetiConfig
         {
-            private readonly ConfigFeatures features = new();
+            private ConfigFeaturesBuilder? featuresBuilder = new();
+            private ITapetiConfigFeatures? features;
+
             private readonly ConfigMiddleware middleware = new();
             private readonly ConfigBindings bindings = new();
 
             public IDependencyResolver DependencyResolver { get; }
-            public ITapetiConfigFeatues Features => features;
             public ITapetiConfigMiddleware Middleware => middleware;
             public ITapetiConfigBindings Bindings => bindings;
 
@@ -234,6 +243,17 @@ namespace Tapeti
             public Config(IDependencyResolver dependencyResolver)
             {
                 DependencyResolver = dependencyResolver;
+            }
+
+
+            public ITapetiConfigFeatures GetFeatures()
+            {
+                if (features != null)
+                    return features;
+
+                features = featuresBuilder!.Build();
+                featuresBuilder = null;
+                return features;
             }
 
 
@@ -260,28 +280,81 @@ namespace Tapeti
             }
 
 
-            public void SetPublisherConfirms(bool enabled)
+            internal ConfigFeaturesBuilder GetFeaturesBuilder()
             {
-                features.PublisherConfirms = enabled;
-            }
+                if (featuresBuilder == null)
+                    throw new InvalidOperationException("Tapeti features are already frozen");
 
-            public void SetDeclareDurableQueues(bool enabled)
-            {
-                features.DeclareDurableQueues = enabled;
-            }
-
-            public void SetVerifyDurableQueues(bool enabled)
-            {
-                features.VerifyDurableQueues = enabled;
+                return featuresBuilder;
             }
         }
 
 
-        internal class ConfigFeatures : ITapetiConfigFeatues
+        internal class ConfigFeatures : ITapetiConfigFeatures
         {
             public bool PublisherConfirms { get; internal set; } = true;
             public bool DeclareDurableQueues { get; internal set; }
             public bool VerifyDurableQueues { get; internal set; } = true;
+        }
+
+
+        internal class ConfigFeaturesBuilder : ITapetiConfigFeaturesBuilder
+        {
+            private bool publisherConfirms = true;
+            private bool declareDurableQueues;
+            private bool verifyDurableQueues = true;
+            private Action<ITapetiConfigFeaturesBuilder>? onBuild;
+
+
+            public ITapetiConfigFeaturesBuilder DisablePublisherConfirms()
+            {
+                return SetPublisherConfirms(false);
+            }
+
+            public ITapetiConfigFeaturesBuilder SetPublisherConfirms(bool enabled)
+            {
+                publisherConfirms = enabled;
+                return this;
+            }
+
+            public ITapetiConfigFeaturesBuilder EnableDeclareDurableQueues()
+            {
+                return SetDeclareDurableQueues(true);
+            }
+
+            public ITapetiConfigFeaturesBuilder SetDeclareDurableQueues(bool enabled)
+            {
+                declareDurableQueues = enabled;
+                return this;
+            }
+
+            public ITapetiConfigFeaturesBuilder DisableVerifyDurableQueues()
+            {
+                return SetVerifyDurableQueues(false);
+            }
+
+            public ITapetiConfigFeaturesBuilder SetVerifyDurableQueues(bool enabled)
+            {
+                verifyDurableQueues = enabled;
+                return this;
+            }
+
+            // ReSharper disable once ParameterHidesMember
+            public void DelayFeatures(Action<ITapetiConfigFeaturesBuilder> onBuild)
+            {
+                this.onBuild = onBuild;
+            }
+
+            public ITapetiConfigFeatures Build()
+            {
+                onBuild?.Invoke(this);
+                return new ConfigFeatures
+                {
+                    DeclareDurableQueues = declareDurableQueues,
+                    PublisherConfirms = publisherConfirms,
+                    VerifyDurableQueues = verifyDurableQueues
+                };
+            }
         }
 
 

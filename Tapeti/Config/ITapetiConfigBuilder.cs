@@ -53,6 +53,40 @@ namespace Tapeti.Config
         void RegisterBinding(IBinding binding);
 
 
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.DisablePublisherConfirms"/>
+        ITapetiConfigBuilder DisablePublisherConfirms();
+
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.SetPublisherConfirms"/>
+        ITapetiConfigBuilder SetPublisherConfirms(bool enabled);
+
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.EnableDeclareDurableQueues"/>
+        ITapetiConfigBuilder EnableDeclareDurableQueues();
+
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.SetDeclareDurableQueues"/>
+        ITapetiConfigBuilder SetDeclareDurableQueues(bool enabled);
+
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.DisableVerifyDurableQueues"/>
+        ITapetiConfigBuilder DisableVerifyDurableQueues();
+
+        /// <inheritdoc cref="ITapetiConfigFeaturesBuilder.SetVerifyDurableQueues"/>
+        ITapetiConfigBuilder SetVerifyDurableQueues(bool enabled);
+
+
+        /// <summary>
+        /// Allows the core features to be determine on-demand when first required by the connection instead
+        /// of before <see cref="TapetiConnection"/> is constructed.
+        /// </summary>
+        /// <param name="onBuild">Called when the feature set is required. From that moment on the feature set is frozen.</param>
+        ITapetiConfigBuilder DelayFeatures(Action<ITapetiConfigFeaturesBuilder> onBuild);
+    }
+
+
+
+    /// <summary>
+    /// Configures Tapeti core features. Every method returns the builder instance for method chaining.
+    /// </summary>
+    public interface ITapetiConfigFeaturesBuilder
+    {
         /// <summary>
         /// Disables 'publisher confirms'. This RabbitMQ features allows Tapeti to be notified if a message
         /// has no route, and guarantees delivery for request-response style messages and those marked with
@@ -62,7 +96,7 @@ namespace Tapeti.Config
         /// and disables Tapeti.Flow from verifying if a request/response can be routed. This may
         /// result in never-ending flows. Only disable if you can accept those consequences.
         /// </summary>
-        ITapetiConfigBuilder DisablePublisherConfirms();
+        ITapetiConfigFeaturesBuilder DisablePublisherConfirms();
 
 
         /// <summary>
@@ -74,7 +108,7 @@ namespace Tapeti.Config
         /// and disables Tapeti.Flow from verifying if a request/response can be routed. This may
         /// result in never-ending flows. Only disable if you can accept those consequences.
         /// </summary>
-        ITapetiConfigBuilder SetPublisherConfirms(bool enabled);
+        ITapetiConfigFeaturesBuilder SetPublisherConfirms(bool enabled);
 
 
         /// <summary>
@@ -84,7 +118,7 @@ namespace Tapeti.Config
         /// Note that access to the RabbitMQ Management plugin's REST API is required for this
         /// feature to work, since AMQP does not provide a way to query existing bindings.
         /// </remarks>
-        ITapetiConfigBuilder EnableDeclareDurableQueues();        
+        ITapetiConfigFeaturesBuilder EnableDeclareDurableQueues();
 
         /// <summary>
         /// Configures the automatic creation of durable queues and updating of their bindings.
@@ -93,7 +127,7 @@ namespace Tapeti.Config
         /// Note that access to the RabbitMQ Management plugin's REST API is required for this
         /// feature to work, since AMQP does not provide a way to query existing bindings.
         /// </remarks>
-        ITapetiConfigBuilder SetDeclareDurableQueues(bool enabled);
+        ITapetiConfigFeaturesBuilder SetDeclareDurableQueues(bool enabled);
 
 
         /// <summary>
@@ -102,7 +136,7 @@ namespace Tapeti.Config
         /// exchange, which do not correspond to Tapeti's configuration, as these will cause an error
         /// while verifying.
         /// </summary>
-        ITapetiConfigBuilder DisableVerifyDurableQueues();
+        ITapetiConfigFeaturesBuilder DisableVerifyDurableQueues();
 
 
         /// <summary>
@@ -111,7 +145,7 @@ namespace Tapeti.Config
         /// exchange, which do not correspond to Tapeti's configuration, as these will cause an error
         /// while verifying.
         /// </summary>
-        ITapetiConfigBuilder SetVerifyDurableQueues(bool enabled);
+        ITapetiConfigFeaturesBuilder SetVerifyDurableQueues(bool enabled);
     }
 
 
