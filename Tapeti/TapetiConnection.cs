@@ -81,6 +81,13 @@ namespace Tapeti
 
 
         /// <inheritdoc />
+        public Task Unsubscribe()
+        {
+            return subscriber?.Stop() ?? Task.CompletedTask;
+        }
+
+
+        /// <inheritdoc />
         public IPublisher GetPublisher()
         {
             return new TapetiPublisher(config, () => client.Value);
