@@ -36,6 +36,34 @@ namespace Tapeti.Flow
 
 
         /// <summary>
+        /// Publish a request message directly to a queue and continue the flow when the response arrives. 
+        /// The exchange and routing key are not used.
+        /// The request message must be marked with the [Request] attribute, and the
+        /// Response type must match. Used for asynchronous response handlers.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="queueName"></param>
+        /// <param name="responseHandler"></param>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        IYieldPoint YieldWithRequestDirect<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, Task<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class;
+
+
+        /// <summary>
+        /// Publish a request message directly to a queue and continue the flow when the response arrives. 
+        /// The exchange and routing key are not used.
+        /// The request message must be marked with the [Request] attribute, and the
+        /// Response type must match. Used for asynchronous response handlers.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="queueName"></param>
+        /// <param name="responseHandler"></param>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        IYieldPoint YieldWithRequestDirect<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, ValueTask<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class;
+
+
+        /// <summary>
         /// Publish a request message and continue the flow when the response arrives.
         /// The request message must be marked with the [Request] attribute, and the
         /// Response type must match. Used for synchronous response handlers.
@@ -52,6 +80,27 @@ namespace Tapeti.Flow
         /// <typeparam name="TResponse"></typeparam>
         /// <returns></returns>
         IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler) where TRequest : class where TResponse : class;
+
+
+        /// <summary>
+        /// Publish a request message directly to a queue and continue the flow when the response arrives. 
+        /// The exchange and routing key are not used.
+        /// The request message must be marked with the [Request] attribute, and the
+        /// Response type must match. Used for synchronous response handlers.
+        /// </summary>
+        /// <remarks>
+        /// The reason why this requires the extra 'Sync' in the name: one does not simply overload methods
+        /// with Task vs non-Task Funcs. "Ambiguous call". Apparantly this is because a return type
+        /// of a method is not part of its signature,according to:
+        /// http://stackoverflow.com/questions/18715979/ambiguity-with-action-and-func-parameter
+        /// </remarks>
+        /// <param name="message"></param>
+        /// <param name="queueName"></param>
+        /// <param name="responseHandler"></param>
+        /// <typeparam name="TRequest"></typeparam>
+        /// <typeparam name="TResponse"></typeparam>
+        /// <returns></returns>
+        IYieldPoint YieldWithRequestDirectSync<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, IYieldPoint> responseHandler) where TRequest : class where TResponse : class;
 
 
         /// <summary>

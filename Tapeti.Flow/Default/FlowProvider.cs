@@ -46,10 +46,31 @@ namespace Tapeti.Flow.Default
         }
 
         /// <inheritdoc />
+        public IYieldPoint YieldWithRequestDirect<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, Task<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class
+        {
+            var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
+            return new DelegateYieldPoint(context => SendRequestDirect(context, message, queueName, responseHandlerInfo));
+        }
+
+        /// <inheritdoc />
+        public IYieldPoint YieldWithRequestDirect<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, ValueTask<IYieldPoint>> responseHandler) where TRequest : class where TResponse : class
+        {
+            var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
+            return new DelegateYieldPoint(context => SendRequestDirect(context, message, queueName, responseHandlerInfo));
+        }
+
+        /// <inheritdoc />
         public IYieldPoint YieldWithRequestSync<TRequest, TResponse>(TRequest message, Func<TResponse, IYieldPoint> responseHandler) where TRequest : class where TResponse : class
         {
             var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
             return new DelegateYieldPoint(context => SendRequest(context, message, responseHandlerInfo));
+        }
+
+        /// <inheritdoc />
+        public IYieldPoint YieldWithRequestDirectSync<TRequest, TResponse>(TRequest message, string queueName, Func<TResponse, IYieldPoint> responseHandler) where TRequest : class where TResponse : class
+        {
+            var responseHandlerInfo = GetResponseHandlerInfo(config, message, responseHandler);
+            return new DelegateYieldPoint(context => SendRequestDirect(context, message, queueName, responseHandlerInfo));
         }
 
         /// <inheritdoc />
@@ -107,6 +128,16 @@ namespace Tapeti.Flow.Default
             await context.Store(responseHandlerInfo.IsDurableQueue).ConfigureAwait(false);
 
             await publisher.Publish(message, properties, true).ConfigureAwait(false);
+        }
+
+
+        internal async Task SendRequestDirect(FlowContext context, object message, string queueName, ResponseHandlerInfo responseHandlerInfo,
+            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+        {
+            var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync);
+            await context.Store(responseHandlerInfo.IsDurableQueue);
+
+            await publisher.PublishDirect(message, queueName, properties, true);
         }
 
 
