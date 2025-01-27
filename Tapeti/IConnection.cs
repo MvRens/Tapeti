@@ -85,6 +85,12 @@ namespace Tapeti
 
 
         /// <summary>
+        /// Stops the current subscriber.
+        /// </summary>
+        Task Unsubscribe();
+
+
+        /// <summary>
         /// Returns an IPublisher implementation for the current connection.
         /// </summary>
         /// <returns></returns>

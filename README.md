@@ -68,3 +68,6 @@ Master build (stable release)
 
 Latest build
 [![Build status](https://ci.appveyor.com/api/projects/status/cyuo0vm7admy0d9x?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti)
+
+## Contributing
+By contributing to Tapeti's main repository (https://github.com/MvRens/Tapeti) you agree to dedicate your code-base contributions to the public domain under the Unlicense license.

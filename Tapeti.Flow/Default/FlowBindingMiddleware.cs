@@ -61,8 +61,8 @@ namespace Tapeti.Flow.Default
                     if (value == null)
                         throw new InvalidOperationException("Return value should be a Task, not null");
 
-                    await (Task)value;
-                    await HandleParallelResponse(messageContext);
+                    await ((Task)value).ConfigureAwait(false);
+                    await HandleParallelResponse(messageContext).ConfigureAwait(false);
                 });
             }
             else if (context.Result.Info.ParameterType == typeof(ValueTask))
@@ -73,8 +73,8 @@ namespace Tapeti.Flow.Default
                         // ValueTask is a struct and should never be null
                         throw new UnreachableException("Return value should be a ValueTask, not null");
 
-                    await (ValueTask)value;
-                    await HandleParallelResponse(messageContext);
+                    await ((ValueTask)value).ConfigureAwait(false);
+                    await HandleParallelResponse(messageContext).ConfigureAwait(false);
                 });
             }
             else if (context.Result.Info.ParameterType == typeof(void))
@@ -116,8 +116,8 @@ namespace Tapeti.Flow.Default
                         if (value == null)
                             throw new InvalidOperationException("Return value should be a Task<IYieldPoint>, not null");
 
-                        var yieldPoint = await (Task<IYieldPoint>)value;
-                        await HandleYieldPoint(messageContext, yieldPoint);
+                        var yieldPoint = await ((Task<IYieldPoint>)value).ConfigureAwait(false);
+                        await HandleYieldPoint(messageContext, yieldPoint).ConfigureAwait(false);
                     });
                     break;
 
@@ -128,8 +128,8 @@ namespace Tapeti.Flow.Default
                             // ValueTask is a struct and should never be null
                             throw new UnreachableException("Return value should be a ValueTask<IYieldPoint>, not null");
 
-                        var yieldPoint = await (ValueTask<IYieldPoint>)value;
-                        await HandleYieldPoint(messageContext, yieldPoint);
+                        var yieldPoint = await ((ValueTask<IYieldPoint>)value).ConfigureAwait(false);
+                        await HandleYieldPoint(messageContext, yieldPoint).ConfigureAwait(false);
                     });
                     break;
 
@@ -148,7 +148,10 @@ namespace Tapeti.Flow.Default
 
         private static ValueTask HandleParallelResponse(IMessageContext context)
         {
-            if (context.TryGet<FlowMessageContextPayload>(out var flowPayload) && flowPayload.FlowIsConverging)
+            if (!context.TryGet<FlowMessageContextPayload>(out var flowPayload))
+                return default;
+
+            if (flowPayload.FlowIsConverging)
                 return default;
 
             var flowHandler = context.Config.DependencyResolver.Resolve<IFlowHandler>();
@@ -156,7 +159,7 @@ namespace Tapeti.Flow.Default
             {
                 // IFlowParallelRequest.AddRequest will store the flow immediately
                 if (!flowPayload.FlowContext.IsStoredOrDeleted())
-                    await flowContext.Store(context.Binding.QueueType == QueueType.Durable);
+                    await flowContext.Store(context.Binding.QueueType == QueueType.Durable).ConfigureAwait(false);
             }));
         }
 

@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using Serilog.Core;
 using Serilog.Events;
 
@@ -10,16 +12,20 @@ namespace Tapeti.Serilog.Default
     public class DiagnosticContext : IDiagnosticContext
     {
         private readonly global::Serilog.ILogger logger;
+        private readonly Stopwatch stopwatch;
         private readonly List<LogEventProperty> properties = new();
+        private int resetCount;
 
         
         /// <summary>
         /// Creates a new instance of a DiagnosticContext
         /// </summary>
         /// <param name="logger">The Serilog ILogger which will be enriched</param>
-        public DiagnosticContext(global::Serilog.ILogger logger)
+        /// <param name="stopwatch">The Stopwatch instance that monitors the run time of the message handler</param>
+        public DiagnosticContext(global::Serilog.ILogger logger, Stopwatch stopwatch)
         {
             this.logger = logger;
+            this.stopwatch = stopwatch;
         }
 
 
@@ -28,6 +34,17 @@ namespace Tapeti.Serilog.Default
         {
             if (logger.BindProperty(propertyName, value, destructureObjects, out var logEventProperty))
                 properties.Add(logEventProperty);
+        }
+
+
+        /// <inheritdoc />
+        public void ResetStopwatch(bool addToContext = true, string propertyNamePrefix = "stopwatchReset")
+        {
+            var newResetCount = Interlocked.Increment(ref resetCount);
+            if (addToContext)
+                Set(propertyNamePrefix + newResetCount, stopwatch.ElapsedMilliseconds);
+
+            stopwatch.Restart();
         }
 
 

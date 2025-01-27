@@ -16,14 +16,14 @@ namespace Tapeti.Flow.Default
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
 
-            var flowContext = await EnrichWithFlowContext(context);
+            var flowContext = await EnrichWithFlowContext(context).ConfigureAwait(false);
             if (flowContext?.ContinuationMetadata == null)
                 return;
 
             if (flowContext.ContinuationMetadata.MethodName != MethodSerializer.Serialize(controllerPayload.Binding.Method))
                 return;
 
-            await next();
+            await next().ConfigureAwait(false);
         }
 
 
@@ -44,22 +44,22 @@ namespace Tapeti.Flow.Default
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
                 flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
 
-                await next();
+                await next().ConfigureAwait(false);
 
                 if (flowPayload.FlowIsConverging)
                 {
                     var flowHandler = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowHandler>();
-                    await flowHandler.Converge(new FlowHandlerContext(context));
+                    await flowHandler.Converge(new FlowHandlerContext(context)).ConfigureAwait(false);
                 }
             }
             else
-                await next();
+                await next().ConfigureAwait(false);
         }
 
 
         public async ValueTask Cleanup(IMessageContext context, ConsumeResult consumeResult, Func<ValueTask> next)
         {
-            await next();
+            await next().ConfigureAwait(false);
 
             if (!context.TryGet<ControllerMessageContextPayload>(out var controllerPayload))
                 return;
@@ -78,7 +78,7 @@ namespace Tapeti.Flow.Default
                 if (!flowContext.IsStoredOrDeleted())
                     // The exception strategy can set the consume result to Success. Instead, check if the yield point
                     // was handled. The flow provider ensures we only end up here in case of an exception.
-                    await flowContext.FlowStateLock.DeleteFlowState();
+                    await flowContext.FlowStateLock.DeleteFlowState().ConfigureAwait(false);
 
                 flowContext.FlowStateLock.Dispose();
             }
@@ -100,13 +100,13 @@ namespace Tapeti.Flow.Default
 
             var flowStore = context.Config.DependencyResolver.Resolve<IFlowStore>();
 
-            var flowID = await flowStore.FindFlowID(continuationID);
+            var flowID = await flowStore.FindFlowID(continuationID).ConfigureAwait(false);
             if (!flowID.HasValue)
                 return null;
 
-            var flowStateLock = await flowStore.LockFlowState(flowID.Value);
+            var flowStateLock = await flowStore.LockFlowState(flowID.Value).ConfigureAwait(false);
 
-            var flowState = await flowStateLock.GetFlowState();
+            var flowState = await flowStateLock.GetFlowState().ConfigureAwait(false);
             if (flowState == null)
                 return null;
 

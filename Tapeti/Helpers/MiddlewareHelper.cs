@@ -50,7 +50,7 @@ namespace Tapeti.Helpers
             var handlerIndex = middleware?.Count - 1 ?? -1;
             if (middleware == null || handlerIndex == -1)
             {
-                await lastHandler();
+                await lastHandler().ConfigureAwait(false);
                 return;
             }
 
@@ -58,12 +58,12 @@ namespace Tapeti.Helpers
             {
                 handlerIndex--;
                 if (handlerIndex >= 0)
-                    await handle(middleware[handlerIndex], HandleNext);
+                    await handle(middleware[handlerIndex], HandleNext).ConfigureAwait(false);
                 else
-                    await lastHandler();
+                    await lastHandler().ConfigureAwait(false);
             }
 
-            await handle(middleware[handlerIndex], HandleNext);
+            await handle(middleware[handlerIndex], HandleNext).ConfigureAwait(false);
         }
     }
 }

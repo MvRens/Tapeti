@@ -45,7 +45,7 @@ namespace Tapeti.Connection
             if (capturedTaskQueue == null)
                 return;
             
-            await capturedTaskQueue.Add(() => { });
+            await capturedTaskQueue.Add(() => { }).ConfigureAwait(false);
             capturedTaskQueue.Dispose();
         }
 
@@ -74,7 +74,7 @@ namespace Tapeti.Connection
         {
             return GetTaskQueue().Add(async () =>
             {
-                await operation(modelProvider);
+                await operation(modelProvider).ConfigureAwait(false);
             });
         }
 

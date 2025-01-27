@@ -27,14 +27,14 @@ namespace Tapeti.Flow.SQL
             {
                 try
                 {
-                    await callback();
+                    await callback().ConfigureAwait(false);
                     break;
                 }
                 catch (SqlException e)
                 {
                     if (SqlExceptionHelper.IsTransientError(e))
                     {
-                        await Task.Delay(ExponentialBackoff[retryAttempt]);
+                        await Task.Delay(ExponentialBackoff[retryAttempt]).ConfigureAwait(false);
                         if (retryAttempt < ExponentialBackoff.Length - 1)
                             retryAttempt++;
                     }
@@ -51,8 +51,8 @@ namespace Tapeti.Flow.SQL
 
             await Execute(async () =>
             {
-                returnValue = await callback();
-            });
+                returnValue = await callback().ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             return returnValue!;
         }

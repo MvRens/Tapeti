@@ -64,7 +64,7 @@ namespace Tapeti.Flow.Default
             validatedMethods = new HashSet<string>();
             try
             {
-                foreach (var flowStateRecord in await repository.GetStates<FlowState>())
+                foreach (var flowStateRecord in await repository.GetStates<FlowState>().ConfigureAwait(false))
                 {
                     flowStates.TryAdd(flowStateRecord.FlowID, new CachedFlowState(flowStateRecord.FlowState, flowStateRecord.CreationTime, true));
 
@@ -134,7 +134,7 @@ namespace Tapeti.Flow.Default
 
             inUse = true;
 
-            var flowStatelock = new FlowStateLock(this, flowID, await locks.GetLock(flowID));
+            var flowStatelock = new FlowStateLock(this, flowID, await locks.GetLock(flowID).ConfigureAwait(false));
             return flowStatelock;
         }
 
@@ -215,18 +215,18 @@ namespace Tapeti.Flow.Default
                     // Storing the flowstate in the underlying repository
                     if (isNew)
                     {
-                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, cachedFlowState.CreationTime);
+                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, cachedFlowState.CreationTime).ConfigureAwait(false);
                     }
                     else
                     {
-                        await owner.repository.UpdateState(FlowID, cachedFlowState.FlowState);
+                        await owner.repository.UpdateState(FlowID, cachedFlowState.FlowState).ConfigureAwait(false);
                     }
                 }
                 else if (wasPersistent)
                 {
                     // We transitioned from a durable queue to a dynamic queue,
                     // remove the persistent state but keep the in-memory version
-                    await owner.repository.DeleteState(FlowID);
+                    await owner.repository.DeleteState(FlowID).ConfigureAwait(false);
                 }
             }
 
@@ -244,7 +244,7 @@ namespace Tapeti.Flow.Default
                     cachedFlowState = null;
 
                     if (removedFlowState is { IsPersistent: true })
-                        await owner.repository.DeleteState(FlowID);
+                        await owner.repository.DeleteState(FlowID).ConfigureAwait(false);
                 }
             }
         }
