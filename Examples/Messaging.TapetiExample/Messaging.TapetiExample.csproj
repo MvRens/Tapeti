@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-    <PackageReference Include="Tapeti.Annotations" Version="3.*-*" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.*" />
   </ItemGroup>
 
 </Project>
