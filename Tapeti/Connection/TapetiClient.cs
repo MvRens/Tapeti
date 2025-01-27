@@ -33,6 +33,7 @@ namespace Tapeti.Connection
         private const int ReconnectDelay = 5000;
         private const int MandatoryReturnTimeout = 300000;
         private const int MinimumConnectedReconnectDelay = 1000;
+        private const int CloseMessageHandlersTimeout = 30000;
 
         private readonly TapetiConnectionParams connectionParams;
 
@@ -49,6 +50,7 @@ namespace Tapeti.Connection
         private readonly TapetiChannel consumeChannel;
         private readonly TapetiChannel publishChannel;
         private readonly HttpClient managementClient;
+        private readonly MessageHandlerTracker messageHandlerTracker = new();
 
         // These fields must be locked using connectionLock
         private readonly object connectionLock = new();
@@ -224,7 +226,7 @@ namespace Tapeti.Connection
                     return;
 
                 capturedConnectionReference = Interlocked.Read(ref connectionReference);
-                var basicConsumer = new TapetiBasicConsumer(consumer, capturedConnectionReference, Respond);
+                var basicConsumer = new TapetiBasicConsumer(consumer, messageHandlerTracker, capturedConnectionReference, Respond);
                 consumerTag = channel.BasicConsume(queueName, false, basicConsumer);
             }).ConfigureAwait(false);
 
@@ -570,6 +572,9 @@ namespace Tapeti.Connection
                     capturedConnection.Dispose();
                 }
             }
+
+            // Wait for message handlers to finish
+            await messageHandlerTracker.WaitForIdle(CloseMessageHandlersTimeout);
         }
 
 

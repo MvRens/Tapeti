@@ -132,7 +132,7 @@ namespace Tapeti.Flow.Default
 
 
         internal async Task SendRequestDirect(FlowContext context, object message, string queueName, ResponseHandlerInfo responseHandlerInfo,
-            string convergeMethodName = null, bool convergeMethodTaskSync = false)
+            string? convergeMethodName = null, bool convergeMethodTaskSync = false)
         {
             var properties = await PrepareRequest(context, responseHandlerInfo, convergeMethodName, convergeMethodTaskSync);
             await context.Store(responseHandlerInfo.IsDurableQueue);
