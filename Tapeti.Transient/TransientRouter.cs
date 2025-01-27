@@ -71,7 +71,7 @@ namespace Tapeti.Transient
                     Persistent = false
                 };
 
-                await ((IInternalPublisher)publisher).Publish(request, properties, false);
+                await ((IInternalPublisher)publisher).Publish(request, properties, false).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -84,7 +84,7 @@ namespace Tapeti.Transient
 
             await using (new Timer(TimeoutResponse, tcs, defaultTimeoutMs, -1))
             {
-                return await tcs.Task;
+                return await tcs.Task.ConfigureAwait(false);
             }
         }
 

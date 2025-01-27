@@ -22,7 +22,7 @@
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2022.*" />
     <PackageReference Include="Newtonsoft.Json" Version="13.*" />
-    <PackageReference Include="RabbitMQ.Client" Version="[6.5]" />
+    <PackageReference Include="RabbitMQ.Client" Version="[6.8.1]" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +34,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
-    <PackageReference Include="Tapeti.Annotations" Version="3.*-*" />
+    <PackageReference Include="Tapeti.Annotations" Version="3.*" />
   </ItemGroup>
 </Project>

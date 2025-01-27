@@ -79,7 +79,7 @@ namespace Tapeti.Default
                 switch (payload)
                 {
                     case IAsyncDisposable asyncDisposable:
-                        await asyncDisposable.DisposeAsync();
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
                         break;
 
                     case IDisposable disposable:
@@ -151,7 +151,7 @@ namespace Tapeti.Default
                 foreach (var item in items.Values)
                 {
                     if (item is IAsyncDisposable asyncDisposable)
-                        await asyncDisposable.DisposeAsync();
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }

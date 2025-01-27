@@ -17,7 +17,10 @@ namespace Tapeti.Config
         /// <summary>
         /// Various Tapeti features which can be turned on or off.
         /// </summary>
-        ITapetiConfigFeatues Features { get; }
+        /// <remarks>
+        /// Calling this method will freeze the feature set if <see cref="ITapetiConfigBuilder.DelayFeatures"/> is used.
+        /// </remarks>
+        ITapetiConfigFeatures GetFeatures();
 
         /// <summary>
         /// Provides access to the different kinds of registered middleware.
@@ -34,7 +37,7 @@ namespace Tapeti.Config
     /// <summary>
     /// Various Tapeti features which can be turned on or off.
     /// </summary>
-    public interface ITapetiConfigFeatues
+    public interface ITapetiConfigFeatures
     {
         /// <summary>
         /// Determines whether 'publisher confirms' are used. This RabbitMQ features allows Tapeti to

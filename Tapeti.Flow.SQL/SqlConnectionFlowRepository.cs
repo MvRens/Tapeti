@@ -44,27 +44,26 @@ namespace Tapeti.Flow.SQL
         {
             return await SqlRetryHelper.Execute(async () =>
             {
-                using (var connection = await GetConnection())
+                using var connection = await GetConnection().ConfigureAwait(false);
+
+                var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {tableName}", connection);
+                var flowReader = await flowQuery.ExecuteReaderAsync().ConfigureAwait(false);
+
+                var result = new List<FlowRecord<T>>();
+
+                while (await flowReader.ReadAsync().ConfigureAwait(false))
                 {
-                    var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {tableName}", connection);
-                    var flowReader = await flowQuery.ExecuteReaderAsync();
+                    var flowID = flowReader.GetGuid(0);
+                    var creationTime = flowReader.GetDateTime(1);
+                    var stateJson = flowReader.GetString(2);
 
-                    var result = new List<FlowRecord<T>>();
-
-                    while (await flowReader.ReadAsync())
-                    {
-                        var flowID = flowReader.GetGuid(0);
-                        var creationTime = flowReader.GetDateTime(1);
-                        var stateJson = flowReader.GetString(2);
-
-                        var state = JsonConvert.DeserializeObject<T>(stateJson);
-                        if (state != null)
-                            result.Add(new FlowRecord<T>(flowID, creationTime, state));
-                    }
-
-                    return result;
+                    var state = JsonConvert.DeserializeObject<T>(stateJson);
+                    if (state != null)
+                        result.Add(new FlowRecord<T>(flowID, creationTime, state));
                 }
-            });
+
+                return result;
+            }).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -72,23 +71,22 @@ namespace Tapeti.Flow.SQL
         {
             await SqlRetryHelper.Execute(async () =>
             {
-                using (var connection = await GetConnection())
-                {
-                    var query = new SqlCommand($"insert into {tableName} (FlowID, StateJson, CreationTime)" +
-                                               "values (@FlowID, @StateJson, @CreationTime)",
-                        connection);
+                using var connection = await GetConnection().ConfigureAwait(false);
 
-                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                    var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-                    var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
+                var query = new SqlCommand($"insert into {tableName} (FlowID, StateJson, CreationTime)" +
+                                           "values (@FlowID, @StateJson, @CreationTime)",
+                    connection);
 
-                    flowIDParam.Value = flowID;
-                    stateJsonParam.Value = JsonConvert.SerializeObject(state);
-                    creationTimeParam.Value = timestamp;
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+                var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
 
-                    await query.ExecuteNonQueryAsync();
-                }
-            });
+                flowIDParam.Value = flowID;
+                stateJsonParam.Value = JsonConvert.SerializeObject(state);
+                creationTimeParam.Value = timestamp;
+
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -96,19 +94,18 @@ namespace Tapeti.Flow.SQL
         {
             await SqlRetryHelper.Execute(async () =>
             {
-                using (var connection = await GetConnection())
-                {
-                    var query = new SqlCommand($"update {tableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
+                using var connection = await GetConnection().ConfigureAwait(false);
+                 
+                var query = new SqlCommand($"update {tableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
 
-                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                    var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
 
-                    flowIDParam.Value = flowID;
-                    stateJsonParam.Value = JsonConvert.SerializeObject(state);
+                flowIDParam.Value = flowID;
+                stateJsonParam.Value = JsonConvert.SerializeObject(state);
 
-                    await query.ExecuteNonQueryAsync();
-                }
-            });
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -116,23 +113,22 @@ namespace Tapeti.Flow.SQL
         {
             await SqlRetryHelper.Execute(async () =>
             {
-                using (var connection = await GetConnection())
-                {
-                    var query = new SqlCommand($"delete from {tableName} where FlowID = @FlowID", connection);
+                using var connection = await GetConnection().ConfigureAwait(false);
 
-                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                    flowIDParam.Value = flowID;
+                var query = new SqlCommand($"delete from {tableName} where FlowID = @FlowID", connection);
 
-                    await query.ExecuteNonQueryAsync();
-                }
-            });
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                flowIDParam.Value = flowID;
+
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
 
 
         private async Task<SqlConnection> GetConnection()
         {
             var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
+            await connection.OpenAsync().ConfigureAwait(false);
 
             return connection;
         }

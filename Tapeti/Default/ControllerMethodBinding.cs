@@ -117,10 +117,10 @@ namespace Tapeti.Default
                 {
                     case BindingTargetMode.Default:
                         if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
-                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
+                            QueueName = await target.BindDynamic(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments).ConfigureAwait(false);
                         else
                         {
-                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments);
+                            await target.BindDurable(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments).ConfigureAwait(false);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -128,10 +128,10 @@ namespace Tapeti.Default
 
                     case BindingTargetMode.Direct:
                         if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Dynamic)
-                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments);
+                            QueueName = await target.BindDynamicDirect(bindingInfo.MessageClass, bindingInfo.QueueInfo.Name, bindingInfo.QueueInfo.QueueArguments).ConfigureAwait(false);
                         else
                         {
-                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments);
+                            await target.BindDurableDirect(bindingInfo.QueueInfo.Name!, bindingInfo.QueueInfo.QueueArguments).ConfigureAwait(false);
                             QueueName = bindingInfo.QueueInfo.Name;
                         }
 
@@ -143,7 +143,7 @@ namespace Tapeti.Default
             }
             else if (bindingInfo.QueueInfo.QueueType == Config.QueueType.Durable)
             {
-                await target.BindDurableObsolete(bindingInfo.QueueInfo.Name!);
+                await target.BindDurableObsolete(bindingInfo.QueueInfo.Name!).ConfigureAwait(false);
                 QueueName = bindingInfo.QueueInfo.Name;
             }
         }
@@ -165,14 +165,14 @@ namespace Tapeti.Default
             var controller = Method.IsStatic ? null : dependencyResolver.Resolve(bindingInfo.ControllerType);
             context.Store(new ControllerMessageContextPayload(controller, (IControllerMethodBinding)context.Binding));
             
-            if (!await FilterAllowed(context))
+            if (!await FilterAllowed(context).ConfigureAwait(false))
                 return;
 
 
             await MiddlewareHelper.GoAsync(
                 bindingInfo.MessageMiddleware,
-                async (handler, next) => await handler.Handle(context, next),
-                async () => await messageHandler(context));
+                async (handler, next) => await handler.Handle(context, next).ConfigureAwait(false),
+                async () => await messageHandler(context).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
 
@@ -181,8 +181,8 @@ namespace Tapeti.Default
         {
             await MiddlewareHelper.GoAsync(
                 bindingInfo.CleanupMiddleware,
-                async (handler, next) => await handler.Cleanup(context, consumeResult, next),
-                () => default);
+                async (handler, next) => await handler.Cleanup(context, consumeResult, next).ConfigureAwait(false),
+                () => default).ConfigureAwait(false);
         }
 
 
@@ -191,12 +191,12 @@ namespace Tapeti.Default
             var allowed = false;
             await MiddlewareHelper.GoAsync(
                 bindingInfo.FilterMiddleware,
-                async (handler, next) => await handler.Filter(context, next),
+                async (handler, next) => await handler.Filter(context, next).ConfigureAwait(false),
                 () =>
                 {
                     allowed = true;
                     return default;
-                });
+                }).ConfigureAwait(false);
 
             return allowed;
         }

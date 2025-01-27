@@ -34,21 +34,21 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task Publish(object message)
         {
-            await Publish(message, null, IsMandatory(message));
+            await Publish(message, null, IsMandatory(message)).ConfigureAwait(false);
         }
 
 
         /// <inheritdoc />
         public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Action<TResponse>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class
         {
-            await PublishRequest(message, responseMethodSelector.Body);
+            await PublishRequest(message, responseMethodSelector.Body).ConfigureAwait(false);
         }
 
 
         /// <inheritdoc />
         public async Task PublishRequest<TController, TRequest, TResponse>(TRequest message, Expression<Func<TController, Func<TResponse, Task>>> responseMethodSelector) where TController : class where TRequest : class where TResponse : class
         {
-            await PublishRequest(message, responseMethodSelector.Body);
+            await PublishRequest(message, responseMethodSelector.Body).ConfigureAwait(false);
         }
 
 
@@ -87,14 +87,14 @@ namespace Tapeti.Connection
                 ReplyTo = binding.QueueName
             };
 
-            await Publish(message, properties, IsMandatory(message));
+            await Publish(message, properties, IsMandatory(message)).ConfigureAwait(false);
         }
 
 
         /// <inheritdoc />
         public async Task SendToQueue(string queueName, object message)
         {
-            await PublishDirect(message, queueName, null, IsMandatory(message));
+            await PublishDirect(message, queueName, null, IsMandatory(message)).ConfigureAwait(false);
         }
 
 
@@ -105,14 +105,14 @@ namespace Tapeti.Connection
             var exchange = exchangeStrategy.GetExchange(messageClass);
             var routingKey = routingKeyStrategy.GetRoutingKey(messageClass);
 
-            await Publish(message, properties, exchange, routingKey, mandatory);
+            await Publish(message, properties, exchange, routingKey, mandatory).ConfigureAwait(false);
         }
 
 
         /// <inheritdoc />
         public async Task PublishDirect(object message, string queueName, IMessageProperties? properties, bool mandatory)
         {
-            await Publish(message, properties, null, queueName, mandatory);
+            await Publish(message, properties, null, queueName, mandatory).ConfigureAwait(false);
         }
 
 
@@ -136,12 +136,12 @@ namespace Tapeti.Connection
 
             await MiddlewareHelper.GoAsync(
                 config.Middleware.Publish,
-                async (handler, next) => await handler.Handle(context, next),
+                async (handler, next) => await handler.Handle(context, next).ConfigureAwait(false),
                 async () =>
                 {
                     var body = messageSerializer.Serialize(message, writableProperties);
-                    await clientFactory().Publish(body, writableProperties, exchange, routingKey, mandatory);
-                });
+                    await clientFactory().Publish(body, writableProperties, exchange, routingKey, mandatory).ConfigureAwait(false);
+                }).ConfigureAwait(false);
         }
 
 

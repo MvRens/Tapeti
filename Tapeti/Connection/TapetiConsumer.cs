@@ -60,7 +60,7 @@ namespace Tapeti.Connection
                     Exchange = exchange,
                     RoutingKey = routingKey,
                     Properties = properties
-                });
+                }).ConfigureAwait(false);
             }
             catch (Exception dispatchException)
             {
@@ -78,7 +78,7 @@ namespace Tapeti.Connection
                 };
                 
                 var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
-                await HandleException(exceptionContext);
+                await HandleException(exceptionContext).ConfigureAwait(false);
                 
                 return exceptionContext.ConsumeResult;
             }
@@ -93,7 +93,7 @@ namespace Tapeti.Connection
 
             foreach (var binding in bindings.Where(binding => binding.Accept(messageType)))
             {
-                var consumeResult = await InvokeUsingBinding(message, messageContextData, binding);
+                var consumeResult = await InvokeUsingBinding(message, messageContextData, binding).ConfigureAwait(false);
                 validMessageType = true;
 
                 if (consumeResult != ConsumeResult.Success)
@@ -125,18 +125,18 @@ namespace Tapeti.Connection
             try
             {
                 await MiddlewareHelper.GoAsync(config.Middleware.Message,
-                    async (handler, next) => await handler.Handle(context, next),
-                    async () => { await binding.Invoke(context); });
+                    async (handler, next) => await handler.Handle(context, next).ConfigureAwait(false),
+                    async () => { await binding.Invoke(context).ConfigureAwait(false); });
 
-                await binding.Cleanup(context, ConsumeResult.Success);
+                await binding.Cleanup(context, ConsumeResult.Success).ConfigureAwait(false);
                 return ConsumeResult.Success;
             }
             catch (Exception invokeException)
             {
                 var exceptionContext = new ExceptionStrategyContext(context, invokeException);
-                await HandleException(exceptionContext);
+                await HandleException(exceptionContext).ConfigureAwait(false);
 
-                await binding.Cleanup(context, exceptionContext.ConsumeResult);
+                await binding.Cleanup(context, exceptionContext.ConsumeResult).ConfigureAwait(false);
                 return exceptionContext.ConsumeResult;
             }
         }
@@ -153,7 +153,7 @@ namespace Tapeti.Connection
 
             try
             {
-                await exceptionStrategy.HandleException(exceptionContext);
+                await exceptionStrategy.HandleException(exceptionContext).ConfigureAwait(false);
             }
             catch (Exception strategyException)
             {

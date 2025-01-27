@@ -75,15 +75,15 @@ namespace Tapeti.Default
 
         private static async ValueTask PublishGenericTaskResult<T>(IMessageContext messageContext, object value) where T : class
         {
-            var message = await (Task<T>)value;
-            await Reply(message, messageContext);
+            var message = await ((Task<T>)value).ConfigureAwait(false);
+            await Reply(message, messageContext).ConfigureAwait(false);
         }
 
 
         private static async ValueTask PublishGenericValueTaskResult<T>(IMessageContext messageContext, object value) where T : class
         {
-            var message = await (ValueTask<T>)value;
-            await Reply(message, messageContext);
+            var message = await ((ValueTask<T>)value).ConfigureAwait(false);
+            await Reply(message, messageContext).ConfigureAwait(false);
         }
 
 
@@ -99,9 +99,9 @@ namespace Tapeti.Default
             };
 
             if (!string.IsNullOrEmpty(messageContext.Properties.ReplyTo))
-                await publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties, messageContext.Properties.Persistent.GetValueOrDefault(true));
+                await publisher.PublishDirect(message, messageContext.Properties.ReplyTo, properties, messageContext.Properties.Persistent.GetValueOrDefault(true)).ConfigureAwait(false);
             else
-                await publisher.Publish(message, properties, false);
+                await publisher.Publish(message, properties, false).ConfigureAwait(false);
         }
     }
 }
