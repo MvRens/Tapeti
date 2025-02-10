@@ -2,8 +2,8 @@
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using RabbitMQ.Client;
+using Shouldly;
 using Tapeti.Connection;
 using Tapeti.Default;
 using Tapeti.Exceptions;
@@ -49,8 +49,8 @@ namespace Tapeti.Tests.Client
         [Fact]
         public void Fixture()
         {
-            fixture.RabbitMQPort.Should().BeGreaterThan(0);
-            fixture.RabbitMQManagementPort.Should().BeGreaterThan(0);
+            ((int)fixture.RabbitMQPort).ShouldBeGreaterThan(0);
+            ((int)fixture.RabbitMQManagementPort).ShouldBeGreaterThan(0);
         }
 
 
@@ -58,7 +58,7 @@ namespace Tapeti.Tests.Client
         public async Task DynamicQueueDeclareNoPrefix()
         {
             var queueName = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
-            queueName.Should().NotBeNullOrEmpty();
+            queueName.ShouldNotBeNullOrEmpty();
         }
 
 
@@ -66,7 +66,7 @@ namespace Tapeti.Tests.Client
         public async Task DynamicQueueDeclarePrefix()
         {
             var queueName = await client.DynamicQueueDeclare("dynamicprefix", null, CancellationToken.None);
-            queueName.Should().StartWith("dynamicprefix");
+            queueName.ShouldStartWith("dynamicprefix");
         }
 
 
@@ -85,7 +85,7 @@ namespace Tapeti.Tests.Client
             rabbitmqClient.Close();
 
 
-            ok.Should().NotBeNull();
+            ok.ShouldNotBeNull();
 
 
             await client.DurableQueueDeclare("incompatibleargs", new QueueBinding[]
@@ -115,7 +115,7 @@ namespace Tapeti.Tests.Client
 
 
             var publishOverMaxLength = () => client.Publish(body, properties, null, queue1, true);
-            await publishOverMaxLength.Should().ThrowAsync<NackException>();
+            await publishOverMaxLength.ShouldThrowAsync<NackException>();
 
             // The channel should recover and allow further publishing
             await client.Publish(body, properties, null, queue2, true);
@@ -152,7 +152,8 @@ namespace Tapeti.Tests.Client
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = 50
-                });
+                },
+                null);
         }
     }
 }

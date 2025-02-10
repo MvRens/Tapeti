@@ -147,6 +147,7 @@ namespace Tapeti
             var dynamicQueueAttribute = member.GetDynamicQueueAttribute();
             var durableQueueAttribute = member.GetDurableQueueAttribute();
             var queueArgumentsAttribute = member.GetQueueArgumentsAttribute();
+            var dedicatedChannelAttribute = member.GetCustomAttribute<DedicatedChannelAttribute>();
 
             if (dynamicQueueAttribute != null && durableQueueAttribute != null)
                 throw new TopologyConfigurationException($"Cannot combine static and dynamic queue attributes on controller {member.DeclaringType?.Name} method {member.Name}");
@@ -177,7 +178,8 @@ namespace Tapeti
 
             return new ControllerMethodBinding.QueueInfo(queueType, name)
             {
-                QueueArguments = GetQueueArguments(queueArgumentsAttribute) ?? fallbackQueueInfo?.QueueArguments
+                QueueArguments = GetQueueArguments(queueArgumentsAttribute) ?? fallbackQueueInfo?.QueueArguments,
+                DedicatedChannel = dedicatedChannelAttribute != null
             };
         }
 

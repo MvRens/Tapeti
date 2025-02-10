@@ -190,6 +190,7 @@ namespace Tapeti.Connection
         {
             public string? QueueName { get; }
             public QueueType? QueueType => null;
+            public bool DedicatedChannel => false;
 
 
             public ExceptionContextBinding(string? queueName)

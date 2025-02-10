@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using FluentAssertions;
+using Shouldly;
 using Tapeti.Helpers;
 using Xunit;
 
@@ -32,7 +32,7 @@ namespace Tapeti.Tests.Helpers
             var returnValue = invoker.Invoke(target);
 
             target.Verify(methodName);
-            returnValue.Should().Be("Hello world!");
+            returnValue.ShouldBe("Hello world!");
         }
 
 
@@ -59,7 +59,7 @@ namespace Tapeti.Tests.Helpers
             var returnValue = invoker.Invoke(target, new byte[] { 42, 69 });
 
             target.Verify(methodName, "42,69");
-            returnValue.Should().Be(true);
+            returnValue.ShouldBe(true);
         }
 
 
@@ -88,7 +88,7 @@ namespace Tapeti.Tests.Helpers
             var returnValue = invoker.Invoke(null);
 
             InvokeTarget.VerifyStatic(methodName);
-            returnValue.Should().Be("Hello world!");
+            returnValue.ShouldBe("Hello world!");
         }
 
 
@@ -117,7 +117,7 @@ namespace Tapeti.Tests.Helpers
             var returnValue = invoker.Invoke(null, new byte[] { 42, 69 });
 
             InvokeTarget.VerifyStatic(methodName, "42,69");
-            returnValue.Should().Be(true);
+            returnValue.ShouldBe(true);
         }
 
 
@@ -187,7 +187,7 @@ namespace Tapeti.Tests.Helpers
 
             private void MethodCalled(string parameters = "", [CallerMemberName]string methodName = "")
             {
-                this.methodName.Should().BeNull();
+                this.methodName.ShouldBeNull();
                 this.methodName = methodName;
                 this.parameters = parameters;
 
@@ -203,7 +203,7 @@ namespace Tapeti.Tests.Helpers
 
             private static void StaticMethodCalled(string parameters = "", [CallerMemberName] string methodName = "")
             {
-                staticMethodName.Should().BeNull();
+                staticMethodName.ShouldBeNull();
                 staticMethodName = methodName;
                 staticParameters = parameters;
             }
@@ -212,15 +212,15 @@ namespace Tapeti.Tests.Helpers
 
             public void Verify(string methodName, string parameters = "")
             {
-                this.methodName.Should().Be(methodName);
-                this.parameters.Should().Be(parameters);
+                this.methodName.ShouldBe(methodName);
+                this.parameters.ShouldBe(parameters);
             }
 
 
             public static void VerifyStatic(string methodName, string parameters = "")
             {
-                staticMethodName.Should().Be(methodName);
-                staticParameters.Should().Be(parameters);
+                staticMethodName.ShouldBe(methodName);
+                staticParameters.ShouldBe(parameters);
             }
         }
     }

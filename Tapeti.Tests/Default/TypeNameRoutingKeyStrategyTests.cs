@@ -1,5 +1,5 @@
 ﻿using System;
-using FluentAssertions;
+using Shouldly;
 using Tapeti.Annotations;
 using Tapeti.Default;
 using Xunit;
@@ -109,7 +109,7 @@ namespace Tapeti.Tests.Default
         private static void AssertRoutingKey(string expected, Type messageType)
         {
             var routingKey = new TypeNameRoutingKeyStrategy().GetRoutingKey(messageType);
-            routingKey.Should().Be(expected);
+            routingKey.ShouldBe(expected);
         }
     }
     // ReSharper restore InconsistentNaming

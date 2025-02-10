@@ -41,10 +41,7 @@ namespace Tapeti
             this.config = config;
             (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
-            client = new Lazy<ITapetiClient>(() => new TapetiClient(config, Params ?? new TapetiConnectionParams())
-            {
-                ConnectionEventListener = new ConnectionEventListener(this)
-            });
+            client = new Lazy<ITapetiClient>(() => new TapetiClient(config, Params ?? new TapetiConnectionParams(), new ConnectionEventListener(this)));
         }
 
         /// <inheritdoc />

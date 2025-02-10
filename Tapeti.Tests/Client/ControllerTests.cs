@@ -1,5 +1,6 @@
-﻿using System.Threading.Tasks;
-using FluentAssertions;
+﻿using System;
+using System.Threading.Tasks;
+using Shouldly;
 using SimpleInjector;
 using Tapeti.Config;
 using Tapeti.SimpleInjector;
@@ -25,6 +26,7 @@ namespace Tapeti.Tests.Client
             this.fixture = fixture;
 
             container.RegisterInstance<ILogger>(new MockLogger(testOutputHelper));
+            container.RegisterInstance(testOutputHelper);
         }
 
 
@@ -61,14 +63,39 @@ namespace Tapeti.Tests.Client
 
 
             var handler = await RequestResponseFilterController.ValidResponse.Task;
-            handler.Should().Be(2);
+            handler.ShouldBe(2);
 
             var invalidHandler = await Task.WhenAny(RequestResponseFilterController.InvalidResponse.Task, Task.Delay(1000));
-            invalidHandler.Should().NotBe(RequestResponseFilterController.InvalidResponse.Task);
+            invalidHandler.ShouldNotBe(RequestResponseFilterController.InvalidResponse.Task);
         }
 
 
-        private TapetiConnection CreateConnection(ITapetiConfig config)
+        [Fact]
+        public async Task DedicatedChannel()
+        {
+            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
+                .EnableDeclareDurableQueues()
+                .RegisterController<DedicatedChannelController>()
+                .Build();
+
+            connection = CreateConnection(config, 50, 2);
+            await connection!.Subscribe();
+
+
+            var publisher = connection.GetPublisher();
+            for (var i = 0; i < DedicatedChannelController.WaitMessageCount; i++)
+                await publisher.Publish(new DedicatedChannelWaitMessage());
+
+            for (var i = 0; i < DedicatedChannelController.NoWaitMessageCount; i++)
+                await publisher.Publish(new DedicatedChannelNoWaitMessage());
+
+
+            await DedicatedChannelController.WaitForNoWaitMessages();
+            await DedicatedChannelController.WaitForWaitMessages();
+        }
+
+
+        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, int? consumerDispatchConcurrency = null)
         {
             return new TapetiConnection(config)
             {
@@ -79,7 +106,8 @@ namespace Tapeti.Tests.Client
                     ManagementPort = fixture.RabbitMQManagementPort,
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
-                    PrefetchCount = 1
+                    PrefetchCount = prefetchCount,
+                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? Environment.ProcessorCount
                 }
             };
         }

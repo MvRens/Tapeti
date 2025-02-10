@@ -4,9 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
-using FluentAssertions.Execution;
 using Moq;
+using Shouldly;
 using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
@@ -18,7 +17,7 @@ namespace Tapeti.Tests.Config
     {
         public static string AsUTF8String(this object value)
         {
-            value.Should().BeOfType<byte[]>();
+            value.ShouldBeOfType<byte[]>();
             return Encoding.UTF8.GetString((byte[])value);
         }
     }
@@ -85,10 +84,10 @@ namespace Tapeti.Tests.Config
             var config = GetControllerConfig<TestController>();
 
             var binding1 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage1" });
-            binding1.Should().NotBeNull();
+            binding1.ShouldNotBeNull();
 
             var binding2 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage2" });
-            binding2.Should().NotBeNull();
+            binding2.ShouldNotBeNull();
 
 
 
@@ -96,15 +95,15 @@ namespace Tapeti.Tests.Config
             await subscriber.ApplyBindings();
 
 
-            declaredQueues.Should().HaveCount(1);
+            declaredQueues.Count.ShouldBe(1);
             var arguments = declaredQueues["queue-1"];
 
-            arguments.Should().ContainKey("x-custom").WhoseValue.AsUTF8String().Should().Be("custom value");
-            arguments.Should().ContainKey("x-another").WhoseValue.Should().Be(true);
-            arguments.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
-            arguments.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
-            arguments.Should().ContainKey("x-message-ttl").WhoseValue.Should().Be(4269);
-            arguments.Should().ContainKey("x-overflow").WhoseValue.AsUTF8String().Should().Be("reject-publish");
+            arguments["x-custom"].AsUTF8String().ShouldBe("custom value");
+            arguments["x-another"].ShouldBe(true);
+            arguments["x-max-length"].ShouldBe(100);
+            arguments["x-max-length-bytes"].ShouldBe(100000);
+            arguments["x-message-ttl"].ShouldBe(4269);
+            arguments["x-overflow"].AsUTF8String().ShouldBe("reject-publish");
         }
 
 
@@ -116,13 +115,13 @@ namespace Tapeti.Tests.Config
             var subscriber = new TapetiSubscriber(() => client.Object, config);
             await subscriber.ApplyBindings();
 
-            declaredQueues.Should().HaveCount(2);
+            declaredQueues.Count.ShouldBe(2);
 
             var arguments1 = declaredQueues["queue-1"];
-            arguments1.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
+            arguments1["x-max-length"].ShouldBe(100);
 
             var arguments2 = declaredQueues["queue-2"];
-            arguments2.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
+            arguments2["x-max-length-bytes"].ShouldBe(100000);
         }
 
 
@@ -137,11 +136,8 @@ namespace Tapeti.Tests.Config
                 return subscriber.ApplyBindings();
             };
 
-            using (new AssertionScope())
-            {
-                await testApplyBindings.Should().ThrowAsync<TopologyConfigurationException>();
-                declaredQueues.Should().HaveCount(0);
-            }
+            await testApplyBindings.ShouldThrowAsync<TopologyConfigurationException>();
+            declaredQueues.Count.ShouldBe(0);
         }
 
         

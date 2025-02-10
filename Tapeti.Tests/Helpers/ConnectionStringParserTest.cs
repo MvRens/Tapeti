@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+﻿using Shouldly;
 using Tapeti.Helpers;
 using Xunit;
 
@@ -186,12 +186,12 @@ namespace Tapeti.Tests.Helpers
         {
             var parsed = ConnectionStringParser.Parse(connectionstring);
 
-            parsed.HostName.Should().Be(expected.HostName);
-            parsed.Port.Should().Be(expected.Port);
-            parsed.VirtualHost.Should().Be(expected.VirtualHost);
-            parsed.Username.Should().Be(expected.Username);
-            parsed.Password.Should().Be(expected.Password);
-            parsed.PrefetchCount.Should().Be(expected.PrefetchCount);
+            parsed.HostName.ShouldBe(expected.HostName);
+            parsed.Port.ShouldBe(expected.Port);
+            parsed.VirtualHost.ShouldBe(expected.VirtualHost);
+            parsed.Username.ShouldBe(expected.Username);
+            parsed.Password.ShouldBe(expected.Password);
+            parsed.PrefetchCount.ShouldBe(expected.PrefetchCount);
         }
     }
 }
