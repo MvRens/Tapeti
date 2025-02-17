@@ -19,6 +19,7 @@ namespace Tapeti.Tests.Client
         private readonly Container container = new();
 
         private TapetiConnection? connection;
+        private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
 
 
         public ControllerTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
@@ -30,9 +31,9 @@ namespace Tapeti.Tests.Client
         }
 
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
-            return Task.CompletedTask;
+            proxy = await fixture.AcquireProxy();
         }
 
 
@@ -40,6 +41,8 @@ namespace Tapeti.Tests.Client
         {
             if (connection != null)
                 await connection.DisposeAsync();
+
+            proxy.Dispose();
         }
 
 
@@ -102,8 +105,8 @@ namespace Tapeti.Tests.Client
                 Params = new TapetiConnectionParams
                 {
                     HostName = "127.0.0.1",
-                    Port = fixture.RabbitMQPort,
-                    ManagementPort = fixture.RabbitMQManagementPort,
+                    Port = proxy.RabbitMQPort,
+                    ManagementPort = proxy.RabbitMQManagementPort,
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = prefetchCount,

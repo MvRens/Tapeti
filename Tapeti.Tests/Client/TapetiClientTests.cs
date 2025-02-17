@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace Tapeti.Tests.Client
         private readonly RabbitMQFixture fixture;
         private readonly MockDependencyResolver dependencyResolver = new();
 
+        private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
         private TapetiClient client = null!;
 
 
@@ -31,17 +33,17 @@ namespace Tapeti.Tests.Client
         }
 
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
+            proxy = await fixture.AcquireProxy();
             client = CreateClient();
-
-            return Task.CompletedTask;
         }
 
 
         public async Task DisposeAsync()
         {
             await client.Close();
+            proxy.Dispose();
         }
 
 
@@ -49,8 +51,8 @@ namespace Tapeti.Tests.Client
         [Fact]
         public void Fixture()
         {
-            ((int)fixture.RabbitMQPort).ShouldBeGreaterThan(0);
-            ((int)fixture.RabbitMQManagementPort).ShouldBeGreaterThan(0);
+            ((int)proxy.RabbitMQPort).ShouldBeGreaterThan(0);
+            ((int)proxy.RabbitMQManagementPort).ShouldBeGreaterThan(0);
         }
 
 
@@ -122,6 +124,13 @@ namespace Tapeti.Tests.Client
         }
 
 
+        [Fact]
+        public Task Reconnect()
+        {
+            throw new NotImplementedException();
+        }
+
+
         // TODO test the other methods
 
         private RabbitMQ.Client.IConnection CreateRabbitMQClient()
@@ -129,7 +138,7 @@ namespace Tapeti.Tests.Client
             var connectionFactory = new ConnectionFactory
             {
                 HostName = "127.0.0.1",
-                Port = fixture.RabbitMQPort,
+                Port = proxy.RabbitMQPort,
                 UserName = RabbitMQFixture.RabbitMQUsername,
                 Password = RabbitMQFixture.RabbitMQPassword,
                 AutomaticRecoveryEnabled = false,
@@ -147,8 +156,8 @@ namespace Tapeti.Tests.Client
                 new TapetiConnectionParams
                 {
                     HostName = "127.0.0.1",
-                    Port = fixture.RabbitMQPort,
-                    ManagementPort = fixture.RabbitMQManagementPort,
+                    Port = proxy.RabbitMQPort,
+                    ManagementPort = proxy.RabbitMQManagementPort,
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = 50
