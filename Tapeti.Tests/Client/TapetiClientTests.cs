@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using NSubstitute;
 using RabbitMQ.Client;
 using Shouldly;
 using Tapeti.Connection;
@@ -19,15 +20,18 @@ namespace Tapeti.Tests.Client
     public class TapetiClientTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
+        private readonly ITestOutputHelper testOutputHelper;
         private readonly MockDependencyResolver dependencyResolver = new();
 
         private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
         private TapetiClient client = null!;
+        private readonly IConnectionEventListener connectionEventListener = Substitute.For<IConnectionEventListener>();
 
 
         public TapetiClientTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
         {
             this.fixture = fixture;
+            this.testOutputHelper = testOutputHelper;
 
             dependencyResolver.Set<ILogger>(new MockLogger(testOutputHelper));
         }
@@ -125,9 +129,50 @@ namespace Tapeti.Tests.Client
 
 
         [Fact]
-        public Task Reconnect()
+        public async Task Reconnect()
         {
-            throw new NotImplementedException();
+            var disconnectedCompletion = new TaskCompletionSource();
+            var reconnectedCompletion = new TaskCompletionSource();
+
+            connectionEventListener
+                .When(c => c.Disconnected(Arg.Any<DisconnectedEventArgs>()))
+                .Do(_ =>
+                {
+                    testOutputHelper.WriteLine("Disconnected event triggered");
+                    disconnectedCompletion.TrySetResult();
+                });
+
+            connectionEventListener
+                .When(c => c.Reconnected(Arg.Any<ConnectedEventArgs>()))
+                .Do(_ =>
+                {
+                    testOutputHelper.WriteLine("Reconnected event triggered");
+                    reconnectedCompletion.TrySetResult();
+                });
+
+            // Trigger the connection to be established
+            await client.Publish(Encoding.UTF8.GetBytes("hello, void!"), new MessageProperties(), "nowhere", "nobody", false);
+
+
+            proxy.RabbitMQProxy.Enabled = false;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+
+            await WithTimeout(disconnectedCompletion.Task, TimeSpan.FromSeconds(60));
+
+            proxy.RabbitMQProxy.Enabled = true;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+            await WithTimeout(reconnectedCompletion.Task, TimeSpan.FromSeconds(60));
+        }
+
+
+
+        private static async Task WithTimeout(Task task, TimeSpan timeout)
+        {
+            var timeoutTask = Task.Delay(timeout);
+            if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
+                throw new TimeoutException("Task took too long to complete");
         }
 
 
@@ -162,7 +207,7 @@ namespace Tapeti.Tests.Client
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = 50
                 },
-                null);
+                connectionEventListener);
         }
     }
 }

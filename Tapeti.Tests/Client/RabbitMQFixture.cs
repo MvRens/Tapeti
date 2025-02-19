@@ -32,7 +32,7 @@ namespace Tapeti.Tests.Client
         private Toxiproxy.Net.Connection? toxiproxyConnection;
         private Toxiproxy.Net.Client? toxiproxyClient;
         private Proxy? rabbitMQProxy;
-        //private Proxy? rabbitMQManagementProxy;
+        private Proxy? rabbitMQManagementProxy;
 
         private readonly SemaphoreSlim acquireLimit = new(1, 1);
 
@@ -60,7 +60,8 @@ namespace Tapeti.Tests.Client
                 .WithImage($"{RabbitMQImageName}:{RabbitMQImageTag}")
                 .WithEnvironment("RABBITMQ_DEFAULT_USER", RabbitMQUsername)
                 .WithEnvironment("RABBITMQ_DEFAULT_PASS", RabbitMQPassword)
-                .WithPortBinding(DefaultRabbitMQManagementPort, true)
+                //.WithPortBinding(DefaultRabbitMQManagementPort, true)
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
                 .WithNetwork(network)
                 .WithNetworkAliases("rabbitmq")
                 .Build();
@@ -69,7 +70,7 @@ namespace Tapeti.Tests.Client
                 .WithImage($"{ToxiproxyImageName}:{ToxiproxyImageTag}")
                 .WithPortBinding(DefaultToxiproxyPort, true)
                 .WithPortBinding(DefaultRabbitMQPort, true)
-                //.WithPortBinding(DefaultRabbitMQManagementPort, true)
+                .WithPortBinding(DefaultRabbitMQManagementPort, true)
                 .WithNetwork(network)
                 .Build();
 
@@ -79,8 +80,7 @@ namespace Tapeti.Tests.Client
 
             toxiproxyPort = toxiproxyContainer.GetMappedPublicPort(DefaultToxiproxyPort);
             rabbitMQPort = toxiproxyContainer.GetMappedPublicPort(DefaultRabbitMQPort);
-            //rabbitMQManagementPort = toxiproxyContainer.GetMappedPublicPort(DefaultRabbitMQManagementPort);
-            rabbitMQManagementPort = rabbitMQContainer.GetMappedPublicPort(DefaultRabbitMQManagementPort);
+            rabbitMQManagementPort = toxiproxyContainer.GetMappedPublicPort(DefaultRabbitMQManagementPort);
 
             await InitializeProxy();
         }
@@ -105,8 +105,8 @@ namespace Tapeti.Tests.Client
                 RabbitMQPort = rabbitMQPort,
                 RabbitMQManagementPort = rabbitMQManagementPort,
 
-                RabbitMQProxy = rabbitMQProxy
-                //RabbitMQManagementProxy = rabbitMQManagementProxy
+                RabbitMQProxy = rabbitMQProxy!,
+                RabbitMQManagementProxy = rabbitMQManagementProxy!
             };
         }
 
@@ -124,7 +124,6 @@ namespace Tapeti.Tests.Client
                 Upstream = $"rabbitmq:{DefaultRabbitMQPort}"
             });
 
-            /*
             rabbitMQManagementProxy = await toxiproxyClient.AddAsync(new Proxy
             {
                 Name = "RabbitMQManagement",
@@ -132,7 +131,6 @@ namespace Tapeti.Tests.Client
                 Listen = $"0.0.0.0:{DefaultRabbitMQManagementPort}",
                 Upstream = $"rabbitmq:{DefaultRabbitMQManagementPort}"
             });
-            */
         }
 
 
@@ -156,10 +154,8 @@ namespace Tapeti.Tests.Client
             public ushort RabbitMQPort { get; init; }
             public ushort RabbitMQManagementPort { get; init; }
 
-            public Proxy? RabbitMQProxy { get; init; }
-
-            // Disabled for now since proxying HTTP to RabbitMQ does not seem to work with only Toxiproxy
-            //public Proxy? RabbitMQManagementProxy { get; init; }
+            public Proxy RabbitMQProxy { get; init; } = null!;
+            public Proxy RabbitMQManagementProxy { get; init; } = null!;
 
             private Action? OnDispose { get; }
 
