@@ -9,6 +9,7 @@ using Shouldly;
 using Tapeti.Connection;
 using Tapeti.Default;
 using Tapeti.Exceptions;
+using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
 using Xunit;
 using Xunit.Abstractions;
@@ -158,21 +159,12 @@ namespace Tapeti.Tests.Client
             await proxy.RabbitMQProxy.UpdateAsync();
 
 
-            await WithTimeout(disconnectedCompletion.Task, TimeSpan.FromSeconds(60));
+            await disconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
 
             proxy.RabbitMQProxy.Enabled = true;
             await proxy.RabbitMQProxy.UpdateAsync();
 
-            await WithTimeout(reconnectedCompletion.Task, TimeSpan.FromSeconds(60));
-        }
-
-
-
-        private static async Task WithTimeout(Task task, TimeSpan timeout)
-        {
-            var timeoutTask = Task.Delay(timeout);
-            if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
-                throw new TimeoutException("Task took too long to complete");
+            await reconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
         }
 
 
