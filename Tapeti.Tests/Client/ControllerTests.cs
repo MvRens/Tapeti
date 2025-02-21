@@ -9,7 +9,6 @@ using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Tapeti.Tests.Client
 {
@@ -123,11 +122,12 @@ namespace Tapeti.Tests.Client
 
             ReconnectController.SetBlockDurableMessage(true);
             await connection.GetPublisher().Publish(new ReconnectDurableMessage { Number = 1 });
+            await connection.GetPublisher().Publish(new ReconnectDurableDedicatedMessage { Number = 1 });
             await connection.GetPublisher().Publish(new ReconnectDynamicMessage { Number = 1 });
 
             // Both messages should arrive. The message for the durable queue will not be acked.
             testOutputHelper.WriteLine("> Waiting for initial messages");
-            await Task.WhenAll(ReconnectController.WaitForDurableMessage(), ReconnectController.WaitForDynamicMessage());
+            await Task.WhenAll(ReconnectController.WaitForDurableMessages(), ReconnectController.WaitForDynamicMessage());
 
 
             testOutputHelper.WriteLine("> Disabling proxy");
@@ -149,7 +149,7 @@ namespace Tapeti.Tests.Client
 
             // Message in the durable queue should be delivered again
             testOutputHelper.WriteLine("> Waiting for durable message redelivery");
-            await ReconnectController.WaitForDurableMessage();
+            await ReconnectController.WaitForDurableMessages();
 
 
             // Dynamic queue is of course empty but should be recreated

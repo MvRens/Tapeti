@@ -15,6 +15,12 @@ namespace Tapeti.Tests.Client.Controller
     }
 
 
+    public class ReconnectDurableDedicatedMessage
+    {
+        public int Number;
+    }
+
+
     public class ReconnectDynamicMessage
     {
         public int Number;
@@ -27,6 +33,7 @@ namespace Tapeti.Tests.Client.Controller
         private readonly ITestOutputHelper testOutputHelper;
         private static bool durableBlock = true;
         private static readonly AsyncAutoResetEvent DurableMessageReceived = new();
+        private static readonly AsyncAutoResetEvent DurableDedicatedMessageReceived = new();
         private static readonly AsyncAutoResetEvent DynamicMessageReceived = new ();
 
 
@@ -38,9 +45,12 @@ namespace Tapeti.Tests.Client.Controller
 
 
         [NoBinding]
-        public static async Task WaitForDurableMessage()
+        public static async Task WaitForDurableMessages()
         {
-            await DurableMessageReceived.WaitAsync().WithTimeout(TimeSpan.FromSeconds(10));
+            await Task.WhenAll(
+                DurableMessageReceived.WaitAsync(),
+                DurableDedicatedMessageReceived.WaitAsync()
+            ).WithTimeout(TimeSpan.FromSeconds(10));
         }
 
 
@@ -67,7 +77,19 @@ namespace Tapeti.Tests.Client.Controller
                 await Task.Delay(Timeout.Infinite, cancellationToken);
         }
 
-        
+
+        [DurableQueue("reconnect.durable.dedicated")]
+        [DedicatedChannel]
+        public async Task DurableMessage(ReconnectDurableDedicatedMessage message, CancellationToken cancellationToken)
+        {
+            testOutputHelper.WriteLine($"- Received message {message.Number} in durable queue on dedicated channel");
+            DurableDedicatedMessageReceived.Set();
+
+            if (durableBlock)
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
+
         [DynamicQueue("reconnect.dynamic")]
         public void NoWaitMessage(ReconnectDynamicMessage message)
         {
