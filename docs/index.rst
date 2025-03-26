@@ -9,6 +9,7 @@ Tapeti documentation
    gettingstarted
    compatibility
    indepth
+   attributes
    dataannotations
    flow
    transient
