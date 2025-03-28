@@ -81,21 +81,15 @@ namespace Tapeti.Connection
         /// <param name="mandatory">If true, an exception will be raised if the message can not be delivered to at least one queue</param>
         Task Publish(byte[] body, IMessageProperties properties, string? exchange, string routingKey, bool mandatory);
 
-
         /// <summary>
         /// Starts a consumer for the specified queue, using the provided bindings to handle messages.
         /// </summary>
         /// <param name="queueName"></param>
         /// <param name="consumer">The consumer implementation which will receive the messages from the queue</param>
+        /// <param name="options">Additional options</param>
         /// <param name="cancellationToken">Cancelled when the connection is lost</param>
-        /// <returns>The consumer tag as returned by BasicConsume.</returns>
-        Task<TapetiConsumerTag?> Consume(string queueName, IConsumer consumer, CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Stops the consumer with the specified tag.
-        /// </summary>
-        /// <param name="consumerTag">The consumer tag as returned by Consume.</param>
-        Task Cancel(TapetiConsumerTag consumerTag);
+        /// <returns>A representation of the consumer and channel.</returns>
+        Task<ITapetiConsumerTag?> Consume(string queueName, IConsumer consumer, TapetiConsumeOptions options, CancellationToken cancellationToken);
 
         /// <summary>
         /// Creates a durable queue if it does not already exist, and updates the bindings.
@@ -146,9 +140,9 @@ namespace Tapeti.Connection
 
 
     /// <summary>
-    /// Represents a consumer for a specific connection.
+    /// Represents a consumer for a specific connection and channel.
     /// </summary>
-    public class TapetiConsumerTag
+    public interface ITapetiConsumerTag
     {
         /// <summary>
         /// The consumer tag as determined by the AMQP protocol.
@@ -158,16 +152,37 @@ namespace Tapeti.Connection
         /// <summary>
         /// An internal reference to the connection on which the consume was started.
         /// </summary>
-        public long ConnectionReference { get;}
+        public long ConnectionReference { get; }
 
 
         /// <summary>
-        /// Creates a new instance of the TapetiConsumerTag class.
+        /// Stops the consumer.
         /// </summary>
-        public TapetiConsumerTag(long connectionReference, string consumerTag)
-        {
-            ConnectionReference = connectionReference;
-            ConsumerTag = consumerTag;
-        }
+        Task Cancel();
+    }
+
+
+    /// <summary>
+    /// Describes additional options for consuming a queue.
+    /// </summary>
+    public class TapetiConsumeOptions
+    {
+        /// <summary>
+        /// Determines if a new channel will be allocated on the RabbitMQ Connection to handle messages.
+        /// </summary>
+        /// <remarks>
+        /// By default all consumers are registered on a single channel, separated from the publishers.
+        /// Queues with heavy traffic or long delays can clog up the channel. This option allows for a
+        /// higher degree of concurrency and separation.<br/><br/>
+        /// It is not recommended to enable this for every queue by default, and there is a server-defined
+        /// limit to the number of channels that can be opened for a connection (default 100 at the time of writing).
+        /// </remarks>
+        public bool DedicatedChannel { get; init; } = false;
+
+
+        /// <summary>
+        /// Returns the default options.
+        /// </summary>
+        public static TapetiConsumeOptions Default { get; } = new();
     }
 }

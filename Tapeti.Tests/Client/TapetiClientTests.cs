@@ -1,12 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
+using NSubstitute;
 using RabbitMQ.Client;
+using Shouldly;
 using Tapeti.Connection;
 using Tapeti.Default;
 using Tapeti.Exceptions;
+using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,30 +21,34 @@ namespace Tapeti.Tests.Client
     public class TapetiClientTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
+        private readonly ITestOutputHelper testOutputHelper;
         private readonly MockDependencyResolver dependencyResolver = new();
 
+        private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
         private TapetiClient client = null!;
+        private readonly IConnectionEventListener connectionEventListener = Substitute.For<IConnectionEventListener>();
 
 
         public TapetiClientTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
         {
             this.fixture = fixture;
+            this.testOutputHelper = testOutputHelper;
 
             dependencyResolver.Set<ILogger>(new MockLogger(testOutputHelper));
         }
 
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
+            proxy = await fixture.AcquireProxy();
             client = CreateClient();
-
-            return Task.CompletedTask;
         }
 
 
         public async Task DisposeAsync()
         {
             await client.Close();
+            proxy.Dispose();
         }
 
 
@@ -49,8 +56,8 @@ namespace Tapeti.Tests.Client
         [Fact]
         public void Fixture()
         {
-            fixture.RabbitMQPort.Should().BeGreaterThan(0);
-            fixture.RabbitMQManagementPort.Should().BeGreaterThan(0);
+            ((int)proxy.RabbitMQPort).ShouldBeGreaterThan(0);
+            ((int)proxy.RabbitMQManagementPort).ShouldBeGreaterThan(0);
         }
 
 
@@ -58,7 +65,7 @@ namespace Tapeti.Tests.Client
         public async Task DynamicQueueDeclareNoPrefix()
         {
             var queueName = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
-            queueName.Should().NotBeNullOrEmpty();
+            queueName.ShouldNotBeNullOrEmpty();
         }
 
 
@@ -66,7 +73,7 @@ namespace Tapeti.Tests.Client
         public async Task DynamicQueueDeclarePrefix()
         {
             var queueName = await client.DynamicQueueDeclare("dynamicprefix", null, CancellationToken.None);
-            queueName.Should().StartWith("dynamicprefix");
+            queueName.ShouldStartWith("dynamicprefix");
         }
 
 
@@ -85,7 +92,7 @@ namespace Tapeti.Tests.Client
             rabbitmqClient.Close();
 
 
-            ok.Should().NotBeNull();
+            ok.ShouldNotBeNull();
 
 
             await client.DurableQueueDeclare("incompatibleargs", new QueueBinding[]
@@ -115,10 +122,49 @@ namespace Tapeti.Tests.Client
 
 
             var publishOverMaxLength = () => client.Publish(body, properties, null, queue1, true);
-            await publishOverMaxLength.Should().ThrowAsync<NackException>();
+            await publishOverMaxLength.ShouldThrowAsync<NackException>();
 
             // The channel should recover and allow further publishing
             await client.Publish(body, properties, null, queue2, true);
+        }
+
+
+        [Fact]
+        public async Task Reconnect()
+        {
+            var disconnectedCompletion = new TaskCompletionSource();
+            var reconnectedCompletion = new TaskCompletionSource();
+
+            connectionEventListener
+                .When(c => c.Disconnected(Arg.Any<DisconnectedEventArgs>()))
+                .Do(_ =>
+                {
+                    testOutputHelper.WriteLine("Disconnected event triggered");
+                    disconnectedCompletion.TrySetResult();
+                });
+
+            connectionEventListener
+                .When(c => c.Reconnected(Arg.Any<ConnectedEventArgs>()))
+                .Do(_ =>
+                {
+                    testOutputHelper.WriteLine("Reconnected event triggered");
+                    reconnectedCompletion.TrySetResult();
+                });
+
+            // Trigger the connection to be established
+            await client.Publish(Encoding.UTF8.GetBytes("hello, void!"), new MessageProperties(), "nowhere", "nobody", false);
+
+
+            proxy.RabbitMQProxy.Enabled = false;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+
+            await disconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
+
+            proxy.RabbitMQProxy.Enabled = true;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+            await reconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
         }
 
 
@@ -129,7 +175,7 @@ namespace Tapeti.Tests.Client
             var connectionFactory = new ConnectionFactory
             {
                 HostName = "127.0.0.1",
-                Port = fixture.RabbitMQPort,
+                Port = proxy.RabbitMQPort,
                 UserName = RabbitMQFixture.RabbitMQUsername,
                 Password = RabbitMQFixture.RabbitMQPassword,
                 AutomaticRecoveryEnabled = false,
@@ -147,12 +193,13 @@ namespace Tapeti.Tests.Client
                 new TapetiConnectionParams
                 {
                     HostName = "127.0.0.1",
-                    Port = fixture.RabbitMQPort,
-                    ManagementPort = fixture.RabbitMQManagementPort,
+                    Port = proxy.RabbitMQPort,
+                    ManagementPort = proxy.RabbitMQManagementPort,
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = 50
-                });
+                },
+                connectionEventListener);
         }
     }
 }

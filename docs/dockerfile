@@ -1,0 +1,13 @@
+FROM python:3-bookworm
+
+WORKDIR /usr/src/app
+
+RUN pip install --no-cache-dir sphinx sphinx-autobuild
+RUN apt-get update
+RUN apt-get install -y nginx iproute2
+
+COPY docker-bootstrap.sh ./
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD /usr/bin/bash -c /usr/src/app/docker-bootstrap.sh

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Tapeti.Config.Annotations;
 using Tapeti.Connection;
 
 namespace Tapeti.Config
@@ -36,6 +37,15 @@ namespace Tapeti.Config
         /// Determines the type of queue the binding registers
         /// </summary>
         QueueType? QueueType { get; }
+
+
+        /// <summary>
+        /// Determines if the queue is consumed on a dedicated channel or the shared default channel.
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="DedicatedChannelAttribute"/>
+        /// </remarks>
+        bool DedicatedChannel { get; }
 
 
         /// <summary>

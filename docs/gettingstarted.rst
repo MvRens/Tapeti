@@ -15,8 +15,6 @@ You will need an integration package as well for your IoC (Inversion of Control)
 - `Autofac <https://autofac.org/>`_ (Tapeti.Autofac)
 - `Castle Windsor <https://www.castleproject.org>`_ (Tapeti.CastleWindsor)
 - `Ninject <http://www.ninject.org>`_ (Tapeti.Ninject)
-- `Unity <https://github.com/unitycontainer/unity>`_ (Tapeti.UnityContainer)
-
 
 SimpleInjector is used in all examples. The "01-PublishSubscribe" example included in the source shows how the other integration packages can be used.
 

@@ -19,6 +19,9 @@ namespace Tapeti.Transient
         /// <inheritdoc />
         public QueueType? QueueType => Config.QueueType.Dynamic;
 
+        /// <inheritdoc />
+        public bool DedicatedChannel => false;
+
 
         /// <summary>
         /// </summary>

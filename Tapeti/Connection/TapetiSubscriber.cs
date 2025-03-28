@@ -14,7 +14,7 @@ namespace Tapeti.Connection
         private readonly Func<ITapetiClient> clientFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
-        private readonly List<TapetiConsumerTag> consumerTags = new();
+        private readonly List<ITapetiConsumerTag> consumerTags = new();
 
         private CancellationTokenSource? initializeCancellationTokenSource;
 
@@ -111,7 +111,7 @@ namespace Tapeti.Connection
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = null;
 
-            await Task.WhenAll(consumerTags.Select(async tag => await clientFactory().Cancel(tag))).ConfigureAwait(false);
+            await Task.WhenAll(consumerTags.Select(async tag => await tag.Cancel())).ConfigureAwait(false);
 
             consumerTags.Clear();
             consuming = false;
@@ -155,10 +155,19 @@ namespace Tapeti.Connection
                     var queueName = group.Key;
                     var consumer = new TapetiConsumer(cancellationToken, config, queueName, group);
 
-                    return await clientFactory().Consume(queueName, consumer, cancellationToken).ConfigureAwait(false);
+                    return await clientFactory().Consume(queueName, consumer, GetConsumeOptions(group), cancellationToken).ConfigureAwait(false);
                 })).ConfigureAwait(false))
                 .Where(t => t?.ConsumerTag != null)
-                .Cast<TapetiConsumerTag>());
+                .Cast<ITapetiConsumerTag>());
+        }
+
+
+        private static TapetiConsumeOptions GetConsumeOptions(IEnumerable<IBinding> bindings)
+        {
+            return new TapetiConsumeOptions
+            {
+                DedicatedChannel = bindings.Any(b => b.DedicatedChannel)
+            };
         }
 
 

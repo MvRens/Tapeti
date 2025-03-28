@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Tapeti.Config;
+using Tapeti.Config.Annotations;
 using Tapeti.Connection;
 using Tapeti.Helpers;
 
@@ -91,6 +92,9 @@ namespace Tapeti.Default
 
         /// <inheritdoc />
         public QueueType? QueueType => bindingInfo.QueueInfo.QueueType;
+
+        /// <inheritdoc />
+        public bool DedicatedChannel => bindingInfo.QueueInfo.DedicatedChannel;
 
         /// <inheritdoc />
         public Type Controller => bindingInfo.ControllerType;
@@ -323,6 +327,14 @@ namespace Tapeti.Default
             /// Optional arguments (x-arguments) passed when declaring the queue.
             /// </summary>
             public IRabbitMQArguments? QueueArguments { get; set; }
+
+            /// <summary>
+            /// Determines if the queue is consumed on a dedicated channel or the shared default channel.
+            /// </summary>
+            /// <remarks>
+            /// See <see cref="DedicatedChannelAttribute"/>
+            /// </remarks>
+            public bool DedicatedChannel { get; set; }
                 
             /// <summary>
             /// Determines if the QueueInfo properties contain a valid combination.

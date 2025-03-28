@@ -1,9 +1,11 @@
-﻿using System.Threading.Tasks;
-using FluentAssertions;
+﻿using System;
+using System.Threading.Tasks;
+using Shouldly;
 using SimpleInjector;
 using Tapeti.Config;
 using Tapeti.SimpleInjector;
 using Tapeti.Tests.Client.Controller;
+using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
 using Xunit;
 using Xunit.Abstractions;
@@ -15,22 +17,26 @@ namespace Tapeti.Tests.Client
     public class ControllerTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
+        private readonly ITestOutputHelper testOutputHelper;
         private readonly Container container = new();
 
         private TapetiConnection? connection;
+        private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
 
 
         public ControllerTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
         {
             this.fixture = fixture;
+            this.testOutputHelper = testOutputHelper;
 
             container.RegisterInstance<ILogger>(new MockLogger(testOutputHelper));
+            container.RegisterInstance(testOutputHelper);
         }
 
 
-        public Task InitializeAsync()
+        public async Task InitializeAsync()
         {
-            return Task.CompletedTask;
+            proxy = await fixture.AcquireProxy();
         }
 
 
@@ -38,6 +44,8 @@ namespace Tapeti.Tests.Client
         {
             if (connection != null)
                 await connection.DisposeAsync();
+
+            proxy.Dispose();
         }
 
 
@@ -61,25 +69,109 @@ namespace Tapeti.Tests.Client
 
 
             var handler = await RequestResponseFilterController.ValidResponse.Task;
-            handler.Should().Be(2);
+            handler.ShouldBe(2);
 
             var invalidHandler = await Task.WhenAny(RequestResponseFilterController.InvalidResponse.Task, Task.Delay(1000));
-            invalidHandler.Should().NotBe(RequestResponseFilterController.InvalidResponse.Task);
+            invalidHandler.ShouldNotBe(RequestResponseFilterController.InvalidResponse.Task);
         }
 
 
-        private TapetiConnection CreateConnection(ITapetiConfig config)
+        [Fact]
+        public async Task DedicatedChannel()
+        {
+            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
+                .EnableDeclareDurableQueues()
+                .RegisterController<DedicatedChannelController>()
+                .Build();
+
+            connection = CreateConnection(config);
+            await connection!.Subscribe();
+
+
+            var publisher = connection.GetPublisher();
+            for (var i = 0; i < DedicatedChannelController.WaitMessageCount; i++)
+                await publisher.Publish(new DedicatedChannelWaitMessage());
+
+            for (var i = 0; i < DedicatedChannelController.NoWaitMessageCount; i++)
+                await publisher.Publish(new DedicatedChannelNoWaitMessage());
+
+
+            await DedicatedChannelController.WaitForNoWaitMessages();
+            await DedicatedChannelController.WaitForWaitMessages();
+        }
+
+
+        [Fact]
+        public async Task Reconnect()
+        {
+            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
+                .EnableDeclareDurableQueues()
+                .RegisterController<ReconnectController>()
+                .Build();
+
+            connection = CreateConnection(config);
+
+            var disconnectedCompletion = new TaskCompletionSource();
+            var reconnectedCompletion = new TaskCompletionSource();
+
+            connection.Disconnected += (_, _) => disconnectedCompletion.TrySetResult();
+            connection.Reconnected += (_, _) => reconnectedCompletion.TrySetResult();
+
+            await connection.Subscribe();
+
+
+            ReconnectController.SetBlockDurableMessage(true);
+            await connection.GetPublisher().Publish(new ReconnectDurableMessage { Number = 1 });
+            await connection.GetPublisher().Publish(new ReconnectDurableDedicatedMessage { Number = 1 });
+            await connection.GetPublisher().Publish(new ReconnectDynamicMessage { Number = 1 });
+
+            // Both messages should arrive. The message for the durable queue will not be acked.
+            testOutputHelper.WriteLine("> Waiting for initial messages");
+            await Task.WhenAll(ReconnectController.WaitForDurableMessages(), ReconnectController.WaitForDynamicMessage());
+
+
+            testOutputHelper.WriteLine("> Disabling proxy");
+            proxy.RabbitMQProxy.Enabled = false;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+            await disconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
+
+
+            testOutputHelper.WriteLine("> Re-enabling proxy");
+            ReconnectController.SetBlockDurableMessage(false);
+
+
+            proxy.RabbitMQProxy.Enabled = true;
+            await proxy.RabbitMQProxy.UpdateAsync();
+
+            await reconnectedCompletion.Task.WithTimeout(TimeSpan.FromSeconds(60));
+
+
+            // Message in the durable queue should be delivered again
+            testOutputHelper.WriteLine("> Waiting for durable message redelivery");
+            await ReconnectController.WaitForDurableMessages();
+
+
+            // Dynamic queue is of course empty but should be recreated
+            testOutputHelper.WriteLine("> Sending and waiting for dynamic message");
+            await connection.GetPublisher().Publish(new ReconnectDynamicMessage { Number = 2 });
+            await ReconnectController.WaitForDynamicMessage();
+        }
+
+
+        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, int? consumerDispatchConcurrency = null)
         {
             return new TapetiConnection(config)
             {
                 Params = new TapetiConnectionParams
                 {
                     HostName = "127.0.0.1",
-                    Port = fixture.RabbitMQPort,
-                    ManagementPort = fixture.RabbitMQManagementPort,
+                    Port = proxy.RabbitMQPort,
+                    ManagementPort = proxy.RabbitMQManagementPort,
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
-                    PrefetchCount = 1
+                    PrefetchCount = prefetchCount,
+                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? Environment.ProcessorCount
                 }
             };
         }

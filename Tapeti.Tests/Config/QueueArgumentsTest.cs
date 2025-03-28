@@ -4,9 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
-using FluentAssertions.Execution;
-using Moq;
+using NSubstitute;
+using Shouldly;
 using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
@@ -18,7 +17,7 @@ namespace Tapeti.Tests.Config
     {
         public static string AsUTF8String(this object value)
         {
-            value.Should().BeOfType<byte[]>();
+            value.ShouldBeOfType<byte[]>();
             return Encoding.UTF8.GetString((byte[])value);
         }
     }
@@ -26,55 +25,54 @@ namespace Tapeti.Tests.Config
 
     public class QueueArgumentsTest : BaseControllerTest
     {
-        private static readonly MockRepository MoqRepository = new(MockBehavior.Strict);
-
-        private readonly Mock<ITapetiClient> client;
+        private readonly ITapetiClient client;
         private readonly Dictionary<string, IRabbitMQArguments> declaredQueues = new();
 
 
         public QueueArgumentsTest()
         {
-            client = MoqRepository.Create<ITapetiClient>();
-            var routingKeyStrategy = MoqRepository.Create<IRoutingKeyStrategy>();
-            var exchangeStrategy = MoqRepository.Create<IExchangeStrategy>();
+            client = Substitute.For<ITapetiClient>();
+            var routingKeyStrategy = Substitute.For<IRoutingKeyStrategy>();
+            var exchangeStrategy = Substitute.For<IExchangeStrategy>();
 
-            DependencyResolver.Set(routingKeyStrategy.Object);
-            DependencyResolver.Set(exchangeStrategy.Object);
+            DependencyResolver.Set(routingKeyStrategy);
+            DependencyResolver.Set(exchangeStrategy);
 
 
             routingKeyStrategy
-                .Setup(s => s.GetRoutingKey(typeof(TestMessage1)))
+                .GetRoutingKey(typeof(TestMessage1))
                 .Returns("testmessage1");
 
             routingKeyStrategy
-                .Setup(s => s.GetRoutingKey(typeof(TestMessage2)))
+                .GetRoutingKey(typeof(TestMessage2))
                 .Returns("testmessage2");
 
             exchangeStrategy
-                .Setup(s => s.GetExchange(It.IsAny<Type>()))
+                .GetExchange(Arg.Any<Type>())
                 .Returns("exchange");
 
             var queue = 0;
             client
-                .Setup(c => c.DynamicQueueDeclare(null, It.IsAny<IRabbitMQArguments>(), It.IsAny<CancellationToken>()))
-                .Callback((string _, IRabbitMQArguments arguments, CancellationToken _) =>
+                .DynamicQueueDeclare(null, Arg.Any<IRabbitMQArguments>(), Arg.Any<CancellationToken>())
+                .Returns(callInfo =>
                 {
                     queue++;
-                    declaredQueues.Add($"queue-{queue}", arguments);
-                })
-                .ReturnsAsync(() => $"queue-{queue}");
+                    declaredQueues.Add($"queue-{queue}", callInfo.Arg<IRabbitMQArguments>());
+
+                    return Task.FromResult($"queue-{queue}");
+                });
 
             client
-                .Setup(c => c.DurableQueueDeclare(It.IsAny<string>(), It.IsAny<IEnumerable<QueueBinding>>(), It.IsAny<IRabbitMQArguments>(), It.IsAny<CancellationToken>()))
-                .Callback((string queueName, IEnumerable<QueueBinding> _, IRabbitMQArguments arguments, CancellationToken _) =>
+                .DurableQueueDeclare(Arg.Any<string>(), Arg.Any<IEnumerable<QueueBinding>>(), Arg.Any<IRabbitMQArguments>(), Arg.Any<CancellationToken>())
+                .Returns(callInfo =>
                 {
-                    declaredQueues.Add(queueName, arguments);
-                })
-                .Returns(Task.CompletedTask);
+                    declaredQueues.Add(callInfo.Arg<string>(), callInfo.Arg<IRabbitMQArguments>());
+                    return Task.CompletedTask;
+                });
 
 
             client
-                .Setup(c => c.DynamicQueueBind(It.IsAny<string>(), It.IsAny<QueueBinding>(), It.IsAny<CancellationToken>()))
+                .DynamicQueueBind(Arg.Any<string>(), Arg.Any<QueueBinding>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
         }
 
@@ -85,26 +83,26 @@ namespace Tapeti.Tests.Config
             var config = GetControllerConfig<TestController>();
 
             var binding1 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage1" });
-            binding1.Should().NotBeNull();
+            binding1.ShouldNotBeNull();
 
             var binding2 = config.Bindings.Single(b => b is IControllerMethodBinding { Method.Name: "HandleMessage2" });
-            binding2.Should().NotBeNull();
+            binding2.ShouldNotBeNull();
 
 
 
-            var subscriber = new TapetiSubscriber(() => client.Object, config);
+            var subscriber = new TapetiSubscriber(() => client, config);
             await subscriber.ApplyBindings();
 
 
-            declaredQueues.Should().HaveCount(1);
+            declaredQueues.Count.ShouldBe(1);
             var arguments = declaredQueues["queue-1"];
 
-            arguments.Should().ContainKey("x-custom").WhoseValue.AsUTF8String().Should().Be("custom value");
-            arguments.Should().ContainKey("x-another").WhoseValue.Should().Be(true);
-            arguments.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
-            arguments.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
-            arguments.Should().ContainKey("x-message-ttl").WhoseValue.Should().Be(4269);
-            arguments.Should().ContainKey("x-overflow").WhoseValue.AsUTF8String().Should().Be("reject-publish");
+            arguments["x-custom"].AsUTF8String().ShouldBe("custom value");
+            arguments["x-another"].ShouldBe(true);
+            arguments["x-max-length"].ShouldBe(100);
+            arguments["x-max-length-bytes"].ShouldBe(100000);
+            arguments["x-message-ttl"].ShouldBe(4269);
+            arguments["x-overflow"].AsUTF8String().ShouldBe("reject-publish");
         }
 
 
@@ -113,16 +111,16 @@ namespace Tapeti.Tests.Config
         {
             var config = GetControllerConfig<ConflictingArgumentsTestController>();
 
-            var subscriber = new TapetiSubscriber(() => client.Object, config);
+            var subscriber = new TapetiSubscriber(() => client, config);
             await subscriber.ApplyBindings();
 
-            declaredQueues.Should().HaveCount(2);
+            declaredQueues.Count.ShouldBe(2);
 
             var arguments1 = declaredQueues["queue-1"];
-            arguments1.Should().ContainKey("x-max-length").WhoseValue.Should().Be(100);
+            arguments1["x-max-length"].ShouldBe(100);
 
             var arguments2 = declaredQueues["queue-2"];
-            arguments2.Should().ContainKey("x-max-length-bytes").WhoseValue.Should().Be(100000);
+            arguments2["x-max-length-bytes"].ShouldBe(100000);
         }
 
 
@@ -133,15 +131,12 @@ namespace Tapeti.Tests.Config
 
             var testApplyBindings = () =>
             {
-                var subscriber = new TapetiSubscriber(() => client.Object, config);
+                var subscriber = new TapetiSubscriber(() => client, config);
                 return subscriber.ApplyBindings();
             };
 
-            using (new AssertionScope())
-            {
-                await testApplyBindings.Should().ThrowAsync<TopologyConfigurationException>();
-                declaredQueues.Should().HaveCount(0);
-            }
+            await testApplyBindings.ShouldThrowAsync<TopologyConfigurationException>();
+            declaredQueues.Count.ShouldBe(0);
         }
 
         

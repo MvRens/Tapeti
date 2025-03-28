@@ -1,5 +1,5 @@
 ﻿using System.Linq;
-using FluentAssertions;
+using Shouldly;
 using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Xunit;
@@ -12,18 +12,18 @@ namespace Tapeti.Tests.Config
         public void RegisterController()
         {
             var bindings = GetControllerBindings<TestController>();
-            bindings.Should().HaveCount(2);
+            bindings.Count.ShouldBe(2);
 
             var handleSimpleMessageBinding = bindings.Single(b => b is IControllerMethodBinding cmb &&
                                                                   cmb.Controller == typeof(TestController) &&
                                                                   cmb.Method.Name == "HandleSimpleMessage");
-            handleSimpleMessageBinding.QueueType.Should().Be(QueueType.Dynamic);
+            handleSimpleMessageBinding.QueueType.ShouldBe(QueueType.Dynamic);
 
 
             var handleSimpleMessageStaticBinding = bindings.Single(b => b is IControllerMethodBinding cmb &&
                                                                    cmb.Controller == typeof(TestController) &&
                                                                    cmb.Method.Name == "HandleSimpleMessageStatic");
-            handleSimpleMessageStaticBinding.QueueType.Should().Be(QueueType.Dynamic);
+            handleSimpleMessageStaticBinding.QueueType.ShouldBe(QueueType.Dynamic);
 
         }
 

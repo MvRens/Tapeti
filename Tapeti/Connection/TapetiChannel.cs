@@ -11,7 +11,10 @@ namespace Tapeti.Connection
         void WithChannel(Action<IModel> operation);
         void WithRetryableChannel(Action<IModel> operation);
     }
-    
+
+
+    internal delegate void AcquireModelProc(ref TapetiModelReference? modelReference);
+
     
     /// <summary>
     /// Represents both a RabbitMQ Client Channel (IModel) as well as it's associated single-thread task queue.
@@ -19,20 +22,22 @@ namespace Tapeti.Connection
     /// </summary>
     internal class TapetiChannel
     {
-        private readonly Func<IModel> modelFactory;
+        private TapetiModelReference? modelReference;
+        private readonly AcquireModelProc acquireModelProc;
+
         private readonly object taskQueueLock = new();
         private SerialTaskQueue? taskQueue;
         private readonly ModelProvider modelProvider;
 
-
-        public TapetiChannel(Func<IModel> modelFactory)
+        
+        public TapetiChannel(AcquireModelProc acquireModelProc)
         {
-            this.modelFactory = modelFactory;
+            this.acquireModelProc = acquireModelProc;
             modelProvider = new ModelProvider(this);
         }
 
 
-        public async Task Reset()
+        public async Task Close()
         {
             SerialTaskQueue? capturedTaskQueue;
             
@@ -45,8 +50,19 @@ namespace Tapeti.Connection
             if (capturedTaskQueue == null)
                 return;
             
-            await capturedTaskQueue.Add(() => { }).ConfigureAwait(false);
+            await capturedTaskQueue.Add(() =>
+            {
+                modelReference?.Model.Dispose();
+                modelReference = null;
+            }).ConfigureAwait(false);
+
             capturedTaskQueue.Dispose();
+        }
+
+
+        public void ClearModel()
+        {
+            modelReference = null;
         }
 
 
@@ -89,6 +105,13 @@ namespace Tapeti.Connection
         }
 
 
+        private IModel GetModel()
+        {
+            acquireModelProc(ref modelReference);
+            return modelReference?.Model ?? throw new InvalidOperationException("RabbitMQ Model is unavailable");
+        }
+
+
         private class ModelProvider : ITapetiChannelModelProvider
         {
             private readonly TapetiChannel owner;
@@ -102,7 +125,7 @@ namespace Tapeti.Connection
             
             public void WithChannel(Action<IModel> operation)
             {
-                operation(owner.modelFactory());
+                operation(owner.GetModel());
             }
             
 
@@ -112,7 +135,7 @@ namespace Tapeti.Connection
                 {
                     try
                     {
-                        operation(owner.modelFactory());
+                        operation(owner.GetModel());
                         break;
                     }
                     catch (AlreadyClosedException)
