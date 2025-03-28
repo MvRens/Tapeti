@@ -122,6 +122,7 @@ If all message handlers bound to a durable queue are marked as obsolete, includi
 If there are still messages in the queue it's pending removal will be logged but the consumers will run as normal to empty the queue. The queue will then remain until it is checked again when the application is restarted.
 
 
+.. _requestresponse:
 
 Request - response
 ------------------
@@ -171,11 +172,13 @@ If you simply want to broadcast an event in response to a message, do not use th
 
 In practise your service may end up with the same message having two versions; one where a reply is expected and one where it's not. This is not considered a design flaw but a clear contract between services. It is common and recommended for the request message to inherit from the base non-request version, and implement two message handlers that internally perform the same logic.
 
-While designing Tapeti this difference has been defined as `Transfer of responsibility`_ which is explained below.
+While designing Tapeti this difference has been defined as :ref:`mandatory` which is explained below.
 
 
-Transfer of responsibility
---------------------------
+.. _mandatory:
+
+Transfer of responsibility (mandatory messages)
+-----------------------------------------------
 When working with microservices there will be dependencies between services.
 
 Sometimes the dependency should be on the consumer side, which is the classic publish-subscribe pattern. For example, a reporting service will often listen in on status updates from various other services to compose a combined report. The services producing the events simply broadcast the message without concerning who if anyone is listening.

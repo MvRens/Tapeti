@@ -1,0 +1,1 @@
+docker run -it --rm -v .:/docs -p 8000:8000 --name tapetirtd tapetirtd

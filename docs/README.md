@@ -12,3 +12,12 @@ To build the HTML output, run:
 To use the auto reloading server (rundev.bat), install the sphinx-autobuild package:
 
 ```pip install sphinx-autobuild```
+
+
+Alternatively, use Docker.
+
+To build the image (only required the first time or when requirements.txt changes):
+```docker-build.bat```
+
+To run a local server:
+```docker-run.bat```
