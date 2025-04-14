@@ -223,12 +223,7 @@ namespace Tapeti.Flow.Default
         private static async Task CreateNewFlowState(FlowContext flowContext)
         {
             var flowStore = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowStore>();
-
-            var flowID = Guid.NewGuid();
-            var flowStateLock = await flowStore.LockFlowState(flowID).ConfigureAwait(false);
-
-            if (flowStateLock == null)
-                throw new InvalidOperationException("Unable to lock a new flow");
+            var flowStateLock = await flowStore.LockNewFlowState().ConfigureAwait(false);
 
             var flowState = new FlowState
             {

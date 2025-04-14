@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Helpers;
@@ -100,11 +101,9 @@ namespace Tapeti.Flow.Default
 
             var flowStore = context.Config.DependencyResolver.Resolve<IFlowStore>();
 
-            var flowID = await flowStore.FindFlowID(continuationID).ConfigureAwait(false);
-            if (!flowID.HasValue)
+            var flowStateLock = await flowStore.LockFlowStateByContinuation(continuationID).ConfigureAwait(false);
+            if (flowStateLock == null)
                 return null;
-
-            var flowStateLock = await flowStore.LockFlowState(flowID.Value).ConfigureAwait(false);
 
             var flowState = await flowStateLock.GetFlowState().ConfigureAwait(false);
             if (flowState == null)
@@ -113,7 +112,7 @@ namespace Tapeti.Flow.Default
             var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock)
             {
                 ContinuationID = continuationID,
-                ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out var continuation) ? continuation : null
+                ContinuationMetadata = flowState.Continuations?.GetValueOrDefault(continuationID)
             };
 
             // IDisposable items in the IMessageContext are automatically disposed

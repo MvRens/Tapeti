@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Tapeti.Config;
 
@@ -12,35 +13,56 @@ namespace Tapeti.Flow.SQL
     public static class ConfigExtensions
     {
         /// <summary>
-        /// Enables the Flow SQL repository.
+        /// Enables the single instance Flow SQL repository.
         /// </summary>
         /// <param name="config"></param>
         /// <param name="connectionString"></param>
         /// <param name="tableName"></param>
+        [Obsolete("Use WithFlowSqlStoreSingleInstanceCached or WithFlowSqlStoreMultiInstance")]
         public static ITapetiConfigBuilder WithFlowSqlRepository(this ITapetiConfigBuilder config, string connectionString, string tableName = "Flow")
         {
-            config.Use(new FlowSqlRepositoryExtension(connectionString, tableName));
+            return WithFlowSqlStoreSingleInstanceCached(config, new SqlSingleInstanceCachedFlowStore.Config(connectionString)
+            {
+                FlowTableName = tableName
+            });
+        }
+
+
+        /// <summary>
+        /// Enables the single instance Flow SQL repository.
+        /// </summary>
+        public static ITapetiConfigBuilder WithFlowSqlStoreSingleInstanceCached(this ITapetiConfigBuilder config, SqlSingleInstanceCachedFlowStore.Config storeConfig)
+        {
+            config.Use(new FlowSqlStoreExtension(() => new SqlSingleInstanceCachedFlowStore(storeConfig)));
+            return config;
+        }
+
+
+        /// <summary>
+        /// Enables the multi instance Flow SQL repository.
+        /// </summary>
+        public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig)
+        {
+            config.Use(new FlowSqlStoreExtension(() => new SqlMultiInstanceFlowStore(storeConfig)));
             return config;
         }
     }
 
 
-    internal class FlowSqlRepositoryExtension : ITapetiExtension
+    internal class FlowSqlStoreExtension : ITapetiExtension
     {
-        private readonly string connectionString;
-        private readonly string tableName;
+        private readonly Func<IDurableFlowStore> factory;
 
 
-        public FlowSqlRepositoryExtension(string connectionString, string tableName)
+        public FlowSqlStoreExtension(Func<IDurableFlowStore> factory)
         {
-            this.connectionString = connectionString;
-            this.tableName = tableName;
+            this.factory = factory;
         }
 
 
         public void RegisterDefaults(IDependencyContainer container)
         {
-            container.RegisterDefaultSingleton<IFlowRepository>(() => new SqlConnectionFlowRepository(connectionString, tableName));
+            container.RegisterDefaultSingleton(factory);
         }
 
 
