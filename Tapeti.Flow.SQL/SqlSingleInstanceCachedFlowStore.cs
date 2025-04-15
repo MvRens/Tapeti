@@ -1,10 +1,12 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Tapeti.Config;
 using Tapeti.Flow.Default;
 using Tapeti.Flow.FlowHelpers;
 
@@ -17,13 +19,17 @@ namespace Tapeti.Flow.SQL
     /// <br/>
     /// Advantages:<br/>
     /// - Locks can be acquired instantly in-memory<br/>
+    /// - All flows are loaded in memory<br/>
     /// - The amount of SQL queries is reduced<br/>
-    /// - All flows are loaded in memory and can be validated at startup<br/>
     /// <br/>
     /// Disadvantages:<br/>
     /// - Not compatible with running multiple instances<br/>
     /// - Memory usage and startup time are affected by long-running flows<br/>
     /// </summary>
+    /// <remarks>
+    /// To create the required tables, either use <see cref="TapetiFlowSqlMetadata"/> or use a library like DbUp to run all
+    /// SQL scripts embedded in the Tapeti.Flow.SQL assembly.
+    /// </remarks>
     public class SqlSingleInstanceCachedFlowStore : IDurableFlowStore
     {
         /// <summary>
@@ -64,7 +70,8 @@ namespace Tapeti.Flow.SQL
             }
         }
 
-        private readonly Config config;
+        private readonly ITapetiConfig config;
+        private readonly Config storeConfig;
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
         private readonly LockCollection<Guid> locks = new(EqualityComparer<Guid>.Default);
@@ -73,13 +80,11 @@ namespace Tapeti.Flow.SQL
         private volatile bool loaded;
 
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="config"></param>
-        public SqlSingleInstanceCachedFlowStore(Config config)
+        /// <inheritdoc cref="SqlSingleInstanceCachedFlowStore"/>
+        public SqlSingleInstanceCachedFlowStore(ITapetiConfig config, Config storeConfig)
         {
             this.config = config;
+            this.storeConfig = storeConfig;
         }
 
         /// <inheritdoc />
@@ -90,11 +95,13 @@ namespace Tapeti.Flow.SQL
 
             loadStarted = true;
 
+            var validator = new ContinuationMethodValidator(config);
+
             await SqlRetryHelper.Execute(async () =>
             {
                 await using var connection = await GetConnection().ConfigureAwait(false);
 
-                var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {config.FlowTableName}", connection);
+                var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {storeConfig.FlowTableName}", connection);
                 var flowReader = await flowQuery.ExecuteReaderAsync().ConfigureAwait(false);
 
                 while (await flowReader.ReadAsync().ConfigureAwait(false))
@@ -104,8 +111,11 @@ namespace Tapeti.Flow.SQL
                     var stateJson = flowReader.GetString(2);
 
                     var state = JsonConvert.DeserializeObject<FlowState>(stateJson);
-                    if (state != null)
-                        AddToCache(flowID, new CachedFlowState(state, creationTime));
+                    if (state == null) 
+                        continue;
+
+                    validator.ValidateContinuations(flowID, state.Continuations);
+                    AddToCache(flowID, new CachedFlowState(state, creationTime));
                 }
             }).ConfigureAwait(false);
 
@@ -146,15 +156,32 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
         {
-            throw new NotImplementedException();
+            IEnumerable<KeyValuePair<Guid, CachedFlowState>> query = flowStates;
+
+            if (maxCreationTime is not null)
+                query = query.Where(p => p.Value.CreationTime <= maxCreationTime);
+
+            return ValueTask.FromResult<IEnumerable<ActiveFlow>>(query
+                .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
+                .ToArray());
         }
 
 
-        private ValueTask RemoveState(Guid flowID)
+        private async ValueTask RemoveState(Guid flowID)
         {
-            throw new NotImplementedException();
+            await SqlRetryHelper.Execute(async () =>
+            {
+                await using var connection = await GetConnection().ConfigureAwait(false);
+
+                var query = new SqlCommand($"delete from {storeConfig.FlowTableName} where FlowID = @FlowID", connection);
+
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                flowIDParam.Value = flowID;
+
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
 
 
@@ -168,7 +195,7 @@ namespace Tapeti.Flow.SQL
         }
 
 
-        private CachedFlowState StoreFlowState(Guid flowID, CachedFlowState? cachedFlowState, FlowState newFlowState)
+        private async Task<CachedFlowState> StoreFlowState(Guid flowID, CachedFlowState? cachedFlowState, FlowState newFlowState)
         {
             // Update the lookup dictionary for the ContinuationIDs
             if (cachedFlowState?.FlowState != null)
@@ -183,15 +210,60 @@ namespace Tapeti.Flow.SQL
             var newCachedFlowState = new CachedFlowState(newFlowState, cachedFlowState?.CreationTime ?? DateTime.UtcNow);
             flowStates[flowID] = newCachedFlowState;
 
-            // TODO persist (create, update)
+            if (cachedFlowState == null)
+                await CreateState(flowID, newFlowState, newCachedFlowState.CreationTime).ConfigureAwait(false);
+            else
+                await UpdateState(flowID, cachedFlowState.FlowState).ConfigureAwait(false);
 
             return newCachedFlowState;
         }
 
 
+        private async Task CreateState(Guid flowID, FlowState flowState, DateTime creationTime)
+        {
+            await SqlRetryHelper.Execute(async () =>
+            {
+                await using var connection = await GetConnection().ConfigureAwait(false);
+
+                var query = new SqlCommand($"insert into {storeConfig.FlowTableName} (FlowID, StateJson, CreationTime)" +
+                                           "values (@FlowID, @StateJson, @CreationTime)",
+                    connection);
+
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+                var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
+
+                flowIDParam.Value = flowID;
+                stateJsonParam.Value = JsonConvert.SerializeObject(flowState);
+                creationTimeParam.Value = creationTime;
+
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+
+        private async Task UpdateState(Guid flowID, FlowState flowState)
+        {
+            await SqlRetryHelper.Execute(async () =>
+            {
+                await using var connection = await GetConnection().ConfigureAwait(false);
+
+                var query = new SqlCommand($"update {storeConfig.FlowTableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
+
+                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
+                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
+
+                flowIDParam.Value = flowID;
+                stateJsonParam.Value = JsonConvert.SerializeObject(flowState);
+
+                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }).ConfigureAwait(false);
+        }
+
+
         private async Task<SqlConnection> GetConnection()
         {
-            var connection = new SqlConnection(config.ConnectionString);
+            var connection = new SqlConnection(storeConfig.ConnectionString);
             await connection.OpenAsync().ConfigureAwait(false);
 
             return connection;
@@ -234,13 +306,12 @@ namespace Tapeti.Flow.SQL
             }
 
 
-            public ValueTask StoreFlowState(FlowState flowState, bool persistent)
+            public async ValueTask StoreFlowState(FlowState flowState, bool persistent)
             {
                 if (flowLock == null)
                     throw new ObjectDisposedException("FlowStateLock");
 
-                cachedFlowState = owner.StoreFlowState(FlowID, cachedFlowState, flowState);
-                return default;
+                cachedFlowState = await owner.StoreFlowState(FlowID, cachedFlowState, flowState);
             }
 
 
@@ -255,88 +326,3 @@ namespace Tapeti.Flow.SQL
     }
 }
 
-/*
-public async ValueTask<IEnumerable<FlowRecord<T>>> GetStates<T>()
-{
-    return await SqlRetryHelper.Execute(async () =>
-    {
-        using var connection = await GetConnection().ConfigureAwait(false);
-
-        var flowQuery = new SqlCommand($"select FlowID, CreationTime, StateJson from {tableName}", connection);
-        var flowReader = await flowQuery.ExecuteReaderAsync().ConfigureAwait(false);
-
-        var result = new List<FlowRecord<T>>();
-
-        while (await flowReader.ReadAsync().ConfigureAwait(false))
-        {
-            var flowID = flowReader.GetGuid(0);
-            var creationTime = flowReader.GetDateTime(1);
-            var stateJson = flowReader.GetString(2);
-
-            var state = JsonConvert.DeserializeObject<T>(stateJson);
-            if (state != null)
-                result.Add(new FlowRecord<T>(flowID, creationTime, state));
-        }
-
-        return result;
-    }).ConfigureAwait(false);
-}
-
-/// <inheritdoc />
-public async ValueTask CreateState<T>(Guid flowID, T state, DateTime timestamp)
-{
-    await SqlRetryHelper.Execute(async () =>
-    {
-        using var connection = await GetConnection().ConfigureAwait(false);
-
-        var query = new SqlCommand($"insert into {tableName} (FlowID, StateJson, CreationTime)" +
-                                   "values (@FlowID, @StateJson, @CreationTime)",
-            connection);
-
-        var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-        var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-        var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
-
-        flowIDParam.Value = flowID;
-        stateJsonParam.Value = JsonConvert.SerializeObject(state);
-        creationTimeParam.Value = timestamp;
-
-        await query.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }).ConfigureAwait(false);
-}
-
-/// <inheritdoc />
-public async ValueTask UpdateState<T>(Guid flowID, T state)
-{
-    await SqlRetryHelper.Execute(async () =>
-    {
-        using var connection = await GetConnection().ConfigureAwait(false);
-
-        var query = new SqlCommand($"update {tableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
-
-        var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-        var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-
-        flowIDParam.Value = flowID;
-        stateJsonParam.Value = JsonConvert.SerializeObject(state);
-
-        await query.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }).ConfigureAwait(false);
-}
-
-/// <inheritdoc />
-public async ValueTask DeleteState(Guid flowID)
-{
-    await SqlRetryHelper.Execute(async () =>
-    {
-        using var connection = await GetConnection().ConfigureAwait(false);
-
-        var query = new SqlCommand($"delete from {tableName} where FlowID = @FlowID", connection);
-
-        var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-        flowIDParam.Value = flowID;
-
-        await query.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }).ConfigureAwait(false);
-}
-*/

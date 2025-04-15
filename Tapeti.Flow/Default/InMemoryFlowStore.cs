@@ -33,9 +33,6 @@ namespace Tapeti.Flow.Default
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
         private readonly LockCollection<Guid> locks = new(EqualityComparer<Guid>.Default);
-        //private HashSet<string>? validatedMethods;
-
-        //private readonly ITapetiConfig config;
 
 
         /// <inheritdoc cref="InMemoryFlowStore"/>
@@ -48,27 +45,6 @@ namespace Tapeti.Flow.Default
         public ValueTask Load()
         {
             return default;
-
-            /* TODO move to helper
-            validatedMethods = new HashSet<string>();
-            try
-            {
-                foreach (var flowStateRecord in await repository.GetStates<FlowState>().ConfigureAwait(false))
-                {
-                    flowStates.TryAdd(flowStateRecord.FlowID, new CachedFlowState(flowStateRecord.FlowState, flowStateRecord.CreationTime, true));
-
-                    foreach (var continuation in flowStateRecord.FlowState.Continuations)
-                    {
-                        ValidateContinuation(flowStateRecord.FlowID, continuation.Key, continuation.Value);
-                        continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.FlowID);
-                    }
-                }
-            }
-            finally
-            {
-                validatedMethods = null;
-            }
-            */
         }
 
 
@@ -98,47 +74,15 @@ namespace Tapeti.Flow.Default
         }
 
 
-        /* TODO move to helper
-        private void ValidateContinuation(Guid flowId, Guid continuationId, ContinuationMetadata metadata)
-        {
-            if (string.IsNullOrEmpty(metadata.MethodName))
-                return;
-
-            // We could check all the things that are required for a continuation or converge method, but this should suffice
-            // for the common scenario where you change code without realizing that it's signature has been persisted
-            // ReSharper disable once InvertIf
-            if (validatedMethods!.Add(metadata.MethodName))
-            {
-                var methodInfo = MethodSerializer.Deserialize(metadata.MethodName);
-                if (methodInfo == null)
-                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer exists (continuation Id = {continuationId})");
-
-                var binding = config.Bindings.ForMethod(methodInfo);
-                if (binding == null)
-                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
-            }
-
-            /* Disabled for now - the ConvergeMethodName does not include the assembly so we can't easily check it
-            if (string.IsNullOrEmpty(metadata.ConvergeMethodName) || !validatedMethods.Add(metadata.ConvergeMethodName))
-                return;
-            
-            var convergeMethodInfo = MethodSerializer.Deserialize(metadata.ConvergeMethodName);
-            if (convergeMethodInfo == null)
-                throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer exists (continuation Id = {continuationId})");
-
-            // Converge methods are not message handlers themselves
-            *
-        }
-        */
-
-
         /// <inheritdoc />
-        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
         {
-            var maximumDateTime = DateTime.UtcNow - minimumAge;
+            IEnumerable<KeyValuePair<Guid, CachedFlowState>> query = flowStates;
 
-            return new ValueTask<IEnumerable<ActiveFlow>>(flowStates
-                .Where(p => p.Value.CreationTime <= maximumDateTime)
+            if (maxCreationTime is not null)
+                query = query.Where(p => p.Value.CreationTime <= maxCreationTime);
+
+            return ValueTask.FromResult<IEnumerable<ActiveFlow>>(query
                 .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
                 .ToArray());
         }

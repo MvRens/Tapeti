@@ -36,8 +36,8 @@ namespace Tapeti.Flow
         /// <remarks>
         /// This is intended for monitoring purposes and should be treated as a snapshot.
         /// </remarks>
-        /// <param name="minimumAge">The minimum age of the flow before it is included in the result. Set to TimeSpan.Zero to return all active flows.</param>
-        ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge);
+        /// <param name="maxCreationTime">Include only flows up to this creation time. Set to null to include all flows.</param>
+        ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime = null);
     }
 
 

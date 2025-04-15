@@ -33,7 +33,7 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static ITapetiConfigBuilder WithFlowSqlStoreSingleInstanceCached(this ITapetiConfigBuilder config, SqlSingleInstanceCachedFlowStore.Config storeConfig)
         {
-            config.Use(new FlowSqlStoreExtension(() => new SqlSingleInstanceCachedFlowStore(storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlSingleInstanceCachedFlowStore(c, storeConfig)));
             return config;
         }
 
@@ -43,7 +43,7 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig)
         {
-            config.Use(new FlowSqlStoreExtension(() => new SqlMultiInstanceFlowStore(storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlMultiInstanceFlowStore(c, storeConfig)));
             return config;
         }
     }
@@ -51,10 +51,10 @@ namespace Tapeti.Flow.SQL
 
     internal class FlowSqlStoreExtension : ITapetiExtension
     {
-        private readonly Func<IDurableFlowStore> factory;
+        private readonly Func<ITapetiConfig, IDurableFlowStore> factory;
 
 
-        public FlowSqlStoreExtension(Func<IDurableFlowStore> factory)
+        public FlowSqlStoreExtension(Func<ITapetiConfig, IDurableFlowStore> factory)
         {
             this.factory = factory;
         }
@@ -62,7 +62,7 @@ namespace Tapeti.Flow.SQL
 
         public void RegisterDefaults(IDependencyContainer container)
         {
-            container.RegisterDefaultSingleton(factory);
+            container.RegisterDefaultSingleton(() => factory(container.Resolve<ITapetiConfig>()));
         }
 
 

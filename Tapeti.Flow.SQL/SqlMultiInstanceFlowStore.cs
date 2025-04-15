@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Tapeti.Config;
 
 namespace Tapeti.Flow.SQL
 {
@@ -10,7 +11,8 @@ namespace Tapeti.Flow.SQL
     /// </summary>
     public class SqlMultiInstanceFlowStore : IDurableFlowStore
     {
-        private readonly Config config;
+        private readonly ITapetiConfig config;
+        private readonly Config storeConfig;
 
         /// <summary>
         /// Describes the configuration for <see cref="SqlMultiInstanceFlowStore"/> implementations.
@@ -21,6 +23,12 @@ namespace Tapeti.Flow.SQL
             /// The connection string used for connecting to the SQL Server database.
             /// </summary>
             public string ConnectionString { get; }
+
+
+            /// <summary>
+            /// 
+            /// </summary>
+            public bool ValidateMethods { get; set; } = true;
 
 
             /// <summary>
@@ -50,16 +58,18 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc cref="SqlMultiInstanceFlowStore"/>>
-        public SqlMultiInstanceFlowStore(Config config)
+        public SqlMultiInstanceFlowStore(ITapetiConfig config, Config storeConfig)
         {
             this.config = config;
+            this.storeConfig = storeConfig;
         }
 
 
         /// <inheritdoc />
         public ValueTask Load()
         {
-            throw new NotImplementedException();
+            // TODO method validation
+            return default;
         }
 
 
@@ -78,7 +88,7 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
         {
             throw new NotImplementedException();
         }

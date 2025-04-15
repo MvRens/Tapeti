@@ -55,10 +55,10 @@ namespace Tapeti.Flow.Default
 
 
         /// <inheritdoc />
-        public async ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
+        public async ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
         {
-            return (await dynamicFlowStore.GetActiveFlows(minimumAge))
-                .Concat(await durableFlowStore.GetActiveFlows(minimumAge));
+            return (await dynamicFlowStore.GetActiveFlows(maxCreationTime))
+                .Concat(await durableFlowStore.GetActiveFlows(maxCreationTime));
         }
 
 
