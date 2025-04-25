@@ -126,9 +126,9 @@ namespace Tapeti.Flow.Default
             }
 
 
-            public ValueTask<FlowState?> GetFlowState()
+            public FlowState? GetFlowState()
             {
-                return innerLock?.GetFlowState() ?? ValueTask.FromResult<FlowState?>(null);
+                return innerLock?.GetFlowState();
             }
 
 

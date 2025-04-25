@@ -102,17 +102,14 @@ namespace Tapeti.Flow.Default
             var flowStore = context.Config.DependencyResolver.Resolve<IFlowStore>();
 
             var flowStateLock = await flowStore.LockFlowStateByContinuation(continuationID).ConfigureAwait(false);
-            if (flowStateLock == null)
-                return null;
-
-            var flowState = await flowStateLock.GetFlowState().ConfigureAwait(false);
+            var flowState = flowStateLock?.GetFlowState();
             if (flowState == null)
                 return null;
 
-            var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock)
+            var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock!)
             {
                 ContinuationID = continuationID,
-                ContinuationMetadata = flowState.Continuations?.GetValueOrDefault(continuationID)
+                ContinuationMetadata = flowState.Continuations.GetValueOrDefault(continuationID)
             };
 
             // IDisposable items in the IMessageContext are automatically disposed

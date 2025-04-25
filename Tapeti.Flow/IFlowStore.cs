@@ -70,7 +70,7 @@ namespace Tapeti.Flow
         /// <summary>
         /// Acquires a copy of the flow state.
         /// </summary>
-        ValueTask<FlowState?> GetFlowState();
+        FlowState? GetFlowState();
 
         /// <summary>
         /// Stores the new flow state.

@@ -297,12 +297,9 @@ namespace Tapeti.Flow.SQL
             }
 
 
-            public ValueTask<FlowState?> GetFlowState()
+            public FlowState? GetFlowState()
             {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
-
-                return new ValueTask<FlowState?>(cachedFlowState?.FlowState);
+                return flowLock == null ? throw new ObjectDisposedException("FlowStateLock") : cachedFlowState?.FlowState;
             }
 
 
