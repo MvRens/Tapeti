@@ -126,7 +126,7 @@ namespace Tapeti.Helpers
                 case "password": result.Password = value; break;
                 case "prefetchcount": result.PrefetchCount = ushort.Parse(value); break;
                 case "managementport": result.ManagementPort = int.Parse(value); break;
-                case "consumerDispatchConcurrency": result.ConsumerDispatchConcurrency = int.Parse(value); break;
+                case "consumerDispatchConcurrency": result.ConsumerDispatchConcurrency = ushort.Parse(value); break;
             }
         }
     }

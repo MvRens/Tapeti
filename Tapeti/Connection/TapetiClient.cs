@@ -82,10 +82,10 @@ namespace Tapeti.Connection
                 ConnectionEventListener = connectionEventListener
             };
 
-            defaultConsumeChannel = connection.CreateChannel(InitConsumeModel);
-            defaultPublishChannel = connection.CreateChannel(InitPublishModel);
+            defaultConsumeChannel = connection.CreateChannel(null, InitConsumeModel);
+            defaultPublishChannel = connection.CreateChannel(() => config.GetFeatures().PublisherConfirms, InitPublishModel);
 
-            connection.OnQueueReconnect += () => defaultConsumeChannel.QueueRetryable(_ => { });
+            connection.OnQueueReconnect += () => defaultConsumeChannel.QueueRetryable(_ => Task.CompletedTask);
 
 
             var handler = new HttpClientHandler
@@ -102,14 +102,14 @@ namespace Tapeti.Connection
         }
 
 
-        private void InitConsumeModel(IModel model)
+        private async ValueTask InitConsumeModel(IChannel channel)
         {
             if (connectionParams.PrefetchCount > 0)
-                model.BasicQos(0, connectionParams.PrefetchCount, false);
+                await channel.BasicQosAsync(0, connectionParams.PrefetchCount, false);
         }
 
 
-        private void InitPublishModel(IModel model)
+        private ValueTask InitPublishModel(IChannel channel)
         {
             if (config.GetFeatures().PublisherConfirms)
             {
@@ -127,13 +127,13 @@ namespace Tapeti.Connection
                 {
                     Monitor.Exit(confirmLock);
                 }
-
-                model.ConfirmSelect();
             }
 
-            model.BasicReturn += HandleBasicReturn;
-            model.BasicAcks += HandleBasicAck;
-            model.BasicNacks += HandleBasicNack;
+            channel.BasicReturnAsync += HandleBasicReturn;
+            channel.BasicAcksAsync += HandleBasicAck;
+            channel.BasicNacksAsync += HandleBasicNack;
+
+            return default;
         }
 
 
@@ -150,10 +150,10 @@ namespace Tapeti.Connection
                 var messageInfo = new ConfirmMessageInfo(GetReturnKey(exchange ?? string.Empty, routingKey), new TaskCompletionSource<int>());
 
 
-                channelProvider.WithRetryableChannel(channel =>
+                await channelProvider.WithRetryableChannel(async innerChannel =>
                 {
                     if (exchange != null)
-                        DeclareExchange(channel, exchange);
+                        await DeclareExchange(innerChannel, exchange);
 
                     // The delivery tag is lost after a reconnect, register under the new tag
                     if (config.GetFeatures().PublisherConfirms)
@@ -177,8 +177,7 @@ namespace Tapeti.Connection
 
                     try
                     {
-                        var publishProperties = new RabbitMQMessageProperties(channel.CreateBasicProperties(), properties);
-                        channel.BasicPublish(exchange ?? string.Empty, routingKey, mandatory, publishProperties.BasicProperties, body);
+                        await innerChannel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body);
                     }
                     catch
                     {
@@ -243,16 +242,16 @@ namespace Tapeti.Connection
                 ? CreateDedicatedConsumeChannel()
                 : defaultConsumeChannel;
 
-            await channel.QueueRetryable(model =>
+            await channel.QueueRetryable(async innerChannel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
                 capturedConnectionReference = connection.GetConnectionReference();
-                var basicConsumer = new TapetiBasicConsumer(consumer, messageHandlerTracker, capturedConnectionReference, 
+                var basicConsumer = new TapetiBasicConsumer(innerChannel, consumer, messageHandlerTracker, capturedConnectionReference, 
                     (connectionReference, deliveryTag, result) => Respond(channel, connectionReference, deliveryTag, result));
 
-                consumerTag = model.BasicConsume(queueName, false, basicConsumer);
+                consumerTag = await innerChannel.BasicConsumeAsync(queueName, false, basicConsumer, cancellationToken: CancellationToken.None);
             }).ConfigureAwait(false);
 
             return consumerTag == null 
@@ -275,21 +274,21 @@ namespace Tapeti.Connection
 
             // No need for a retryable channel here, if the connection is lost
             // so is the consumer.
-            await channel.Queue(model =>
+            await channel.Queue(async innerChannel =>
             {
                 // Check again as a reconnect may have occured in the meantime
                 var currentConnectionReference = connection.GetConnectionReference();
                 if (currentConnectionReference != connectionReference)
                     return;
 
-                model.BasicCancel(consumerTag);
+                await innerChannel.BasicCancelAsync(consumerTag);
             }).ConfigureAwait(false);
         }
 
 
         private async Task Respond(TapetiChannel channel, long expectedConnectionReference, ulong deliveryTag, ConsumeResult result)
         {
-            await channel.Queue(model =>
+            await channel.Queue(async innerChannel =>
             {
                 // If the connection was re-established in the meantime, don't respond with an
                 // invalid deliveryTag. The message will be requeued.
@@ -303,15 +302,15 @@ namespace Tapeti.Connection
                 {
                     case ConsumeResult.Success:
                     case ConsumeResult.ExternalRequeue:
-                        model.BasicAck(deliveryTag, false);
+                        await innerChannel.BasicAckAsync(deliveryTag, false);
                         break;
 
                     case ConsumeResult.Error:
-                        model.BasicNack(deliveryTag, false, false);
+                        await innerChannel.BasicNackAsync(deliveryTag, false, false);
                         break;
 
                     case ConsumeResult.Requeue:
-                        model.BasicNack(deliveryTag, false, true);
+                        await innerChannel.BasicNackAsync(deliveryTag, false, true);
                         break;
 
                     default:
@@ -376,7 +375,7 @@ namespace Tapeti.Connection
 
             // Metadata operations are performed at startup so they can always run on the defaultConsumeChannel,
             // regardless of whether the consumer of the queue will use a dedicated channel.
-            await defaultConsumeChannel.Queue(channel =>
+            await defaultConsumeChannel.Queue(async innerChannel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -384,30 +383,30 @@ namespace Tapeti.Connection
                 if (declareRequired)
                 {
                     bindingLogger?.QueueDeclare(queueName, true, false);
-                    channel.QueueDeclare(queueName, true, false, false, GetDeclareArguments(arguments));
+                    await innerChannel.QueueDeclareAsync(queueName, true, false, false, GetDeclareArguments(arguments), cancellationToken: cancellationToken);
                 }
 
                 foreach (var binding in currentBindings.Except(existingBindings))
                 {
-                    DeclareExchange(channel, binding.Exchange);
+                    await DeclareExchange(innerChannel, binding.Exchange);
                     bindingLogger?.QueueBind(queueName, true, binding.Exchange, binding.RoutingKey);
-                    channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
+                    await innerChannel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
                 }
 
                 foreach (var deletedBinding in existingBindings.Except(currentBindings))
                 {
                     bindingLogger?.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
-                    channel.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
+                    await innerChannel.QueueUnbindAsync(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey, cancellationToken: cancellationToken);
                 }
             }).ConfigureAwait(false);
         }
 
 
-        private static IDictionary<string, object>? GetDeclareArguments(IRabbitMQArguments? arguments)
+        private static IDictionary<string, object?>? GetDeclareArguments(IRabbitMQArguments? arguments)
         {
             return arguments == null || arguments.Count == 0 
                 ? null 
-                : arguments.ToDictionary(p => p.Key, p => p.Value);
+                : arguments.ToDictionary(p => p.Key, object? (p) => p.Value);
         }
 
 
@@ -417,13 +416,13 @@ namespace Tapeti.Connection
             if (!await GetDurableQueueDeclareRequired(queueName, arguments).ConfigureAwait(false))
                 return;
 
-            await defaultConsumeChannel.Queue(channel =>
+            await defaultConsumeChannel.Queue(async innerChannel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
                 (logger as IBindingLogger)?.QueueDeclare(queueName, true, true);
-                channel.QueueDeclarePassive(queueName);
+                await innerChannel.QueueDeclarePassiveAsync(queueName, cancellationToken);
             }).ConfigureAwait(false);
         }
 
@@ -435,12 +434,12 @@ namespace Tapeti.Connection
             {
                 uint deletedMessages = 0;
 
-                await defaultConsumeChannel.Queue(channel =>
+                await defaultConsumeChannel.Queue(async innerChannel =>
                 {
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    deletedMessages = channel.QueueDelete(queueName);
+                    deletedMessages = await innerChannel.QueueDeleteAsync(queueName, cancellationToken: cancellationToken);
                 }).ConfigureAwait(false);
 
                 deletedQueues.Add(queueName);
@@ -476,9 +475,9 @@ namespace Tapeti.Connection
                         // includes the GetQueueInfo, the next time around it should have Messages > 0
                         try
                         {
-                            channelProvider.WithChannel(channel =>
+                            await channelProvider.WithChannel(async innerChannel =>
                             {
-                                channel.QueueDelete(queueName, false, true);
+                                await innerChannel.QueueDeleteAsync(queueName, false, true, cancellationToken: cancellationToken);
                             });
 
                             deletedQueues.Add(queueName);
@@ -486,7 +485,7 @@ namespace Tapeti.Connection
                         }
                         catch (OperationInterruptedException e)
                         {
-                            if (e.ShutdownReason.ReplyCode == Constants.PreconditionFailed)
+                            if (e.ShutdownReason?.ReplyCode == Constants.PreconditionFailed)
                                 retry = true;
                             else
                                 throw;
@@ -499,10 +498,10 @@ namespace Tapeti.Connection
 
                         if (existingBindings.Count > 0)
                         {
-                            channelProvider.WithChannel(channel =>
+                            await channelProvider.WithChannel(async innerChannel =>
                             {
                                 foreach (var binding in existingBindings)
-                                    channel.QueueUnbind(queueName, binding.Exchange, binding.RoutingKey);
+                                    await innerChannel.QueueUnbindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
                             });
                         }
 
@@ -519,7 +518,7 @@ namespace Tapeti.Connection
             string? queueName = null;
             var bindingLogger = logger as IBindingLogger;
 
-            await defaultConsumeChannel.Queue(channel =>
+            await defaultConsumeChannel.Queue(async innerChannel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -528,11 +527,11 @@ namespace Tapeti.Connection
                 {
                     queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
                     bindingLogger?.QueueDeclare(queueName, false, false);
-                    channel.QueueDeclare(queueName, arguments: GetDeclareArguments(arguments));
+                    await innerChannel.QueueDeclareAsync(queueName, arguments: GetDeclareArguments(arguments), cancellationToken: cancellationToken);
                 }
                 else
                 {
-                    queueName = channel.QueueDeclare(arguments: GetDeclareArguments(arguments)).QueueName;
+                    queueName = (await innerChannel.QueueDeclareAsync(arguments: GetDeclareArguments(arguments), cancellationToken: cancellationToken)).QueueName;
                     bindingLogger?.QueueDeclare(queueName, false, false);
                 }
             }).ConfigureAwait(false);
@@ -547,14 +546,14 @@ namespace Tapeti.Connection
         /// <inheritdoc />
         public async Task DynamicQueueBind(string queueName, QueueBinding binding, CancellationToken cancellationToken)
         {
-            await defaultConsumeChannel.Queue(channel =>
+            await defaultConsumeChannel.Queue(async innerChannel =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
-                DeclareExchange(channel, binding.Exchange);
+                await DeclareExchange(innerChannel, binding.Exchange);
                 (logger as IBindingLogger)?.QueueBind(queueName, false, binding.Exchange, binding.RoutingKey);
-                channel.QueueBind(queueName, binding.Exchange, binding.RoutingKey);
+                await innerChannel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
             }).ConfigureAwait(false);
         }
 
@@ -570,7 +569,7 @@ namespace Tapeti.Connection
                 await channel.Close().ConfigureAwait(false);
 
             dedicatedChannels.Clear();
-            connection.Close();
+            await connection.Close();
 
 
             // Wait for message handlers to finish
@@ -732,27 +731,27 @@ namespace Tapeti.Connection
 
         private readonly HashSet<string> declaredExchanges = new();
 
-        private void DeclareExchange(IModel channel, string exchange)
+        private async ValueTask DeclareExchange(IChannel channel, string exchange)
         {
             if (declaredExchanges.Contains(exchange))
                 return;
 
             (logger as IBindingLogger)?.ExchangeDeclare(exchange);
-            channel.ExchangeDeclare(exchange, "topic", true);
+            await channel.ExchangeDeclareAsync(exchange, "topic", true);
             declaredExchanges.Add(exchange);
         }
 
 
         private TapetiChannel CreateDedicatedConsumeChannel()
         {
-            var channel = connection.CreateChannel(InitConsumeModel);
+            var channel = connection.CreateChannel(null, InitConsumeModel);
             dedicatedChannels.Add(channel);
 
             return channel;
         }
 
 
-        private void HandleBasicReturn(object? sender, BasicReturnEventArgs e)        
+        private Task HandleBasicReturn(object? sender, BasicReturnEventArgs e)        
         {
             /*
              * "If the message is also published as mandatory, the basic.return is sent to the client before basic.ack."
@@ -779,10 +778,11 @@ namespace Tapeti.Connection
             }
 
             returnInfo.RefCount++;
+            return Task.CompletedTask;
         }
 
 
-        private void HandleBasicAck(object? sender, BasicAckEventArgs e)
+        private Task HandleBasicAck(object? sender, BasicAckEventArgs e)
         {
             Monitor.Enter(confirmLock);
             try
@@ -810,10 +810,12 @@ namespace Tapeti.Connection
             {
                 Monitor.Exit(confirmLock);
             }
+
+            return Task.CompletedTask;
         }
 
 
-        private void HandleBasicNack(object? sender, BasicNackEventArgs e)
+        private Task HandleBasicNack(object? sender, BasicNackEventArgs e)
         {
             Monitor.Enter(confirmLock);
             try
@@ -831,6 +833,8 @@ namespace Tapeti.Connection
             {
                 Monitor.Exit(confirmLock);
             }
+
+            return Task.CompletedTask;
         }
 
 

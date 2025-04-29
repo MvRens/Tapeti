@@ -80,16 +80,16 @@ namespace Tapeti.Tests.Client
         [Fact]
         public async Task DurableQueueDeclareIncompatibleArguments()
         {
-            using var rabbitmqClient = CreateRabbitMQClient();
-            using var model = rabbitmqClient.CreateModel();
+            await using var rabbitmqClient = await CreateRabbitMQClient();
+            await using var channel = await rabbitmqClient.CreateChannelAsync();
 
-            var ok = model.QueueDeclare("incompatibleargs", true, false, false, new Dictionary<string, object>
+            var ok = await channel.QueueDeclareAsync("incompatibleargs", true, false, false, new Dictionary<string, object?>
             {
                 { "x-dead-letter-exchange", "d34db33f" }
             });
 
-            model.Close();
-            rabbitmqClient.Close();
+            await channel.CloseAsync();
+            await rabbitmqClient.CloseAsync();
 
 
             ok.ShouldNotBeNull();
@@ -170,7 +170,7 @@ namespace Tapeti.Tests.Client
 
         // TODO test the other methods
 
-        private RabbitMQ.Client.IConnection CreateRabbitMQClient()
+        private Task<RabbitMQ.Client.IConnection> CreateRabbitMQClient()
         {
             var connectionFactory = new ConnectionFactory
             {
@@ -182,7 +182,7 @@ namespace Tapeti.Tests.Client
                 TopologyRecoveryEnabled = false
             };
 
-            return connectionFactory.CreateConnection();
+            return connectionFactory.CreateConnectionAsync();
         }
 
 

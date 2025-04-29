@@ -159,7 +159,7 @@ namespace Tapeti.Tests.Client
         }
 
 
-        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, int? consumerDispatchConcurrency = null)
+        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, ushort? consumerDispatchConcurrency = null)
         {
             return new TapetiConnection(config)
             {
@@ -171,7 +171,7 @@ namespace Tapeti.Tests.Client
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = prefetchCount,
-                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? Environment.ProcessorCount
+                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? (Environment.ProcessorCount <= ushort.MaxValue ? (ushort)Environment.ProcessorCount : ushort.MaxValue)
                 }
             };
         }

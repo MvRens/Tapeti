@@ -3,19 +3,20 @@ using RabbitMQ.Client.Exceptions;
 using System;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Tapeti.Connection
 {
-    internal readonly struct TapetiModelReference
+    internal readonly struct TapetiChannelReference
     {
-        public IModel Model { get; }
+        public IChannel Channel { get; }
         public long ConnectionReference { get; }
         public DateTime CreatedDateTime { get; }
 
 
-        public TapetiModelReference(IModel model, long connectionReference, DateTime createdDateTime)
+        public TapetiChannelReference(IChannel channel, long connectionReference, DateTime createdDateTime)
         {
-            Model = model;
+            Channel = channel;
             ConnectionReference = connectionReference;
             CreatedDateTime = createdDateTime;
         }
@@ -51,12 +52,12 @@ namespace Tapeti.Connection
 
 
         // These fields must be locked using connectionLock
-        private readonly object connectionLock = new();
+        private readonly SemaphoreSlim connectionLock = new(1, 1);
         private long connectionReference;
         private RabbitMQ.Client.IConnection? connection;
         private bool isReconnect;
         private DateTime connectedDateTime;
-        private IModel? connectionMonitorChannel;
+        private IChannel? connectionMonitorChannel;
 
 
         public TapetiClientConnection(ILogger logger, TapetiConnectionParams connectionParams)
@@ -73,8 +74,7 @@ namespace Tapeti.Connection
                 Password = connectionParams.Password,
                 AutomaticRecoveryEnabled = false,
                 TopologyRecoveryEnabled = false,
-                RequestedHeartbeat = TimeSpan.FromSeconds(30),
-                DispatchConsumersAsync = true
+                RequestedHeartbeat = TimeSpan.FromSeconds(30)
             };
 
             if (connectionParams.ConsumerDispatchConcurrency > 0)
@@ -92,15 +92,20 @@ namespace Tapeti.Connection
         }
 
 
-        public void Close()
+        public async Task Close()
         {
             RabbitMQ.Client.IConnection? capturedConnection;
 
-            lock (connectionLock)
+            await connectionLock.WaitAsync();
+            try
             {
                 IsClosing = true;
                 capturedConnection = connection;
                 connection = null;
+            }
+            finally
+            {
+                connectionLock.Release();
             }
 
             // ReSharper disable once InvertIf
@@ -108,7 +113,7 @@ namespace Tapeti.Connection
             {
                 try
                 {
-                    capturedConnection.Close();
+                    await capturedConnection.CloseAsync();
                 }
                 finally
                 {
@@ -118,22 +123,22 @@ namespace Tapeti.Connection
         }
 
 
-        public TapetiChannel CreateChannel(Action<IModel>? onInitModel)
+        public TapetiChannel CreateChannel(Func<bool>? usePublisherConfirms, Func<IChannel, ValueTask>? onInitChannel)
         {
             var capturedChannel = new WeakReference<TapetiChannel?>(null);
-            var channel = new TapetiChannel((ref TapetiModelReference? modelReference) =>
+            var channel = new TapetiChannel(channelReference => AcquireChannel(channelReference, usePublisherConfirms is not null && usePublisherConfirms(), async innerChannel =>
             {
-                AcquireModel(ref modelReference, model =>
+                innerChannel.ChannelShutdownAsync += (_, _) =>
                 {
-                    model.ModelShutdown += (_, _) =>
-                    {
-                        if (capturedChannel.TryGetTarget(out var innerChannel))
-                            innerChannel.ClearModel();
-                    };
+                    if (capturedChannel.TryGetTarget(out var weakCapturedChannel))
+                        weakCapturedChannel.ClearModel();
 
-                    onInitModel?.Invoke(model);
-                });
-            });
+                    return Task.CompletedTask;
+                };
+
+                if (onInitChannel is not null)
+                    await onInitChannel.Invoke(innerChannel);
+            }));
 
             capturedChannel.SetTarget(channel);
             return channel;
@@ -141,24 +146,24 @@ namespace Tapeti.Connection
 
 
 
-        private void AcquireModel(ref TapetiModelReference? modelReference, Action<IModel>? onInitModel)
+        private async Task<TapetiChannelReference> AcquireChannel(TapetiChannelReference? channelReference, bool usePublisherConfirms, Func<IChannel, Task>? onInitChannel)
         {
-            var sameConnection = modelReference != null &&
-                                 modelReference.Value.ConnectionReference == Interlocked.Read(ref connectionReference);
-
-            if (sameConnection && modelReference!.Value.Model.IsOpen)
-                return;
+            var sameConnection = channelReference is not null && channelReference.Value.ConnectionReference == Interlocked.Read(ref connectionReference);
+            if (sameConnection && channelReference!.Value.Channel.IsOpen)
+                return channelReference.Value;
 
             long newConnectionReference;
             RabbitMQ.Client.IConnection capturedConnection;
 
-            lock (connectionLock)
+            await connectionLock.WaitAsync();
+            try
             {
                 if (connection is not { IsOpen: true })
                 {
                     try
                     {
-                        connection?.Close();
+                        if (connection is not null)
+                            await connection.CloseAsync();
                     }
                     catch (AlreadyClosedException)
                     {
@@ -171,25 +176,29 @@ namespace Tapeti.Connection
                     logger.Connect(new ConnectContext(connectionParams, isReconnect));
                     newConnectionReference = Interlocked.Increment(ref connectionReference);
 
-                    connection = Connect();
+                    connection = await Connect();
                 }
                 else
                     newConnectionReference = Interlocked.Read(ref connectionReference);
 
                 capturedConnection = connection;
             }
+            finally
+            {
+                connectionLock.Release();
+            }
 
-            if (sameConnection && (DateTime.UtcNow - modelReference!.Value.CreatedDateTime).TotalMilliseconds <= MinimumChannelRecreateDelay)
+            if (sameConnection && (DateTime.UtcNow - channelReference!.Value.CreatedDateTime).TotalMilliseconds <= MinimumChannelRecreateDelay)
                 Thread.Sleep(ChannelRecreateDelay);
 
-            var newModel = capturedConnection.CreateModel();
-            onInitModel?.Invoke(newModel);
+            var newModel = await capturedConnection.CreateChannelAsync(new CreateChannelOptions(usePublisherConfirms, false, null, null));
+            onInitChannel?.Invoke(newModel);
 
-            modelReference = new TapetiModelReference(newModel, newConnectionReference, DateTime.UtcNow);
+            return new TapetiChannelReference(newModel, newConnectionReference, DateTime.UtcNow);
         }
 
 
-        private RabbitMQ.Client.IConnection Connect()
+        private async Task<RabbitMQ.Client.IConnection> Connect()
         {
             // If the Disconnect quickly follows the Connect (when an error occurs that is reported back by RabbitMQ
             // not related to the connection), wait for a bit to avoid spamming the connection
@@ -201,24 +210,29 @@ namespace Tapeti.Connection
             {
                 try
                 {
-                    newConnection = connectionFactory.CreateConnection();
-                    connectionMonitorChannel = newConnection.CreateModel();
+                    newConnection = await connectionFactory.CreateConnectionAsync();
+                    connectionMonitorChannel = await newConnection.CreateChannelAsync();
                     if (connectionMonitorChannel == null)
-                        throw new BrokerUnreachableException(null);
+                        throw new BrokerUnreachableException(new AggregateException());
 
                     var capturedConnectionMonitorChannel = connectionMonitorChannel;
 
-                    connectionMonitorChannel.ModelShutdown += (_, e) =>
+                    connectionMonitorChannel.ChannelShutdownAsync += async (_, e) =>
                     {
                         bool capturedIsClosing;
 
-                        lock (connectionLock)
+                        await connectionLock.WaitAsync();
+                        try
                         {
                             if (connectionMonitorChannel == null || connectionMonitorChannel != capturedConnectionMonitorChannel)
                                 return;
 
                             capturedConnectionMonitorChannel = null;
                             capturedIsClosing = IsClosing;
+                        }
+                        finally
+                        {
+                            connectionLock.Release();
                         }
 
                         ConnectionEventListener?.Disconnected(new DisconnectedEventArgs(e.ReplyCode, e.ReplyText));

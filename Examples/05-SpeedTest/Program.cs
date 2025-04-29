@@ -62,6 +62,8 @@ namespace _05_SpeedTest
             var stopwatch = new Stopwatch();
             stopwatch.Start();
 
+
+            // TODO this hangs.
             await PublishMessages(publisher);
 
             stopwatch.Stop();

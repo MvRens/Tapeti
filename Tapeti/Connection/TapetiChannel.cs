@@ -8,12 +8,12 @@ namespace Tapeti.Connection
 {
     internal interface ITapetiChannelModelProvider
     {
-        void WithChannel(Action<IModel> operation);
-        void WithRetryableChannel(Action<IModel> operation);
+        Task WithChannel(Func<IChannel, Task> operation);
+        Task WithRetryableChannel(Func<IChannel, Task> operation);
     }
 
 
-    internal delegate void AcquireModelProc(ref TapetiModelReference? modelReference);
+    internal delegate Task<TapetiChannelReference> AcquireChannelProc(TapetiChannelReference? channelReference);
 
     
     /// <summary>
@@ -22,17 +22,17 @@ namespace Tapeti.Connection
     /// </summary>
     internal class TapetiChannel
     {
-        private TapetiModelReference? modelReference;
-        private readonly AcquireModelProc acquireModelProc;
+        private TapetiChannelReference? channelReference;
+        private readonly AcquireChannelProc acquireChannelProc;
 
         private readonly object taskQueueLock = new();
         private SerialTaskQueue? taskQueue;
         private readonly ModelProvider modelProvider;
 
         
-        public TapetiChannel(AcquireModelProc acquireModelProc)
+        public TapetiChannel(AcquireChannelProc acquireChannelProc)
         {
-            this.acquireModelProc = acquireModelProc;
+            this.acquireChannelProc = acquireChannelProc;
             modelProvider = new ModelProvider(this);
         }
 
@@ -50,10 +50,10 @@ namespace Tapeti.Connection
             if (capturedTaskQueue == null)
                 return;
             
-            await capturedTaskQueue.Add(() =>
+            await capturedTaskQueue.AddSync(() =>
             {
-                modelReference?.Model.Dispose();
-                modelReference = null;
+                channelReference?.Channel.Dispose();
+                channelReference = null;
             }).ConfigureAwait(false);
 
             capturedTaskQueue.Dispose();
@@ -62,26 +62,20 @@ namespace Tapeti.Connection
 
         public void ClearModel()
         {
-            modelReference = null;
+            channelReference = null;
         }
 
 
-        public Task Queue(Action<IModel> operation)
+        public Task Queue(Func<IChannel, Task> operation)
         {
-            return GetTaskQueue().Add(() =>
-            {
-                modelProvider.WithChannel(operation);
-            });
+            return GetTaskQueue().Add(() => modelProvider.WithChannel(operation));
         }
 
 
 
-        public Task QueueRetryable(Action<IModel> operation)
+        public Task QueueRetryable(Func<IChannel, Task> operation)
         {
-            return GetTaskQueue().Add(() =>
-            {
-                modelProvider.WithRetryableChannel(operation);
-            });
+            return GetTaskQueue().Add(() => modelProvider.WithRetryableChannel(operation));
         }
 
 
@@ -105,10 +99,10 @@ namespace Tapeti.Connection
         }
 
 
-        private IModel GetModel()
+        private async Task<IChannel> GetChannel()
         {
-            acquireModelProc(ref modelReference);
-            return modelReference?.Model ?? throw new InvalidOperationException("RabbitMQ Model is unavailable");
+            channelReference = await acquireChannelProc(channelReference);
+            return channelReference?.Channel ?? throw new InvalidOperationException("RabbitMQ Model is unavailable");
         }
 
 
@@ -123,19 +117,19 @@ namespace Tapeti.Connection
             }
 
             
-            public void WithChannel(Action<IModel> operation)
+            public async Task WithChannel(Func<IChannel, Task> operation)
             {
-                operation(owner.GetModel());
+                await operation(await owner.GetChannel());
             }
             
 
-            public void WithRetryableChannel(Action<IModel> operation)
+            public async Task WithRetryableChannel(Func<IChannel, Task> operation)
             {
                 while (true)
                 {
                     try
                     {
-                        operation(owner.GetModel());
+                        await operation(await owner.GetChannel());
                         break;
                     }
                     catch (AlreadyClosedException)

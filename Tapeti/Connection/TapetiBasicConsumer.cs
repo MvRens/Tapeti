@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Tapeti.Default;
@@ -26,7 +27,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public TapetiBasicConsumer(IConsumer consumer, IMessageHandlerTracker messageHandlerTracker, long connectionReference, ResponseFunc onRespond)
+        public TapetiBasicConsumer(IChannel channel, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker, long connectionReference, ResponseFunc onRespond) : base(channel)
         {
             this.consumer = consumer;
             this.messageHandlerTracker = messageHandlerTracker;
@@ -36,13 +37,14 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
-        public override async Task HandleBasicDeliver(string consumerTag,
+        public override async Task HandleBasicDeliverAsync(string consumerTag,
             ulong deliveryTag,
             bool redelivered,
             string exchange,
             string routingKey,
-            IBasicProperties properties,
-            ReadOnlyMemory<byte> body)
+            IReadOnlyBasicProperties properties,
+            ReadOnlyMemory<byte> body,
+            CancellationToken cancellationToken = default)
         {
             messageHandlerTracker.Enter();
             try
@@ -57,7 +59,7 @@ namespace Tapeti.Connection
 
                 try
                 {
-                    var response = await consumer.Consume(exchange, routingKey, new RabbitMQMessageProperties(properties), bodyArray).ConfigureAwait(false);
+                    var response = await consumer.Consume(exchange, routingKey, properties.ToMessageProperties(), bodyArray).ConfigureAwait(false);
                     await onRespond(connectionReference, deliveryTag, response).ConfigureAwait(false);
                 }
                 catch

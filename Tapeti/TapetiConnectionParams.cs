@@ -59,7 +59,7 @@ namespace Tapeti
         /// The RabbitMQ Client library defaults to 1. Due to older Tapeti versions implementing concurrency
         /// effectively limited by the PrefetchCount, this will default to Environment.ProcessorCount instead.
         /// </remarks>
-        public int ConsumerDispatchConcurrency { get; set; }
+        public ushort ConsumerDispatchConcurrency { get; set; }
 
         /// <summary>
         /// Key-value pair of properties that are set on the connection. These will be visible in the RabbitMQ Management interface.
@@ -80,7 +80,7 @@ namespace Tapeti
         /// </summary>
         public TapetiConnectionParams()
         {
-            ConsumerDispatchConcurrency = Environment.ProcessorCount;
+            ConsumerDispatchConcurrency = Environment.ProcessorCount <= ushort.MaxValue ? (ushort)Environment.ProcessorCount : ushort.MaxValue;
         }
 
         /// <summary>

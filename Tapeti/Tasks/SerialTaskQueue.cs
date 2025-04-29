@@ -17,7 +17,7 @@ namespace Tapeti.Tasks
         /// Add the specified synchronous action to the task queue.
         /// </summary>
         /// <param name="action"></param>
-        public Task Add(Action action)
+        public Task AddSync(Action action)
         {
             lock (previousTaskLock)
             {
@@ -30,6 +30,7 @@ namespace Tapeti.Tasks
                 return previousTask;
             }
         }
+
 
 
         /// <summary>
