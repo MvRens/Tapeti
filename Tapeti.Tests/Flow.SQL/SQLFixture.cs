@@ -1,8 +1,12 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
+using Dapper;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
+using Microsoft.Data.SqlClient;
+using Shouldly;
 using Testcontainers.MsSql;
 using Xunit;
 
@@ -17,9 +21,6 @@ namespace Tapeti.Tests.Flow.SQL
 
     public sealed class SQLFixture : IAsyncLifetime
     {
-        public string ConnectionString => sqlContainer == null ? string.Empty : $"data source={sqlContainer.Hostname},{sqlPort};initial catalog={MsSqlBuilder.DefaultDatabase};user id={MsSqlBuilder.DefaultUsername};password={MsSqlBuilder.DefaultPassword};TrustServerCertificate=True";
-
-
         private INetwork? network;
         private IContainer? sqlContainer;
 
@@ -39,7 +40,7 @@ namespace Tapeti.Tests.Flow.SQL
                 .WithNetwork(network)
                 .WithNetworkAliases("sql")
                 .Build();
-            
+
             await network.CreateAsync();
             await sqlContainer.StartAsync();
 
@@ -54,6 +55,26 @@ namespace Tapeti.Tests.Flow.SQL
 
             if (network != null)
                 await network.DeleteAsync();
+        }
+
+
+        public async Task<string> CreateDatabase(string name)
+        {
+            if (sqlContainer is null)
+                throw new InvalidOperationException("SQL container not running");
+
+            await using var connection = new SqlConnection(GetConnectionString(MsSqlBuilder.DefaultDatabase));
+            await connection.ExecuteAsync($"create database \"{name}\"");
+
+            return GetConnectionString(name);
+        }
+
+
+        private string GetConnectionString(string databaseName)
+        {
+            Contract.Assume(sqlContainer is not null);
+
+            return $"data source={sqlContainer.Hostname},{sqlPort};initial catalog={databaseName};user id={MsSqlBuilder.DefaultUsername};password={MsSqlBuilder.DefaultPassword};TrustServerCertificate=True";
         }
     }
 }

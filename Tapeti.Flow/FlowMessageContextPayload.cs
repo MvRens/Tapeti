@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Flow.Default;
 
@@ -7,7 +8,7 @@ namespace Tapeti.Flow
     /// <summary>
     /// Contains information about the flow for the current message. For internal use.
     /// </summary>
-    internal class FlowMessageContextPayload : IMessageContextPayload, IDisposable
+    internal class FlowMessageContextPayload : IMessageContextPayload, IAsyncDisposable
     {
         public FlowContext FlowContext { get; }
 
@@ -26,9 +27,9 @@ namespace Tapeti.Flow
         }
 
         
-        public void Dispose()
+        public ValueTask DisposeAsync()
         {
-            FlowContext.Dispose();
+            return FlowContext.DisposeAsync();
         }
     }
 }

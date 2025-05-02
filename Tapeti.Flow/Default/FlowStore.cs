@@ -121,8 +121,9 @@ namespace Tapeti.Flow.Default
             }
 
             
-            public void Dispose()
+            public ValueTask DisposeAsync()
             {
+                return default;
             }
 
 

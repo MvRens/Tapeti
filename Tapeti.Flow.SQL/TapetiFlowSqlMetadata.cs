@@ -32,6 +32,8 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static async Task UpdateForMultiInstanceStore(SqlConnection connection)
         {
+            // TODO conversion from single to multiinstance (driven by default parameter?)
+
             await UpdateFlowTable(connection);
             await UpdateContinuationAndLockTables(connection);
         }
@@ -65,5 +67,7 @@ namespace Tapeti.Flow.SQL
             var query = new SqlCommand(script, connection);
             await query.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
+
+        // TODO validatemethods for multiinstance
     }
 }

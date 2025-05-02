@@ -141,6 +141,8 @@ namespace Tapeti.Default
             
             public void Dispose()
             {
+                GC.SuppressFinalize(this);
+
                 foreach (var item in items.Values)
                     (item as IDisposable)?.Dispose();
             }
@@ -148,6 +150,8 @@ namespace Tapeti.Default
             
             public async ValueTask DisposeAsync()
             {
+                GC.SuppressFinalize(this);
+
                 foreach (var item in items.Values)
                 {
                     if (item is IAsyncDisposable asyncDisposable)

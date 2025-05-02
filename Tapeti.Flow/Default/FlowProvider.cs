@@ -272,8 +272,8 @@ namespace Tapeti.Flow.Default
             }
             finally
             {
-                if (disposeFlowContext)
-                    flowContext?.Dispose();
+                if (disposeFlowContext && flowContext is not null)
+                    await flowContext.DisposeAsync();
             }
         }
 

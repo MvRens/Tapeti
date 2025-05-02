@@ -137,11 +137,13 @@ namespace Tapeti.Flow.Default
                 FlowID = flowID;
             }
 
-            public void Dispose()
+            public ValueTask DisposeAsync()
             {
                 var l = flowLock;
                 flowLock = null;
                 l?.Dispose();
+
+                return default;
             }
 
             public FlowState? GetFlowState()

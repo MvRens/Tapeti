@@ -81,7 +81,7 @@ namespace Tapeti.Flow.Default
                     // was handled. The flow provider ensures we only end up here in case of an exception.
                     await flowContext.FlowStateLock.DeleteFlowState().ConfigureAwait(false);
 
-                flowContext.FlowStateLock.Dispose();
+                await flowContext.FlowStateLock.DisposeAsync();
             }
         }
 

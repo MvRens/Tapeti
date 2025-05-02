@@ -19,10 +19,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="scripts\Continuation and lock tables.sql" />
     <None Remove="scripts\Flow table.sql" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="scripts\Continuation and lock tables.sql" />
     <EmbeddedResource Include="scripts\Flow table.sql" />
   </ItemGroup>
 

@@ -43,7 +43,7 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig)
         {
-            config.Use(new FlowSqlStoreExtension(c => new SqlMultiInstanceFlowStore(c, storeConfig)));
+            config.Use(new FlowSqlStoreExtension(_ => new SqlMultiInstanceFlowStore(storeConfig)));
             return config;
         }
     }

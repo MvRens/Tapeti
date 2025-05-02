@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
@@ -16,16 +17,17 @@ namespace Tapeti.Tests.Flow.SQL
 {
     [Collection(SQLCollection.Name)]
     [Trait("Category", "Requires Docker")]
-    public class SqlSingleInstanceCachedFlowStoreTest
+    public class SqlMultiInstanceFlowStoreTest
     {
         private readonly SQLTestHelper testHelper;
         private readonly Container container = new();
 
 
-        public SqlSingleInstanceCachedFlowStoreTest(SQLFixture fixture)
+        public SqlMultiInstanceFlowStoreTest(SQLFixture fixture)
         {
-            testHelper = new SQLTestHelper(fixture, "SingleInstance");
+            testHelper = new SQLTestHelper(fixture, "MultiInstance");
         }
+
 
 
         [Fact]
@@ -34,7 +36,8 @@ namespace Tapeti.Tests.Flow.SQL
             var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LoadAndGetActiveFlows");
             await using var connection = new SqlConnection(connectionString);
 
-            var flowId = new Guid("ebc7b8d8-f475-40e4-a974-b768d1fe35bd");
+
+            var flowId = new Guid("854fd0be-113b-41eb-8121-82691945b962");
             var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
             const string stateJson = "{}";
 
@@ -50,11 +53,11 @@ namespace Tapeti.Tests.Flow.SQL
             await flowStore.Load();
 
 
-            var flows = (await flowStore.GetActiveFlows(null)).Where(f => f.FlowID == flowId).ToArray();
-            flows.Length.ShouldBe(1, "minCreationTime = null");
+            var flows = (await flowStore.GetActiveFlows(null));
+            flows.Count().ShouldBe(1, "minCreationTime = null");
 
-            flows = (await flowStore.GetActiveFlows(creationTime.AddSeconds(-1))).Where(f => f.FlowID == flowId).ToArray();
-            flows.Length.ShouldBe(0, "minCreationTime = -1s");
+            flows = (await flowStore.GetActiveFlows(creationTime.AddSeconds(-1)));
+            flows.Count().ShouldBe(0, "minCreationTime = -1s");
         }
 
 
@@ -66,7 +69,7 @@ namespace Tapeti.Tests.Flow.SQL
 
             await flowStore.Load();
 
-            var flowId = new Guid("d1d3c51d-4f8a-480c-8cb7-c01cf7b13522");
+            var flowId = new Guid("e1b32d65-6c9a-4466-a898-913730791282");
 
             await using var flowStateLock = await flowStore.LockNewFlowState(flowId);
             flowStateLock.FlowID.ShouldBe(flowId);
@@ -84,8 +87,8 @@ namespace Tapeti.Tests.Flow.SQL
             var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LockFlowStateByContinuation");
             await using var connection = new SqlConnection(connectionString);
 
-            var flowId = new Guid("609cf011-3ebb-4f2f-ac3a-f4673f54ff97");
-            var continuationId = new Guid("cdcf573a-59f3-4008-a218-a6cfb3d413e7");
+            var flowId = new Guid("ca0eafac-be2e-4f0c-ad6f-7133536d175c");
+            var continuationId = new Guid("5cfa20a6-cdf9-495f-a834-081c333f68f7");
             var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
             var stateJson = JsonConvert.SerializeObject(new FlowState
             {
@@ -117,18 +120,26 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
-        private SqlSingleInstanceCachedFlowStore CreateFlowStore(string connectionString)
+        [Fact]
+        public async Task ConvertToMultiInstance()
         {
-            var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
-                .Build();
+            Debug.Assert(false);
 
-            return new SqlSingleInstanceCachedFlowStore(config, new SqlSingleInstanceCachedFlowStore.Config(connectionString));
+            // TODO set up clean database
+            //await TapetiFlowSqlMetadata.UpdateForMultiInstanceStore(connection, true);
         }
 
 
-        private async Task<(string, SqlSingleInstanceCachedFlowStore)> CreateDatabaseAndFlowStore(string databaseTestName)
+
+        private SqlMultiInstanceFlowStore CreateFlowStore(string connectionString)
         {
-            var connectionString = await testHelper.GetSingleInstanceCachedDatabase(databaseTestName);
+            return new SqlMultiInstanceFlowStore(new SqlMultiInstanceFlowStore.Config(connectionString));
+        }
+
+
+        private async Task<(string, SqlMultiInstanceFlowStore)> CreateDatabaseAndFlowStore(string databaseTestName)
+        {
+            var connectionString = await testHelper.GetMultiInstanceDatabase(databaseTestName);
             var flowStore = CreateFlowStore(connectionString);
 
             return (connectionString, flowStore);

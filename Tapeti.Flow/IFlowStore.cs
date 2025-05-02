@@ -60,7 +60,7 @@ namespace Tapeti.Flow
     /// <summary>
     /// Represents a lock on the flow state, to provide thread safety.
     /// </summary>
-    public interface IFlowStateLock : IDisposable
+    public interface IFlowStateLock : IAsyncDisposable
     {
         /// <summary>
         /// The unique ID of the flow state.

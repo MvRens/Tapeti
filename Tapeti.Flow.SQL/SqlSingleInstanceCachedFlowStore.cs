@@ -289,11 +289,13 @@ namespace Tapeti.Flow.SQL
             }
 
 
-            public void Dispose()
+            public ValueTask DisposeAsync()
             {
                 var l = flowLock;
                 flowLock = null;
                 l?.Dispose();
+
+                return default;
             }
 
 
