@@ -99,12 +99,14 @@ namespace Tapeti.Tests.Flow.SQL
             });
 
             await connection.ExecuteAsync(
-                "insert into Flow (FlowID, CreationTime, StateJson) values (@flowId, @creationTime, @stateJson)",
+                "insert into Flow (FlowID, CreationTime, StateJson) values (@flowId, @creationTime, @stateJson);" +
+                "insert into FlowContinuation (ContinuationID, FlowID, ContinuationMethod) values (@continuationID, @flowId, 'TestMethod');",
                 new
                 {
                     flowId,
                     creationTime,
-                    stateJson
+                    stateJson,
+                    continuationId
                 });
 
 

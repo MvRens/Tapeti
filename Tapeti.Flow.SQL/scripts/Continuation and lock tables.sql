@@ -15,6 +15,15 @@ begin
     );
 
     create clustered index CI_FlowContinuation_Clustering on FlowContinuation (ClusteringID);
+
+
+    create type FlowContinuationType as table
+    (
+         ContinuationID uniqueidentifier not null,
+         ContinuationMethod nvarchar(255) not null
+
+	     primary key nonclustered (ContinuationID)
+    );
 end
 
 if object_id(N'dbo.FlowLock', N'U') is null

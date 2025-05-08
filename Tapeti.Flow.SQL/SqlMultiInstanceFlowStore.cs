@@ -3,11 +3,36 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Flow.Default;
 
 namespace Tapeti.Flow.SQL
 {
+    /// <summary>
+    /// Thrown when a lock has been forcefully acquired by another instance due to a timeout.
+    /// </summary>
+    public class LockLostException : Exception
+    {
+        /// <summary>
+        /// The FlowID for which the lock was previously acquired.
+        /// </summary>
+        public Guid FlowID { get; }
+
+        /// <summary>
+        /// The ID which identifies the lock which was previously acquired.
+        /// </summary>
+        public Guid LockID { get; }
+
+        /// <inheritdoc />
+        public LockLostException(Guid flowID, Guid lockID) : base($"LockID {lockID} for FlowID {flowID} is no longer valid")
+        {
+            FlowID = flowID;
+            LockID = lockID;
+        }
+    }
+
+
     /// <summary>
     /// <see cref="IDurableFlowStore"/> implementation for SQL server which is compatible with multiple instances of this
     /// service running and processing flows. All locking is performed in the SQL database, and no data is cached.
@@ -136,9 +161,7 @@ namespace Tapeti.Flow.SQL
                 await using var connection = await GetConnection().ConfigureAwait(false);
 
                 var query = new SqlCommand($"select FlowID from {storeConfig.ContinuationsTableName} where ContinuationID = @ContinuationID", connection);
-
-                var continuationIDParam = query.Parameters.Add("@ContinuationID", SqlDbType.UniqueIdentifier);
-                continuationIDParam.Value = continuationID;
+                query.Parameters.AddWithValue("@ContinuationID", continuationID).SqlDbType = SqlDbType.UniqueIdentifier;
 
                 return (Guid?)await query.ExecuteScalarAsync();
             });
@@ -208,17 +231,12 @@ namespace Tapeti.Flow.SQL
                                                 commit transaction;
                                                 """, connection);
 
-                    var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                    var lockIDParam = query.Parameters.Add("@LockID", SqlDbType.UniqueIdentifier);
-                    var nowParam = query.Parameters.Add("@Now", SqlDbType.DateTime2);
-                    var timeoutParam = query.Parameters.Add("@Timeout", SqlDbType.DateTime2);
-
-                    flowIDParam.Value = flowID;
-                    lockIDParam.Value = lockID;
-
                     var now = DateTime.UtcNow;
-                    nowParam.Value = now;
-                    timeoutParam.Value = now.Subtract(storeConfig.LockTimeout);
+
+                    query.Parameters.AddWithValue("@FlowID", flowID).SqlDbType = SqlDbType.UniqueIdentifier;
+                    query.Parameters.AddWithValue("@LockID", lockID).SqlDbType = SqlDbType.UniqueIdentifier;
+                    query.Parameters.AddWithValue("@Now", now).SqlDbType = SqlDbType.DateTime2;
+                    query.Parameters.AddWithValue("@Timeout", now.Subtract(storeConfig.LockTimeout)).SqlDbType = SqlDbType.DateTime2;
 
                     await using var reader = await query.ExecuteReaderAsync();
                     if (await reader.ReadAsync())
@@ -230,7 +248,7 @@ namespace Tapeti.Flow.SQL
                             var stateJson = reader.IsDBNull(1) ? null : reader.GetString(1);
                             var state = stateJson == null ? null : JsonConvert.DeserializeObject<FlowState>(stateJson);
 
-                            return new FlowStateLock(this, flowID, lockID, state) as IFlowStateLock;
+                            return new FlowStateLock(this, flowID, lockID, state, storeConfig.LockRefreshInterval) as IFlowStateLock;
                         }
                     }
 
@@ -261,13 +279,9 @@ namespace Tapeti.Flow.SQL
                                             commit transaction;
                                             """, connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                var lockIDParam = query.Parameters.Add("@LockID", SqlDbType.UniqueIdentifier);
-                var nowParam = query.Parameters.Add("@Now", SqlDbType.DateTime2);
-
-                flowIDParam.Value = flowID;
-                lockIDParam.Value = lockID;
-                nowParam.Value = DateTime.UtcNow;
+                query.Parameters.AddWithValue("@FlowID", flowID).SqlDbType = SqlDbType.UniqueIdentifier;
+                query.Parameters.AddWithValue("@LockID", lockID).SqlDbType = SqlDbType.UniqueIdentifier;
+                query.Parameters.AddWithValue("@Now", DateTime.UtcNow).SqlDbType = SqlDbType.DateTime2;
 
                 return await query.ExecuteNonQueryAsync() > 0;
             });
@@ -285,85 +299,97 @@ namespace Tapeti.Flow.SQL
                                            delete from {storeConfig.ContinuationsTableName} where FlowID = @FlowID;
                                            """, connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                flowIDParam.Value = flowID;
+                query.Parameters.AddWithValue("@FlowID", flowID).SqlDbType = SqlDbType.UniqueIdentifier;
 
                 await query.ExecuteNonQueryAsync().ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
 
 
-        private Task StoreFlowState(Guid flowID, Guid lockID, FlowState? oldFlowState, FlowState newFlowState)
+        private Task<bool> StoreFlowState(Guid flowID, Guid lockID, FlowState flowState)
         {
+            var continuations = new DataTable();
+            continuations.Columns.Add("ContinuationID", typeof(Guid));
+            continuations.Columns.Add("ContinuationMethod", typeof(string));
+
+            foreach (var continuation in flowState.Continuations)
+                continuations.Rows.Add(continuation.Key, continuation.Value.MethodName);
+
+
+            var creationTime = DateTime.UtcNow;
+            var stateJson = JsonConvert.SerializeObject(flowState);
+
+
             return SqlRetryHelper.Execute(async () =>
             {
                 await using var connection = await GetConnection().ConfigureAwait(false);
 
-                return false;
+                var query = new SqlCommand($"""
+                                            set transaction isolation level serializable;
+                                            begin transaction;
+                                            
+                                            if exists (select LockID from {storeConfig.LocksTableName} with (updlock) where FlowID = @FlowID and LockID = @LockID)
+                                            begin
+                                                merge {storeConfig.FlowTableName} as t
+                                                using (values (@FlowID, @CreationTime, @StateJson)) as s (FlowID, CreationTime, StateJson)
+                                                on t.FlowID = s.FlowID
+                                                
+                                                when matched then
+                                                    update set StateJson = s.StateJson
+                                                    
+                                                when not matched then
+                                                    insert (FlowID, CreationTime, StateJson)
+                                                    values (s.FlowID, s.CreationTime, s.StateJson);
+                                            
+                                            
+                                                merge {storeConfig.ContinuationsTableName} as t
+                                                using @Continuations as s
+                                                on t.ContinuationID = s.ContinuationID and t.FlowID = @FlowID
+                                                
+                                                when not matched by target then
+                                                    insert (ContinuationID, FlowID, ContinuationMethod)
+                                                    values (s.ContinuationID, @FlowID, s.ContinuationMethod)
+                                                    
+                                                when not matched by source and t.FlowID = @FlowID then
+                                                    delete;
+                                                    
+                                                select 1;
+                                            end else
+                                            begin
+                                                select 0;
+                                            end
+
+                                            commit transaction;
+                                            """, connection);
+
+                query.Parameters.AddWithValue("@FlowID", flowID).SqlDbType = SqlDbType.UniqueIdentifier;
+                query.Parameters.AddWithValue("@LockID", lockID).SqlDbType = SqlDbType.UniqueIdentifier;
+                query.Parameters.AddWithValue("@CreationTime", creationTime).SqlDbType = SqlDbType.DateTime2;
+                query.Parameters.AddWithValue("@StateJson", stateJson).SqlDbType = SqlDbType.NVarChar;
+                
+                var continuationsParam = query.Parameters.AddWithValue("@Continuations", continuations);
+                continuationsParam.SqlDbType = SqlDbType.Structured;
+                continuationsParam.TypeName = "FlowContinuationType";
+
+                var result = await query.ExecuteScalarAsync().ConfigureAwait(false);
+                return result is not null && (int)result > 0;
             });
-
-
-
-            // Update the lookup dictionary for the ContinuationIDs
-            /*
-            if (cachedFlowState?.FlowState != null)
-            {
-                foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
-                    continuationLookup.TryRemove(removedContinuation, out _);
-            }
-
-            foreach (var addedContinuation in newFlowState.Continuations.Where(c => cachedFlowState?.FlowState == null || !cachedFlowState.FlowState.Continuations.ContainsKey(c.Key)))
-                continuationLookup.TryAdd(addedContinuation.Key, flowID);
-
-            var newCachedFlowState = new CachedFlowState(newFlowState, cachedFlowState?.CreationTime ?? DateTime.UtcNow);
-            flowStates[flowID] = newCachedFlowState;
-
-            if (cachedFlowState == null)
-                await CreateState(flowID, newFlowState, newCachedFlowState.CreationTime).ConfigureAwait(false);
-            else
-                await UpdateState(flowID, cachedFlowState.FlowState).ConfigureAwait(false);
-
-            return newCachedFlowState;
-            */
         }
 
 
-        private async Task CreateState(Guid flowID, FlowState flowState, DateTime creationTime)
+        private async Task ReleaseFlowLock(Guid flowID, Guid lockID)
         {
             await SqlRetryHelper.Execute(async () =>
             {
                 await using var connection = await GetConnection().ConfigureAwait(false);
 
-                var query = new SqlCommand($"insert into {storeConfig.FlowTableName} (FlowID, StateJson, CreationTime)" +
-                                           "values (@FlowID, @StateJson, @CreationTime)",
-                    connection);
+                var query = new SqlCommand($"delete from {storeConfig.LocksTableName} where FlowID = @FlowID and LockID = @LockID", connection);
 
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-                var creationTimeParam = query.Parameters.Add("@CreationTime", SqlDbType.DateTime2);
+                var flowIDParam = query.Parameters.AddWithValue("@FlowID", SqlDbType.UniqueIdentifier);
+                var lockIDParam = query.Parameters.AddWithValue("@LockID", SqlDbType.UniqueIdentifier);
 
                 flowIDParam.Value = flowID;
-                stateJsonParam.Value = JsonConvert.SerializeObject(flowState);
-                creationTimeParam.Value = creationTime;
-
-                await query.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }).ConfigureAwait(false);
-        }
-
-
-        private async Task UpdateState(Guid flowID, FlowState flowState)
-        {
-            await SqlRetryHelper.Execute(async () =>
-            {
-                await using var connection = await GetConnection().ConfigureAwait(false);
-
-                var query = new SqlCommand($"update {storeConfig.FlowTableName} set StateJson = @StateJson where FlowID = @FlowID", connection);
-
-                var flowIDParam = query.Parameters.Add("@FlowID", SqlDbType.UniqueIdentifier);
-                var stateJsonParam = query.Parameters.Add("@StateJson", SqlDbType.NVarChar);
-
-                flowIDParam.Value = flowID;
-                stateJsonParam.Value = JsonConvert.SerializeObject(flowState);
+                lockIDParam.Value = lockID;
 
                 await query.ExecuteNonQueryAsync().ConfigureAwait(false);
             }).ConfigureAwait(false);
@@ -384,36 +410,42 @@ namespace Tapeti.Flow.SQL
             private readonly SqlMultiInstanceFlowStore owner;
             private readonly Guid lockID;
             private FlowState? flowState;
+            private readonly TimeSpan lockRefreshInterval;
+            private bool disposed;
 
-            public bool disposed;
+            private readonly CancellationTokenSource refreshTaskCancellation = new();
+            private bool lockHeld = true;
+
             public Guid FlowID { get; }
 
 
-            public FlowStateLock(SqlMultiInstanceFlowStore owner, Guid flowID, Guid lockID, FlowState? flowState)
+            public FlowStateLock(SqlMultiInstanceFlowStore owner, Guid flowID, Guid lockID, FlowState? flowState, TimeSpan lockRefreshInterval)
             {
                 this.owner = owner;
                 this.lockID = lockID;
                 this.flowState = flowState;
+                this.lockRefreshInterval = lockRefreshInterval;
 
                 FlowID = flowID;
 
-                // TODO timer to refresh lock while held
+                _ = Task.Run(RefreshLock, CancellationToken.None);
             }
 
 
-            public ValueTask DisposeAsync()
+            public async ValueTask DisposeAsync()
             {
+                if (!disposed && lockHeld)
+                    await owner.ReleaseFlowLock(FlowID, lockID);
+
+                await refreshTaskCancellation.CancelAsync();
+
                 disposed = true;
-
-                // TODO remove lock
-
-                return default;
             }
 
 
             public FlowState? GetFlowState()
             {
-                ObjectDisposedException.ThrowIf(disposed, "FlowStateLock");
+                CheckPrerequisites();
 
                 return flowState;
             }
@@ -422,18 +454,50 @@ namespace Tapeti.Flow.SQL
             // ReSharper disable once ParameterHidesMember
             public async ValueTask StoreFlowState(FlowState flowState, bool persistent)
             {
-                ObjectDisposedException.ThrowIf(disposed, "FlowStateLock");
+                CheckPrerequisites();
 
                 this.flowState = flowState;
-                await owner.StoreFlowState(FlowID, lockID, flowState, flowState);
+                if (!await owner.StoreFlowState(FlowID, lockID, flowState))
+                    throw new LockLostException(FlowID, lockID);
             }
 
 
             public ValueTask DeleteFlowState()
             {
-                ObjectDisposedException.ThrowIf(disposed, "FlowStateLock");
+                CheckPrerequisites();
 
                 return owner.RemoveState(FlowID);
+            }
+
+
+            private async Task RefreshLock()
+            {
+                while (!refreshTaskCancellation.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(lockRefreshInterval, refreshTaskCancellation.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    // ReSharper disable once InvertIf
+                    if (!await owner.RefreshLock(FlowID, lockID))
+                    {
+                        lockHeld = false;
+                        break;
+                    }
+                }
+            }
+
+            private void CheckPrerequisites()
+            {
+                ObjectDisposedException.ThrowIf(disposed, "FlowStateLock");
+
+                if (!lockHeld)
+                    throw new LockLostException(FlowID, lockID);
             }
         }
     }
