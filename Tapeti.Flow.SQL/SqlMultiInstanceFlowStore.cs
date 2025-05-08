@@ -148,9 +148,43 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
+        public async ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
         {
-            throw new NotImplementedException();
+            return await SqlRetryHelper.Execute(async () =>
+            {
+                await using var connection = await GetConnection().ConfigureAwait(false);
+
+                var query = new SqlCommand($"select FlowID, CreationTime from {storeConfig.FlowTableName}{(maxCreationTime.HasValue ? " where CreationTime <= @MaxCreationTime" : "")}", connection);
+
+                if (maxCreationTime.HasValue)
+                    query.Parameters.AddWithValue("MaxCreationTime", DateTimeAsUTC(maxCreationTime.Value)).SqlDbType = SqlDbType.DateTime2;
+
+                var reader = await query.ExecuteReaderAsync().ConfigureAwait(false);
+                var results = new List<ActiveFlow>();
+
+                while (await reader.ReadAsync().ConfigureAwait(false))
+                {
+                    var flowID = reader.GetGuid(0);
+                    var creationTime = reader.GetDateTime(1);
+
+                    results.Add(new ActiveFlow(flowID, creationTime));
+                }
+
+                return results;
+            });
+        }
+
+
+        private static DateTime DateTimeAsUTC(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ =>
+                    // Assume local - it's a guess either way but this use case is not nearly critical enough to warrant an exception
+                    DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime(),
+            };
         }
 
 

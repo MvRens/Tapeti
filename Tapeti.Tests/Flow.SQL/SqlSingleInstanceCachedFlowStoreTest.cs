@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using Newtonsoft.Json;
-using Shouldly;
+﻿using System.Threading.Tasks;
+using JetBrains.Annotations;
 using SimpleInjector;
-using Tapeti.Flow.Default;
+using Tapeti.Flow;
 using Tapeti.Flow.SQL;
 using Tapeti.SimpleInjector;
 using Xunit;
@@ -16,129 +10,27 @@ namespace Tapeti.Tests.Flow.SQL
 {
     [Collection(SQLCollection.Name)]
     [Trait("Category", "Requires Docker")]
-    public class SqlSingleInstanceCachedFlowStoreTest
+    [UsedImplicitly]
+    public class SqlSingleInstanceCachedFlowStoreTest : BaseSqlFlowStoreTest
     {
-        private readonly SQLTestHelper testHelper;
-        private readonly Container container = new();
-
-
-        public SqlSingleInstanceCachedFlowStoreTest(SQLFixture fixture)
+        public SqlSingleInstanceCachedFlowStoreTest(SQLFixture fixture) : base(fixture, "SingleInstance")
         {
-            testHelper = new SQLTestHelper(fixture, "SingleInstance");
         }
 
 
-        [Fact]
-        public async Task LoadAndGetActiveFlows()
+        internal override Task<string> CreateDatabase(SQLTestHelper testHelper, string databaseTestName)
         {
-            var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LoadAndGetActiveFlows");
-            await using var connection = new SqlConnection(connectionString);
-
-            var flowId = new Guid("ebc7b8d8-f475-40e4-a974-b768d1fe35bd");
-            var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
-            const string stateJson = "{}";
-
-            await connection.ExecuteAsync(
-                "insert into Flow (FlowID, CreationTime, StateJson) values (@flowId, @creationTime, @stateJson)",
-                new
-                {
-                    flowId,
-                    creationTime,
-                    stateJson
-                });
-
-            await flowStore.Load();
-
-
-            var flows = (await flowStore.GetActiveFlows(null)).Where(f => f.FlowID == flowId).ToArray();
-            flows.Length.ShouldBe(1, "minCreationTime = null");
-
-            flows = (await flowStore.GetActiveFlows(creationTime.AddSeconds(-1))).Where(f => f.FlowID == flowId).ToArray();
-            flows.Length.ShouldBe(0, "minCreationTime = -1s");
+            return testHelper.GetSingleInstanceCachedDatabase(databaseTestName);
         }
 
 
-        [Fact]
-        public async Task LockNewFlowState()
+        internal override IDurableFlowStore CreateFlowStore(string connectionString)
         {
-            var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LockNewFlowState");
-            await using var connection = new SqlConnection(connectionString);
-
-            await flowStore.Load();
-
-            var flowId = new Guid("d1d3c51d-4f8a-480c-8cb7-c01cf7b13522");
-
-            await using var flowStateLock = await flowStore.LockNewFlowState(flowId);
-            flowStateLock.FlowID.ShouldBe(flowId);
-            flowStateLock.GetFlowState().ShouldBeNull();
-
-            await CheckExists(connection, flowId, false);
-            await flowStateLock.StoreFlowState(new FlowState(), true);
-            await CheckExists(connection, flowId, true);
-        }
-
-
-        [Fact]
-        public async Task LockFlowStateByContinuation()
-        {
-            var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LockFlowStateByContinuation");
-            await using var connection = new SqlConnection(connectionString);
-
-            var flowId = new Guid("609cf011-3ebb-4f2f-ac3a-f4673f54ff97");
-            var continuationId = new Guid("cdcf573a-59f3-4008-a218-a6cfb3d413e7");
-            var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
-            var stateJson = JsonConvert.SerializeObject(new FlowState
-            {
-                Continuations = new Dictionary<Guid, ContinuationMetadata>
-                {
-                    { continuationId, new ContinuationMetadata() }
-                }
-            });
-
-            await connection.ExecuteAsync(
-                "insert into Flow (FlowID, CreationTime, StateJson) values (@flowId, @creationTime, @stateJson)",
-                new
-                {
-                    flowId,
-                    creationTime,
-                    stateJson
-                });
-
-
-
-            await flowStore.Load();
-            var flowStateLock = await flowStore.LockFlowStateByContinuation(continuationId);
-            flowStateLock.ShouldNotBeNull();
-            flowStateLock.FlowID.ShouldBe(flowId);
-
-            var flowState = flowStateLock.GetFlowState();
-            flowState.ShouldNotBeNull();
-            flowState.Continuations.ShouldContainKey(continuationId);
-        }
-
-
-        private SqlSingleInstanceCachedFlowStore CreateFlowStore(string connectionString)
-        {
+            var container = new Container();
             var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
                 .Build();
 
             return new SqlSingleInstanceCachedFlowStore(config, new SqlSingleInstanceCachedFlowStore.Config(connectionString));
-        }
-
-
-        private async Task<(string, SqlSingleInstanceCachedFlowStore)> CreateDatabaseAndFlowStore(string databaseTestName)
-        {
-            var connectionString = await testHelper.GetSingleInstanceCachedDatabase(databaseTestName);
-            var flowStore = CreateFlowStore(connectionString);
-
-            return (connectionString, flowStore);
-        }
-
-
-        private static async Task CheckExists(SqlConnection connection, Guid flowId, bool expectedExists)
-        {
-            var count = await connection.ExecuteScalarAsync<int>("select count(*) from Flow where FlowID = @flowId", new { flowId });
-            count.ShouldBe(expectedExists ? 1 : 0);
         }
     }
 }

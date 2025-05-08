@@ -307,8 +307,7 @@ namespace Tapeti.Flow.SQL
 
             public async ValueTask StoreFlowState(FlowState flowState, bool persistent)
             {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
+                ObjectDisposedException.ThrowIf(flowLock == null, "FlowStateLock");
 
                 cachedFlowState = await owner.StoreFlowState(FlowID, cachedFlowState, flowState);
             }
@@ -316,8 +315,7 @@ namespace Tapeti.Flow.SQL
 
             public ValueTask DeleteFlowState()
             {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
+                ObjectDisposedException.ThrowIf(flowLock == null, "FlowStateLock");
 
                 return owner.RemoveState(FlowID);
             }
