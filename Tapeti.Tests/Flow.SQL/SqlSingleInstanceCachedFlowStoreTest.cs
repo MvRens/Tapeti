@@ -18,9 +18,9 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
-        internal override Task<string> CreateDatabase(SQLTestHelper testHelper, string databaseTestName)
+        internal override Task<string> CreateDatabase(string databaseTestName)
         {
-            return testHelper.GetSingleInstanceCachedDatabase(databaseTestName);
+            return TestHelper.GetSingleInstanceCachedDatabase(databaseTestName);
         }
 
 

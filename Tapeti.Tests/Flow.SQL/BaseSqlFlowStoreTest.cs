@@ -14,12 +14,12 @@ namespace Tapeti.Tests.Flow.SQL
 {
     public abstract class BaseSqlFlowStoreTest
     {
-        private readonly SQLTestHelper testHelper;
+        internal readonly SQLTestHelper TestHelper;
 
 
         protected BaseSqlFlowStoreTest(SQLFixture fixture, string databasePrefix)
         {
-            testHelper = new SQLTestHelper(fixture, databasePrefix);
+            TestHelper = new SQLTestHelper(fixture, databasePrefix);
         }
 
 
@@ -42,6 +42,7 @@ namespace Tapeti.Tests.Flow.SQL
         {
             var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("LoadAndGetActiveFlows");
             await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
 
             var flowId = new Guid("ebc7b8d8-f475-40e4-a974-b768d1fe35bd");
             var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
@@ -129,13 +130,13 @@ namespace Tapeti.Tests.Flow.SQL
 
 
 
-        internal abstract Task<string> CreateDatabase(SQLTestHelper testHelper, string databaseTestName);
+        internal abstract Task<string> CreateDatabase(string databaseTestName);
         internal abstract IDurableFlowStore CreateFlowStore(string connectionString);
 
         
         private async Task<(string, IDurableFlowStore)> CreateDatabaseAndFlowStore(string databaseTestName)
         {
-            var connectionString = await CreateDatabase(testHelper, databaseTestName);
+            var connectionString = await CreateDatabase(databaseTestName);
             var flowStore = CreateFlowStore(connectionString);
 
             return (connectionString, flowStore);
