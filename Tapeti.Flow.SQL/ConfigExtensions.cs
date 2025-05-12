@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Tapeti.Config;
+using Tapeti.Flow.FlowHelpers;
 
 // ReSharper disable UnusedMember.Global
 
@@ -33,7 +34,7 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static ITapetiConfigBuilder WithFlowSqlStoreSingleInstanceCached(this ITapetiConfigBuilder config, SqlSingleInstanceCachedFlowStore.Config storeConfig)
         {
-            config.Use(new FlowSqlStoreExtension(c => new SqlSingleInstanceCachedFlowStore(c, storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlSingleInstanceCachedFlowStore(new ContinuationMethodValidatorFactory(c), storeConfig)));
             return config;
         }
 
@@ -43,7 +44,7 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig)
         {
-            config.Use(new FlowSqlStoreExtension(_ => new SqlMultiInstanceFlowStore(storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlMultiInstanceFlowStore(new ContinuationMethodValidatorFactory(c), storeConfig)));
             return config;
         }
     }

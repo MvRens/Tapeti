@@ -6,6 +6,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Flow.Default;
+using Tapeti.Flow.FlowHelpers;
 
 namespace Tapeti.Flow.SQL
 {
@@ -39,7 +40,9 @@ namespace Tapeti.Flow.SQL
     /// </summary>
     public class SqlMultiInstanceFlowStore : IDurableFlowStore
     {
+        private readonly IContinuationMethodValidator continuationMethodValidator;
         private readonly Config storeConfig;
+
 
         /// <summary>
         /// Describes the configuration for <see cref="SqlMultiInstanceFlowStore"/> implementations.
@@ -50,6 +53,21 @@ namespace Tapeti.Flow.SQL
             /// The connection string used for connecting to the SQL Server database.
             /// </summary>
             public string ConnectionString { get; }
+
+
+            /// <inheritdoc cref="ContinuationMethodMapperProc"/>
+            public ContinuationMethodMapperProc? ContinuationMethodMapper { get; set; }
+
+
+            /// <summary>
+            /// Whether to validate the stored continuation method names at startup. This will delay the startup
+            /// depending on how many flows are active, but reduces the risk of flows which can not be continued
+            /// at runtime due to code changes which did not account for the effect on flows.
+            /// </summary>
+            /// <remarks>
+            /// Defaults to true. See also <see cref="ContinuationMethodMapper"/> for maintaining backwards compatibility.
+            /// </remarks>
+            public bool ValidateMethodsAtLoad { get; set; } = true;
 
 
             /// <summary>
@@ -102,13 +120,15 @@ namespace Tapeti.Flow.SQL
         }
 
 
+        private volatile bool loadStarted;
         private volatile bool loaded;
 
 
         /// <inheritdoc cref="SqlMultiInstanceFlowStore"/>>
-        public SqlMultiInstanceFlowStore(Config storeConfig)
+        public SqlMultiInstanceFlowStore(IContinuationMethodValidatorFactory continuationMethodValidatorFactory, Config storeConfig)
         {
             this.storeConfig = storeConfig;
+            this.continuationMethodValidator = continuationMethodValidatorFactory.Create(storeConfig.ContinuationMethodMapper);
 
 
             if (storeConfig.LockTimeout < storeConfig.LockRefreshInterval)
@@ -117,11 +137,34 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc />
-        public ValueTask Load()
+        public async ValueTask Load()
         {
-            // Enforce Load being called even though it is a no-op in this current implementation
+            if (loadStarted)
+                return;
+
+            loadStarted = true;
+
+            if (storeConfig.ValidateMethodsAtLoad)
+            {
+                await SqlRetryHelper.Execute(async () =>
+                {
+                    await using var connection = await GetConnection().ConfigureAwait(false);
+
+                    var query = new SqlCommand($"select max(ContinuationID), max(FlowID), ContinuationMethod from {storeConfig.ContinuationsTableName} group by ContinuationMethod", connection);
+                    var reader = await query.ExecuteReaderAsync().ConfigureAwait(false);
+
+                    while (await reader.ReadAsync().ConfigureAwait(false))
+                    {
+                        var continuationID = reader.GetGuid(0);
+                        var flowID = reader.GetGuid(1);
+                        var continuationMethod = reader.GetString(2);
+
+                        continuationMethodValidator.ValidateMethodName(flowID, continuationID, continuationMethod);
+                    }
+                }).ConfigureAwait(false);
+            }
+
             loaded = true;
-            return default;
         }
 
 
@@ -281,6 +324,9 @@ namespace Tapeti.Flow.SQL
                         {
                             var stateJson = reader.IsDBNull(1) ? null : reader.GetString(1);
                             var state = stateJson == null ? null : JsonConvert.DeserializeObject<FlowState>(stateJson);
+
+                            if (state is not null)
+                                continuationMethodValidator.ValidateContinuations(flowID, state.Continuations);
 
                             return new FlowStateLock(this, flowID, lockID, state, storeConfig.LockRefreshInterval) as IFlowStateLock;
                         }

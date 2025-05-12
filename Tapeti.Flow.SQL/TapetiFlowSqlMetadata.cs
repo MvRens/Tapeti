@@ -45,8 +45,6 @@ namespace Tapeti.Flow.SQL
         /// </summary>
         public static async Task UpdateForMultiInstanceStore(SqlConnection connection, CancellationToken cancellationToken)
         {
-            // TODO conversion from single to multiinstance (driven by default parameter?)
-
             await UpdateFlowTable(connection, cancellationToken);
             await UpdateContinuationAndLockTables(connection, cancellationToken);
         }

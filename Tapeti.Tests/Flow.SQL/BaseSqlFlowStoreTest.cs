@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Shouldly;
 using Tapeti.Flow;
 using Tapeti.Flow.Default;
+using Tapeti.Tests.Helpers;
 using Xunit;
 
 namespace Tapeti.Tests.Flow.SQL
@@ -126,7 +127,124 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
-        // TODO test multiple locks on a single flow
+
+        [Fact]
+        public async Task LocksOnDifferentFlows()
+        {
+            var (_, flowStore) = await CreateDatabaseAndFlowStore("LocksOnDifferentFlows");
+            await flowStore.Load();
+
+
+            var lock1Acquired = new TaskCompletionSource();
+            var lock2Acquired = new TaskCompletionSource();
+            var releaseLocks = new TaskCompletionSource();
+
+
+            var task1 = Task.Run(async () =>
+            {
+                var flowID1 = new Guid("290e3af4-285c-44dd-98ac-72a551d5dc04");
+                var flowLock = await flowStore.LockNewFlowState(flowID1);
+
+                lock1Acquired.SetResult();
+                await releaseLocks.Task;
+
+                await flowLock.DisposeAsync();
+            });
+
+            var task2 = Task.Run(async () =>
+            {
+                var flowID2 = new Guid("b090c46c-7dd5-4c1d-a091-b5e6b1342921");
+                var flowLock = await flowStore.LockNewFlowState(flowID2);
+
+                lock2Acquired.SetResult();
+                await releaseLocks.Task;
+
+                await flowLock.DisposeAsync();
+            });
+
+
+            var taskTimeout = TimeSpan.FromSeconds(10);
+
+            await Task.WhenAll(
+                lock1Acquired.Task.WithTimeout(taskTimeout, "Lock1Acquired"),
+                lock2Acquired.Task.WithTimeout(taskTimeout, "Lock2Acquired")
+            );
+
+            releaseLocks.SetResult();
+
+            await Task.WhenAll(
+                task1.WithTimeout(taskTimeout, "Task1"), 
+                task2.WithTimeout(taskTimeout, "Task2")
+            );
+        }
+
+
+        [Fact]
+        public async Task LocksOnSameFlow()
+        {
+            var (_, flowStore) = await CreateDatabaseAndFlowStore("LocksOnSameFlow");
+            await flowStore.Load();
+
+
+            var flowID = new Guid("c98d5fe5-7e21-4e67-a96d-bb745aa657c5");
+            var lock1Acquired = new TaskCompletionSource();
+            var lock1Released = new TaskCompletionSource();
+            var lock2Acquiring = new TaskCompletionSource();
+            var lock2Acquired = new TaskCompletionSource();
+            var releaseLock1 = new TaskCompletionSource();
+            var releaseLock2 = new TaskCompletionSource();
+
+
+            // Note: this relies on the fact that all implementations treat LockNewFlowState with a predetermined FlowID
+            // like any lock on that FlowID, and is not expected to actually be new. If implementations are added which
+            // have different behaviour for good reasons, changes to this test and more setup may be required.
+            var task1 = Task.Run(async () =>
+            {
+                var flowLock = await flowStore.LockNewFlowState(flowID);
+
+                lock1Acquired.SetResult();
+                await releaseLock1.Task;
+
+                await flowLock.DisposeAsync();
+                lock1Released.SetResult();
+            });
+
+            var task2 = Task.Run(async () =>
+            {
+                await lock1Acquired.Task;
+                lock2Acquiring.SetResult();
+
+                var flowLock = await flowStore.LockNewFlowState(flowID);
+
+                lock2Acquired.SetResult();
+                await releaseLock2.Task;
+
+                await flowLock.DisposeAsync();
+            });
+
+
+            var taskTimeout = TimeSpan.FromSeconds(10);
+
+
+            await lock1Acquired.Task.WithTimeout(taskTimeout, "Lock1Acquired");
+            await lock2Acquiring.Task.WithTimeout(taskTimeout, "Lock2Acquiring");
+
+            await Task.Delay(100);
+
+            lock2Acquired.Task.IsCompleted.ShouldBeFalse(); 
+
+            releaseLock1.SetResult();
+            await lock2Acquired.Task.WithTimeout(taskTimeout, "Lock2Acquired");
+
+            lock1Released.Task.IsCompleted.ShouldBeTrue();
+            releaseLock2.SetResult(); 
+
+
+            await Task.WhenAll(
+                task1.WithTimeout(taskTimeout, "Task1"),
+                task2.WithTimeout(taskTimeout, "Task2")
+            );
+        }
 
 
 

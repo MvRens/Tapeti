@@ -48,6 +48,10 @@ namespace Tapeti.Flow.SQL
             public string FlowTableName { get; set; } = "Flow";
 
 
+            /// <inheritdoc cref="ContinuationMethodMapperProc"/>
+            public ContinuationMethodMapperProc? ContinuationMethodMapper { get; set; }
+
+
             /// <inheritdoc cref="Config"/>
             public Config(string connectionString)
             {
@@ -70,7 +74,7 @@ namespace Tapeti.Flow.SQL
             }
         }
 
-        private readonly ITapetiConfig config;
+        private readonly IContinuationMethodValidatorFactory continuationMethodValidatorFactory;
         private readonly Config storeConfig;
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
@@ -81,9 +85,9 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc cref="SqlSingleInstanceCachedFlowStore"/>
-        public SqlSingleInstanceCachedFlowStore(ITapetiConfig config, Config storeConfig)
+        public SqlSingleInstanceCachedFlowStore(IContinuationMethodValidatorFactory continuationMethodValidatorFactory, Config storeConfig)
         {
-            this.config = config;
+            this.continuationMethodValidatorFactory = continuationMethodValidatorFactory;
             this.storeConfig = storeConfig;
         }
 
@@ -95,7 +99,7 @@ namespace Tapeti.Flow.SQL
 
             loadStarted = true;
 
-            var validator = new ContinuationMethodValidator(config);
+            var validator = continuationMethodValidatorFactory.Create(storeConfig.ContinuationMethodMapper);
 
             await SqlRetryHelper.Execute(async () =>
             {

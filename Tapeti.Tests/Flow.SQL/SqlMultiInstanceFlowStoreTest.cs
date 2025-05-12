@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
@@ -10,6 +9,7 @@ using Shouldly;
 using Tapeti.Flow;
 using Tapeti.Flow.Default;
 using Tapeti.Flow.SQL;
+using Tapeti.Tests.Mock;
 using Xunit;
 
 namespace Tapeti.Tests.Flow.SQL
@@ -150,7 +150,7 @@ namespace Tapeti.Tests.Flow.SQL
 
         internal override IDurableFlowStore CreateFlowStore(string connectionString)
         {
-            return new SqlMultiInstanceFlowStore(new SqlMultiInstanceFlowStore.Config(connectionString));
+            return new SqlMultiInstanceFlowStore(new MockContinuationMethodValidatorFactory(), new SqlMultiInstanceFlowStore.Config(connectionString));
         }
 
 
