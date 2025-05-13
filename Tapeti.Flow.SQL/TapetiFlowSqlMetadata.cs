@@ -79,12 +79,10 @@ namespace Tapeti.Flow.SQL
                     var stateJson = reader.IsDBNull(1) ? null : reader.GetString(1);
 
                     if (string.IsNullOrEmpty(stateJson))
-                        // TODO log?
                         continue;
 
                     var state = JsonConvert.DeserializeObject<FlowState>(stateJson);
                     if (state is null)
-                        // TODO log?
                         continue;
 
                     continuations.AddRange(state.Continuations.Select(p => new DbFlowContinuation
@@ -165,8 +163,6 @@ namespace Tapeti.Flow.SQL
             var query = new SqlCommand(script, connection);
             await query.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
-
-        // TODO validatemethods for multiinstance
 
 
         private class DbFlowContinuation

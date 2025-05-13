@@ -2,7 +2,6 @@
 using JetBrains.Annotations;
 using Tapeti.Flow;
 using Tapeti.Flow.SQL;
-using Tapeti.Tests.Mock;
 using Xunit;
 
 namespace Tapeti.Tests.Flow.SQL
@@ -25,7 +24,7 @@ namespace Tapeti.Tests.Flow.SQL
 
         internal override IDurableFlowStore CreateFlowStore(string connectionString)
         {
-            return new SqlSingleInstanceCachedFlowStore(new MockContinuationMethodValidatorFactory(), new SqlSingleInstanceCachedFlowStore.Config(connectionString));
+            return new SqlSingleInstanceCachedFlowStore(ContinuationMethodValidator, new SqlSingleInstanceCachedFlowStore.Config(connectionString));
         }
     }
 }

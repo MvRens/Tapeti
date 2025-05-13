@@ -5,10 +5,10 @@ using System.Linq.Expressions;
 using System.Reflection;
 using JetBrains.Annotations;
 using Tapeti.Config;
-using Tapeti.Flow.Default;
+using Tapeti.Flow.Validation;
 using Tapeti.Helpers;
 
-namespace Tapeti.Flow.FlowHelpers
+namespace Tapeti.Flow.Default
 {
     /// <summary>
     /// Represents a continuation method previously persisted in the Flow Store.
@@ -63,47 +63,21 @@ namespace Tapeti.Flow.FlowHelpers
 
 
     /// <summary>
-    /// Abstracts the continuation method validator for unit testing purposes.
-    /// </summary>
-    public interface IContinuationMethodValidator
-    {
-        /// <summary>
-        /// Validates the method names used the provided continuations, which are usually part of a <see cref="FlowState"/>.
-        /// </summary>
-        /// <remarks>
-        /// Note: if the mapper applies any changes to a continuation, the ContinuationMetadata is modified in place.
-        /// </remarks>
-        /// <exception cref="InvalidDataException"></exception>
-        void ValidateContinuations(Guid flowId, IReadOnlyDictionary<Guid, ContinuationMetadata> continuations);
-
-        /// <summary>
-        /// Validates the method names used in a single continuation.
-        /// </summary>
-        /// <exception cref="InvalidDataException"></exception>
-        string? ValidateMethodName(Guid flowId, Guid continuationId, string? methodName);
-    }
-
-
-    /// <summary>
-    /// Factory interface for <see cref="IContinuationMethodValidator"/>.
-    /// </summary>
-    public interface IContinuationMethodValidatorFactory
-    {
-        /// <summary>
-        /// Returns an <see cref="IContinuationMethodValidator"/> implementation with the specified mapper callback.
-        /// </summary>
-        IContinuationMethodValidator Create(ContinuationMethodMapperProc? mapper);
-    }
-
-
-    /// <summary>
     /// Validates method names as used for Flow continuations. Can be used to ensure changes to the service do not break flows in progress.
     /// </summary>
     public class ContinuationMethodValidator : IContinuationMethodValidator
     {
         private readonly ITapetiConfig config;
         private readonly ContinuationMethodMapperProc? mapper;
-        private readonly Dictionary<string, string> validatedMethods = [];
+
+        /// <summary>
+        /// Contains the validated serialized method names and the mapped value if mapped, otherwise the value
+        /// is equal to the key.
+        /// </summary>
+        /// <remarks>
+        /// Public for unit testing purposes.
+        /// </remarks>
+        public readonly Dictionary<string, string> ValidatedMethods = [];
 
 
         /// <inheritdoc cref="ContinuationMethodValidator"/>>
@@ -133,7 +107,7 @@ namespace Tapeti.Flow.FlowHelpers
 
             // We could check all the things that are required for a continuation or converge method, but this should suffice
             // for the common scenario where you change code without realizing that it's signature has been persisted
-            if (validatedMethods.TryGetValue(methodName, out var resolvedMethodName))
+            if (ValidatedMethods.TryGetValue(methodName, out var resolvedMethodName))
                 return resolvedMethodName;
 
 
@@ -143,7 +117,7 @@ namespace Tapeti.Flow.FlowHelpers
             if (mapper is not null)
                 (methodInfo, resolvedMethodName) = new StoredContinuationMethod(methodName).Apply(mapper);
 
-            validatedMethods.Add(methodName, resolvedMethodName);
+            ValidatedMethods.Add(methodName, resolvedMethodName);
 
 
             if (methodInfo is null)
@@ -214,27 +188,6 @@ namespace Tapeti.Flow.FlowHelpers
                     ? (mappedMethodInfo, MethodSerializer.Serialize(mappedMethodInfo))
                     : (null, SerializedMethodName);
             }
-        }
-    }
-
-
-    /// <inheritdoc />
-    public class ContinuationMethodValidatorFactory : IContinuationMethodValidatorFactory
-    {
-        private readonly ITapetiConfig config;
-
-
-        /// <inheritdoc cref="ContinuationMethodValidatorFactory" />
-        public ContinuationMethodValidatorFactory(ITapetiConfig config)
-        {
-            this.config = config;
-        }
-
-
-        /// <inheritdoc />
-        public IContinuationMethodValidator Create(ContinuationMethodMapperProc? mapper)
-        {
-            return new ContinuationMethodValidator(config, mapper);
         }
     }
 }

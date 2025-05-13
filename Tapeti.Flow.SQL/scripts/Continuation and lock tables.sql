@@ -3,7 +3,7 @@
 	This script is embedded in the Tapeti.Flow.SQL package so it can be used with, for example, DbUp
 
 */
-if object_id(N'dbo.Continuation', N'U') is null
+if object_id(N'dbo.FlowContinuation', N'U') is null
 begin
     create table FlowContinuation
     (

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -8,7 +10,9 @@ using Newtonsoft.Json;
 using Shouldly;
 using Tapeti.Flow;
 using Tapeti.Flow.Default;
+using Tapeti.Helpers;
 using Tapeti.Tests.Helpers;
+using Tapeti.Tests.Mock;
 using Xunit;
 
 namespace Tapeti.Tests.Flow.SQL
@@ -16,13 +20,17 @@ namespace Tapeti.Tests.Flow.SQL
     public abstract class BaseSqlFlowStoreTest
     {
         internal readonly SQLTestHelper TestHelper;
+        internal readonly MockTapetiConfig Config = new();
+        internal readonly ContinuationMethodValidator ContinuationMethodValidator;
+
+        internal ContinuationMethodMapperProc? OnMapContinuationMethod;
 
 
         protected BaseSqlFlowStoreTest(SQLFixture fixture, string databasePrefix)
         {
             TestHelper = new SQLTestHelper(fixture, databasePrefix);
+            ContinuationMethodValidator = new ContinuationMethodValidator(Config, method => OnMapContinuationMethod?.Invoke(method));
         }
-
 
 
         protected virtual async Task PrepareLoadAndGetActiveFlows(SqlConnection connection, Guid flowId, DateTime creationTime, string stateJson)
@@ -83,7 +91,7 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
-        protected virtual async Task PrepareLockFlowStateByContinuation(SqlConnection connection, Guid flowId, DateTime creationTime, string stateJson, Guid continuationId)
+        protected virtual async Task PrepareLockFlowStateByContinuation(SqlConnection connection, Guid flowId, DateTime creationTime, string stateJson, Guid continuationId, string continuationMethod)
         {
             await connection.ExecuteAsync(
                 "insert into Flow (FlowID, CreationTime, StateJson) values (@flowId, @creationTime, @stateJson)",
@@ -105,16 +113,24 @@ namespace Tapeti.Tests.Flow.SQL
             var flowId = new Guid("609cf011-3ebb-4f2f-ac3a-f4673f54ff97");
             var continuationId = new Guid("cdcf573a-59f3-4008-a218-a6cfb3d413e7");
             var creationTime = new DateTime(2025, 4, 24, 13, 37, 42, DateTimeKind.Utc);
+            var continuationMethod = GetTestContinuationMethod();
+            var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
             var stateJson = JsonConvert.SerializeObject(new FlowState
             {
                 Continuations = new Dictionary<Guid, ContinuationMetadata>
                 {
-                    { continuationId, new ContinuationMetadata() }
+                    {
+                        continuationId, new ContinuationMetadata
+                        {
+                            MethodName = serializedContinuationMethod
+                        }
+                    }
                 }
             });
 
 
-            await PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId);
+            Config.AddMockBinding(continuationMethod);
+            await PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId, serializedContinuationMethod);
             await flowStore.Load();
 
             var flowStateLock = await flowStore.LockFlowStateByContinuation(continuationId);
@@ -124,6 +140,9 @@ namespace Tapeti.Tests.Flow.SQL
             var flowState = flowStateLock.GetFlowState();
             flowState.ShouldNotBeNull();
             flowState.Continuations.ShouldContainKey(continuationId);
+
+
+            ContinuationMethodValidator.ValidatedMethods.ShouldContainKeyAndValue(serializedContinuationMethod, serializedContinuationMethod);
         }
 
 
@@ -247,11 +266,104 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
+        [Fact]
+        public async Task MapToValidMethod()
+        {
+            OnMapContinuationMethod = method =>
+            {
+                switch (method.SerializedMethodName)
+                {
+                    case "TestContinuationMethod@Tapeti.Tests:Tapeti.Tests.Flow.SQL.BaseSqlFlowStoreTest":
+                        method.MapTo<BaseSqlFlowStoreTest>(t => t.MappedContinuationMethod);
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(method));
+                }
+            };
+
+
+            var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("MapToValidMethod");
+            await using var connection = new SqlConnection(connectionString);
+
+            var flowId = new Guid("b36597c6-9778-42a5-b5bd-ad0365e07350");
+            var continuationId = new Guid("d1da3e0c-39ee-4f00-918f-24fad4e4ff01");
+            var creationTime = new DateTime(2025, 5, 13, 11, 13, 42, DateTimeKind.Utc);
+            var continuationMethod = GetTestContinuationMethod();
+            var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
+            var stateJson = JsonConvert.SerializeObject(new FlowState
+            {
+                Continuations = new Dictionary<Guid, ContinuationMetadata>
+                {
+                    {
+                        continuationId, new ContinuationMetadata
+                        {
+                            MethodName = serializedContinuationMethod
+                        }
+                    }
+                }
+            });
+
+            Config.AddMockBinding(GetMappedContinuationMethod());
+            await PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId, serializedContinuationMethod);
+            await flowStore.Load();
+
+
+            ContinuationMethodValidator.ValidatedMethods.ShouldContainKeyAndValue(serializedContinuationMethod, MethodSerializer.Serialize(GetMappedContinuationMethod()));
+        }
+
+
+
+        [Fact]
+        public async Task MapToInvalidMethod()
+        {
+            OnMapContinuationMethod = method =>
+            {
+                switch (method.SerializedMethodName)
+                {
+                    case "TestContinuationMethod@Tapeti.Tests:Tapeti.Tests.Flow.SQL.BaseSqlFlowStoreTest":
+                        method.MapTo<BaseSqlFlowStoreTest>(t => t.MappedContinuationMethod);
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(method));
+                }
+            };
+
+
+            var (connectionString, flowStore) = await CreateDatabaseAndFlowStore("MapToInvalidMethod");
+            await using var connection = new SqlConnection(connectionString);
+
+            var flowId = new Guid("7dff276c-cda3-48ce-93bb-d93da0059a53");
+            var continuationId = new Guid("15f09132-e45d-4a98-8c05-6149319607b5");
+            var creationTime = new DateTime(2025, 5, 13, 11, 13, 42, DateTimeKind.Utc);
+            var continuationMethod = GetTestContinuationMethod();
+            var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
+            var stateJson = JsonConvert.SerializeObject(new FlowState
+            {
+                Continuations = new Dictionary<Guid, ContinuationMetadata>
+                {
+                    {
+                        continuationId, new ContinuationMetadata
+                        {
+                            MethodName = serializedContinuationMethod
+                        }
+                    }
+                }
+            });
+
+            // Do not add to Config
+
+            await PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId, serializedContinuationMethod);
+
+            await Should.ThrowAsync<InvalidDataException>(async () => await flowStore.Load());
+        }
+
 
         internal abstract Task<string> CreateDatabase(string databaseTestName);
         internal abstract IDurableFlowStore CreateFlowStore(string connectionString);
 
-        
+
         private async Task<(string, IDurableFlowStore)> CreateDatabaseAndFlowStore(string databaseTestName)
         {
             var connectionString = await CreateDatabase(databaseTestName);
@@ -265,6 +377,31 @@ namespace Tapeti.Tests.Flow.SQL
         {
             var count = await connection.ExecuteScalarAsync<int>("select count(*) from Flow where FlowID = @flowId", new { flowId });
             count.ShouldBe(expectedExists ? 1 : 0);
+        }
+
+
+        #pragma warning disable CA1822
+        public Task<IYieldPoint> TestContinuationMethod()
+        {
+            return Task.FromResult<IYieldPoint>(null!);
+        }
+
+
+        public Task<IYieldPoint> MappedContinuationMethod()
+        {
+            return Task.FromResult<IYieldPoint>(null!);
+        }
+        #pragma warning restore CA1822
+
+
+        private static MethodInfo GetTestContinuationMethod()
+        {
+            return typeof(BaseSqlFlowStoreTest).GetMethod(nameof(TestContinuationMethod))!;
+        }
+
+        private static MethodInfo GetMappedContinuationMethod()
+        {
+            return typeof(BaseSqlFlowStoreTest).GetMethod(nameof(MappedContinuationMethod))!;
         }
     }
 }

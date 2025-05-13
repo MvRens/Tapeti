@@ -9,7 +9,6 @@ using Shouldly;
 using Tapeti.Flow;
 using Tapeti.Flow.Default;
 using Tapeti.Flow.SQL;
-using Tapeti.Tests.Mock;
 using Xunit;
 
 namespace Tapeti.Tests.Flow.SQL
@@ -23,18 +22,19 @@ namespace Tapeti.Tests.Flow.SQL
         }
 
 
-        protected override async Task PrepareLockFlowStateByContinuation(SqlConnection connection, Guid flowId, DateTime creationTime, string stateJson, Guid continuationId)
+        protected override async Task PrepareLockFlowStateByContinuation(SqlConnection connection, Guid flowId, DateTime creationTime, string stateJson, Guid continuationId, string continuationMethod)
         {
-            await base.PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId);
+            await base.PrepareLockFlowStateByContinuation(connection, flowId, creationTime, stateJson, continuationId, continuationMethod);
 
             await connection.ExecuteAsync(
-                "insert into FlowContinuation (ContinuationID, FlowID, ContinuationMethod) values (@continuationID, @flowId, 'TestMethod');",
+                "insert into FlowContinuation (ContinuationID, FlowID, ContinuationMethod) values (@continuationID, @flowId, @continuationMethod);",
                 new
                 {
                     flowId,
                     creationTime,
                     stateJson,
-                    continuationId
+                    continuationId,
+                    continuationMethod
                 });
         }
 
@@ -150,7 +150,7 @@ namespace Tapeti.Tests.Flow.SQL
 
         internal override IDurableFlowStore CreateFlowStore(string connectionString)
         {
-            return new SqlMultiInstanceFlowStore(new MockContinuationMethodValidatorFactory(), new SqlMultiInstanceFlowStore.Config(connectionString));
+            return new SqlMultiInstanceFlowStore(ContinuationMethodValidator, new SqlMultiInstanceFlowStore.Config(connectionString));
         }
 
 

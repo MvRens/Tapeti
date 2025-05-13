@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
-using Tapeti.Config;
 using Tapeti.Flow.Default;
 using Tapeti.Flow.FlowHelpers;
+using Tapeti.Flow.Validation;
 
 namespace Tapeti.Flow.SQL
 {
@@ -48,10 +48,6 @@ namespace Tapeti.Flow.SQL
             public string FlowTableName { get; set; } = "Flow";
 
 
-            /// <inheritdoc cref="ContinuationMethodMapperProc"/>
-            public ContinuationMethodMapperProc? ContinuationMethodMapper { get; set; }
-
-
             /// <inheritdoc cref="Config"/>
             public Config(string connectionString)
             {
@@ -74,7 +70,7 @@ namespace Tapeti.Flow.SQL
             }
         }
 
-        private readonly IContinuationMethodValidatorFactory continuationMethodValidatorFactory;
+        private readonly IContinuationMethodValidator continuationMethodValidator;
         private readonly Config storeConfig;
         private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
         private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
@@ -85,9 +81,9 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc cref="SqlSingleInstanceCachedFlowStore"/>
-        public SqlSingleInstanceCachedFlowStore(IContinuationMethodValidatorFactory continuationMethodValidatorFactory, Config storeConfig)
+        public SqlSingleInstanceCachedFlowStore(IContinuationMethodValidator continuationMethodValidator, Config storeConfig)
         {
-            this.continuationMethodValidatorFactory = continuationMethodValidatorFactory;
+            this.continuationMethodValidator = continuationMethodValidator;
             this.storeConfig = storeConfig;
         }
 
@@ -98,8 +94,6 @@ namespace Tapeti.Flow.SQL
                 return;
 
             loadStarted = true;
-
-            var validator = continuationMethodValidatorFactory.Create(storeConfig.ContinuationMethodMapper);
 
             await SqlRetryHelper.Execute(async () =>
             {
@@ -118,7 +112,7 @@ namespace Tapeti.Flow.SQL
                     if (state == null) 
                         continue;
 
-                    validator.ValidateContinuations(flowID, state.Continuations);
+                    continuationMethodValidator.ValidateContinuations(flowID, state.Continuations);
                     AddToCache(flowID, new CachedFlowState(state, creationTime));
                 }
             }).ConfigureAwait(false);

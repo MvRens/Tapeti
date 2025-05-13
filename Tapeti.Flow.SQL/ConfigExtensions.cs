@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Tapeti.Config;
-using Tapeti.Flow.FlowHelpers;
+using Tapeti.Flow.Default;
 
 // ReSharper disable UnusedMember.Global
 
@@ -32,9 +32,9 @@ namespace Tapeti.Flow.SQL
         /// <summary>
         /// Enables the single instance Flow SQL repository.
         /// </summary>
-        public static ITapetiConfigBuilder WithFlowSqlStoreSingleInstanceCached(this ITapetiConfigBuilder config, SqlSingleInstanceCachedFlowStore.Config storeConfig)
+        public static ITapetiConfigBuilder WithFlowSqlStoreSingleInstanceCached(this ITapetiConfigBuilder config, SqlSingleInstanceCachedFlowStore.Config storeConfig, ContinuationMethodMapperProc? continuationMethodMapper = null)
         {
-            config.Use(new FlowSqlStoreExtension(c => new SqlSingleInstanceCachedFlowStore(new ContinuationMethodValidatorFactory(c), storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlSingleInstanceCachedFlowStore(new ContinuationMethodValidator(c, continuationMethodMapper), storeConfig)));
             return config;
         }
 
@@ -42,9 +42,9 @@ namespace Tapeti.Flow.SQL
         /// <summary>
         /// Enables the multi instance Flow SQL repository.
         /// </summary>
-        public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig)
+        public static ITapetiConfigBuilder WithFlowSqlStoreMultiInstance(this ITapetiConfigBuilder config, SqlMultiInstanceFlowStore.Config storeConfig, ContinuationMethodMapperProc? continuationMethodMapper = null)
         {
-            config.Use(new FlowSqlStoreExtension(c => new SqlMultiInstanceFlowStore(new ContinuationMethodValidatorFactory(c), storeConfig)));
+            config.Use(new FlowSqlStoreExtension(c => new SqlMultiInstanceFlowStore(new ContinuationMethodValidator(c, continuationMethodMapper), storeConfig)));
             return config;
         }
     }

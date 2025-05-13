@@ -6,7 +6,7 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Flow.Default;
-using Tapeti.Flow.FlowHelpers;
+using Tapeti.Flow.Validation;
 
 namespace Tapeti.Flow.SQL
 {
@@ -55,18 +55,11 @@ namespace Tapeti.Flow.SQL
             public string ConnectionString { get; }
 
 
-            /// <inheritdoc cref="ContinuationMethodMapperProc"/>
-            public ContinuationMethodMapperProc? ContinuationMethodMapper { get; set; }
-
-
             /// <summary>
             /// Whether to validate the stored continuation method names at startup. This will delay the startup
             /// depending on how many flows are active, but reduces the risk of flows which can not be continued
             /// at runtime due to code changes which did not account for the effect on flows.
             /// </summary>
-            /// <remarks>
-            /// Defaults to true. See also <see cref="ContinuationMethodMapper"/> for maintaining backwards compatibility.
-            /// </remarks>
             public bool ValidateMethodsAtLoad { get; set; } = true;
 
 
@@ -125,10 +118,10 @@ namespace Tapeti.Flow.SQL
 
 
         /// <inheritdoc cref="SqlMultiInstanceFlowStore"/>>
-        public SqlMultiInstanceFlowStore(IContinuationMethodValidatorFactory continuationMethodValidatorFactory, Config storeConfig)
+        public SqlMultiInstanceFlowStore(IContinuationMethodValidator continuationMethodValidator, Config storeConfig)
         {
             this.storeConfig = storeConfig;
-            this.continuationMethodValidator = continuationMethodValidatorFactory.Create(storeConfig.ContinuationMethodMapper);
+            this.continuationMethodValidator = continuationMethodValidator;
 
 
             if (storeConfig.LockTimeout < storeConfig.LockRefreshInterval)
@@ -332,7 +325,6 @@ namespace Tapeti.Flow.SQL
                         }
                     }
 
-                    // TODO log
                     await Task.Delay(storeConfig.LockRetryInterval);
                 }
             });
