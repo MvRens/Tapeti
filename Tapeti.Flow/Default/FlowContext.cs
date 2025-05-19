@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
-    internal class FlowContext : IDisposable
+    internal class FlowContext : IAsyncDisposable
     {
         private readonly IFlowHandlerContext? handlerContext;
         private IFlowStateLock? flowStateLock;
@@ -73,9 +73,10 @@ namespace Tapeti.Flow.Default
             Debug.Assert(deleteCalled <= 1, "Delete called more than once!");
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            flowStateLock?.Dispose();
+            if (flowStateLock is not null)
+                await flowStateLock.DisposeAsync();
         }
     }
 }

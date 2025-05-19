@@ -1,251 +1,150 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Tapeti.Config;
-using Tapeti.Flow.FlowHelpers;
-using Tapeti.Helpers;
 
 namespace Tapeti.Flow.Default
 {
     /// <summary>
-    /// Default implementation of IFlowStore.
+    /// Default implementation of <see cref="IFlowStore"/>. Delegates to the registered <see cref="IDynamicFlowStore"/> and
+    /// <see cref="IDurableFlowStore"/> as required.
     /// </summary>
     public class FlowStore : IFlowStore
     {
-        private class CachedFlowState
+        private readonly IDynamicFlowStore dynamicFlowStore;
+        private readonly IDurableFlowStore durableFlowStore;
+
+
+        /// <inheritdoc cref="FlowStore" />
+        public FlowStore(IDynamicFlowStore dynamicFlowStore, IDurableFlowStore durableFlowStore)
         {
-            public readonly FlowState? FlowState;
-            public readonly DateTime CreationTime;
-            public readonly bool IsPersistent;
-
-            public CachedFlowState(FlowState? flowState, DateTime creationTime, bool isPersistent)
-            {
-                FlowState = flowState;
-                CreationTime = creationTime;
-                IsPersistent = isPersistent;
-            }
-        }
-
-        private readonly ConcurrentDictionary<Guid, CachedFlowState> flowStates = new();
-        private readonly ConcurrentDictionary<Guid, Guid> continuationLookup = new();
-        private readonly LockCollection<Guid> locks = new(EqualityComparer<Guid>.Default);
-        private HashSet<string>? validatedMethods;
-
-        private readonly IFlowRepository repository;
-        private readonly ITapetiConfig config;
-
-        private volatile bool inUse;
-        private volatile bool loaded;
-
-
-        /// <summary>
-        /// </summary>
-        public FlowStore(IFlowRepository repository, ITapetiConfig config)
-        {
-            this.repository = repository;
-            this.config = config;
+            this.dynamicFlowStore = dynamicFlowStore;
+            this.durableFlowStore = durableFlowStore;
         }
 
 
         /// <inheritdoc />
         public async ValueTask Load()
         {
-            if (inUse)
-                throw new InvalidOperationException("Can only load the saved state once.");
+            await dynamicFlowStore.Load();
+            await durableFlowStore.Load();
+        }
 
-            inUse = true;
 
-            flowStates.Clear();
-            continuationLookup.Clear();
+        /// <inheritdoc />
+        public ValueTask<IFlowStateLock> LockNewFlowState(Guid? newFlowID)
+        {
+            // No need to perform any locking as the FlowID is new and not yet stored
+            return ValueTask.FromResult<IFlowStateLock>(new FlowStateLockWrapper(this, newFlowID ?? Guid.NewGuid(), null, FlowStateLockSource.New));
+        }
 
-            validatedMethods = new HashSet<string>();
-            try
+
+        /// <inheritdoc />
+        public async ValueTask<IFlowStateLock?> LockFlowStateByContinuation(Guid continuationID)
+        {
+            // The dynamic repository is very likely to be in-memory and fastest to look up
+            var innerLock = await dynamicFlowStore.LockFlowStateByContinuation(continuationID);
+            if (innerLock != null)
+                return new FlowStateLockWrapper(this, innerLock.FlowID, innerLock, FlowStateLockSource.Dynamic);
+
+            innerLock = await durableFlowStore.LockFlowStateByContinuation(continuationID);
+            return innerLock != null 
+                ? new FlowStateLockWrapper(this, innerLock.FlowID, innerLock, FlowStateLockSource.Durable) 
+                : null;
+        }
+
+
+        /// <inheritdoc />
+        public async ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime)
+        {
+            return (await dynamicFlowStore.GetActiveFlows(maxCreationTime))
+                .Concat(await durableFlowStore.GetActiveFlows(maxCreationTime));
+        }
+
+
+        private async ValueTask<IFlowStateLock> StoreFlowState(Guid flowID, FlowState flowState, IFlowStateLock? currentInnerLock, FlowStateLockSource currentSource, FlowStateLockSource newSource)
+        {
+            if (newSource != currentSource)
             {
-                foreach (var flowStateRecord in await repository.GetStates<FlowState>().ConfigureAwait(false))
-                {
-                    flowStates.TryAdd(flowStateRecord.FlowID, new CachedFlowState(flowStateRecord.FlowState, flowStateRecord.CreationTime, true));
+                // When transitioning from a durable queue to a dynamic queue or vice versa,
+                // remove the state from the previous source
+                if (currentSource != FlowStateLockSource.New && currentInnerLock is not null)
+                    await currentInnerLock.DeleteFlowState();
 
-                    foreach (var continuation in flowStateRecord.FlowState.Continuations)
-                    {
-                        ValidateContinuation(flowStateRecord.FlowID, continuation.Key, continuation.Value);
-                        continuationLookup.GetOrAdd(continuation.Key, flowStateRecord.FlowID);
-                    }
+                switch (newSource)
+                {
+                    case FlowStateLockSource.Dynamic:
+                        return await dynamicFlowStore.LockNewFlowState(flowID);
+
+                    case FlowStateLockSource.Durable:
+                        return await durableFlowStore.LockNewFlowState(flowID);
+
+                    case FlowStateLockSource.New:
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(newSource), newSource, null);
                 }
             }
-            finally
-            {
-                validatedMethods = null;
-            }
 
-            loaded = true;
-        }
-        
+            if (currentInnerLock is null)
+                throw new InvalidOperationException("Tapeti internal bug, please report: trying to store a flow state that was loaded without a lock");
 
-        private void ValidateContinuation(Guid flowId, Guid continuationId, ContinuationMetadata metadata)
-        {
-            if (string.IsNullOrEmpty(metadata.MethodName))
-                return;
-
-            // We could check all the things that are required for a continuation or converge method, but this should suffice
-            // for the common scenario where you change code without realizing that it's signature has been persisted
-            // ReSharper disable once InvertIf
-            if (validatedMethods!.Add(metadata.MethodName))
-            {
-                var methodInfo = MethodSerializer.Deserialize(metadata.MethodName);
-                if (methodInfo == null)
-                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer exists (continuation Id = {continuationId})");
-
-                var binding = config.Bindings.ForMethod(methodInfo);
-                if (binding == null)
-                    throw new InvalidDataException($"Flow ID {flowId} references continuation method '{metadata.MethodName}' which no longer has a binding as a message handler (continuation Id = {continuationId})");
-            }
-
-            /* Disabled for now - the ConvergeMethodName does not include the assembly so we can't easily check it
-            if (string.IsNullOrEmpty(metadata.ConvergeMethodName) || !validatedMethods.Add(metadata.ConvergeMethodName))
-                return;
-            
-            var convergeMethodInfo = MethodSerializer.Deserialize(metadata.ConvergeMethodName);
-            if (convergeMethodInfo == null)
-                throw new InvalidDataException($"Flow ID {flowId} references converge method '{metadata.ConvergeMethodName}' which no longer exists (continuation Id = {continuationId})");
-
-            // Converge methods are not message handlers themselves
-            */
+            await currentInnerLock.StoreFlowState(flowState, newSource == FlowStateLockSource.Durable);
+            return currentInnerLock;
         }
 
 
-        /// <inheritdoc />
-        public ValueTask<Guid?> FindFlowID(Guid continuationID)
-        {
-            if (!loaded)
-                throw new InvalidOperationException("Flow store is not yet loaded.");
 
-            return new ValueTask<Guid?>(continuationLookup.TryGetValue(continuationID, out var result) ? result : null);
+        private enum FlowStateLockSource
+        {
+            New,
+            Dynamic,
+            Durable
         }
 
 
-        /// <inheritdoc />
-        public async ValueTask<IFlowStateLock> LockFlowState(Guid flowID)
+        private class FlowStateLockWrapper : IFlowStateLock
         {
-            if (!loaded)
-                throw new InvalidOperationException("Flow store should be loaded before storing flows.");
-
-            inUse = true;
-
-            var flowStatelock = new FlowStateLock(this, flowID, await locks.GetLock(flowID).ConfigureAwait(false));
-            return flowStatelock;
-        }
-
-
-        /// <inheritdoc />
-        public ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge)
-        {
-            var maximumDateTime = DateTime.UtcNow - minimumAge;
-
-            return new ValueTask<IEnumerable<ActiveFlow>>(flowStates
-                .Where(p => p.Value.CreationTime <= maximumDateTime)
-                .Select(p => new ActiveFlow(p.Key, p.Value.CreationTime))
-                .ToArray());
-        }
-
-
-        private class FlowStateLock : IFlowStateLock
-        {
-            private readonly FlowStore owner;
-            private volatile IDisposable? flowLock;
-            private CachedFlowState? cachedFlowState;
-
             public Guid FlowID { get; }
 
+            private readonly FlowStore owner;
+            private IFlowStateLock? innerLock;
+            private FlowStateLockSource source;
 
-            public FlowStateLock(FlowStore owner, Guid flowID, IDisposable flowLock)
+
+            public FlowStateLockWrapper(FlowStore owner, Guid flowID, IFlowStateLock? innerLock, FlowStateLockSource source)
             {
                 this.owner = owner;
+                this.innerLock = innerLock;
+                this.source = source;
+
                 FlowID = flowID;
-                this.flowLock = flowLock;
-
-                owner.flowStates.TryGetValue(flowID, out cachedFlowState);
             }
 
-            public void Dispose()
+            
+            public ValueTask DisposeAsync()
             {
-                var l = flowLock;
-                flowLock = null;
-                l?.Dispose();
+                return default;
             }
 
-            public ValueTask<FlowState?> GetFlowState()
-            {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
 
-                return new ValueTask<FlowState?>(cachedFlowState?.FlowState?.Clone());
+            public FlowState? GetFlowState()
+            {
+                return innerLock?.GetFlowState();
             }
 
-            public async ValueTask StoreFlowState(FlowState newFlowState, bool persistent)
+
+            public async ValueTask StoreFlowState(FlowState flowState, bool persistent)
             {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
+                var newSource = persistent ? FlowStateLockSource.Durable : FlowStateLockSource.Dynamic;
 
-                // Ensure no one has a direct reference to the protected state in the dictionary
-                newFlowState = newFlowState.Clone();
-
-                // Update the lookup dictionary for the ContinuationIDs
-                if (cachedFlowState?.FlowState != null)
-                {
-                    foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys.Where(k => !newFlowState.Continuations.ContainsKey(k)))
-                        owner.continuationLookup.TryRemove(removedContinuation, out _);
-                }
-
-                foreach (var addedContinuation in newFlowState.Continuations.Where(c => cachedFlowState?.FlowState == null || !cachedFlowState.FlowState.Continuations.ContainsKey(c.Key)))
-                {
-                    owner.continuationLookup.TryAdd(addedContinuation.Key, FlowID);
-                }
-
-                var isNew = cachedFlowState == null;
-                var wasPersistent = cachedFlowState?.IsPersistent ?? false;
-
-                cachedFlowState = new CachedFlowState(newFlowState, isNew ? DateTime.UtcNow : cachedFlowState!.CreationTime, persistent);
-                owner.flowStates[FlowID] = cachedFlowState;
-
-                if (persistent)
-                {
-                    // Storing the flowstate in the underlying repository
-                    if (isNew)
-                    {
-                        await owner.repository.CreateState(FlowID, cachedFlowState.FlowState, cachedFlowState.CreationTime).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await owner.repository.UpdateState(FlowID, cachedFlowState.FlowState).ConfigureAwait(false);
-                    }
-                }
-                else if (wasPersistent)
-                {
-                    // We transitioned from a durable queue to a dynamic queue,
-                    // remove the persistent state but keep the in-memory version
-                    await owner.repository.DeleteState(FlowID).ConfigureAwait(false);
-                }
+                innerLock = await owner.StoreFlowState(FlowID, flowState, innerLock, source, newSource);
+                source = newSource;
             }
 
-            public async ValueTask DeleteFlowState()
+
+            public ValueTask DeleteFlowState()
             {
-                if (flowLock == null)
-                    throw new ObjectDisposedException("FlowStateLock");
-
-                if (cachedFlowState?.FlowState != null)
-                {
-                    foreach (var removedContinuation in cachedFlowState.FlowState.Continuations.Keys)
-                        owner.continuationLookup.TryRemove(removedContinuation, out _);
-
-                    owner.flowStates.TryRemove(FlowID, out var removedFlowState);
-                    cachedFlowState = null;
-
-                    if (removedFlowState is { IsPersistent: true })
-                        await owner.repository.DeleteState(FlowID).ConfigureAwait(false);
-                }
+                return innerLock?.DeleteFlowState() ?? default;
             }
         }
     }
