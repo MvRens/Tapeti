@@ -11,6 +11,7 @@ using Tapeti.Default;
 using Tapeti.Exceptions;
 using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
+using Tapeti.Transport;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -18,36 +19,53 @@ namespace Tapeti.Tests.Client
 {
     [Collection(RabbitMQCollection.Name)]
     [Trait("Category", "Requires Docker")]
-    public class TapetiClientTests : IAsyncLifetime
+    public class TapetiTransportTests : IAsyncLifetime
     {
         private readonly RabbitMQFixture fixture;
         private readonly ITestOutputHelper testOutputHelper;
         private readonly MockDependencyResolver dependencyResolver = new();
 
         private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
-        private TapetiClient client = null!;
+        private ITapetiTransport transport = null!;
+        private ITapetiTransportChannel channel = null!;
         private readonly IConnectionEventListener connectionEventListener = Substitute.For<IConnectionEventListener>();
+        private readonly MockLogger logger;
 
 
-        public TapetiClientTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
+        public TapetiTransportTests(RabbitMQFixture fixture, ITestOutputHelper testOutputHelper)
         {
             this.fixture = fixture;
             this.testOutputHelper = testOutputHelper;
 
-            dependencyResolver.Set<ILogger>(new MockLogger(testOutputHelper));
+            logger = new MockLogger(testOutputHelper);
+            dependencyResolver.Set<ILogger>(logger);
         }
 
 
         public async Task InitializeAsync()
         {
             proxy = await fixture.AcquireProxy();
-            client = CreateClient();
+            try
+            {
+                transport = CreateTransport();
+                channel = await transport.CreateChannel(new TapetiChannelOptions
+                {
+                    PublisherConfirmationsEnabled = true
+                });
+            }
+            catch
+            {
+                // IAsyncLifetime.DisposeAsync will not be called when an exception occurs
+                // in InitializeAsync, by design. Ensure the proxy is disposed to prevent deadlocks.
+                proxy.Dispose();
+                throw;
+            }
         }
 
 
         public async Task DisposeAsync()
         {
-            await client.Close();
+            await transport.Close();
             proxy.Dispose();
         }
 
@@ -64,7 +82,7 @@ namespace Tapeti.Tests.Client
         [Fact]
         public async Task DynamicQueueDeclareNoPrefix()
         {
-            var queueName = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
+            var queueName = await channel.DynamicQueueDeclare(null, null, CancellationToken.None);
             queueName.ShouldNotBeNullOrEmpty();
         }
 
@@ -72,8 +90,8 @@ namespace Tapeti.Tests.Client
         [Fact]
         public async Task DynamicQueueDeclarePrefix()
         {
-            var queueName = await client.DynamicQueueDeclare("dynamicprefix", null, CancellationToken.None);
-            queueName.ShouldStartWith("dynamicprefix");
+            var queueName = await channel.DynamicQueueDeclare("dynamic_prefix", null, CancellationToken.None);
+            queueName.ShouldStartWith("dynamic_prefix");
         }
 
 
@@ -81,51 +99,50 @@ namespace Tapeti.Tests.Client
         public async Task DurableQueueDeclareIncompatibleArguments()
         {
             await using var rabbitmqClient = await CreateRabbitMQClient();
-            await using var channel = await rabbitmqClient.CreateChannelAsync();
+            await using var incompatibleChannel = await rabbitmqClient.CreateChannelAsync();
 
-            var ok = await channel.QueueDeclareAsync("incompatibleargs", true, false, false, new Dictionary<string, object?>
+            var ok = await incompatibleChannel.QueueDeclareAsync("incompatible_args", true, false, false, new Dictionary<string, object?>
             {
                 { "x-dead-letter-exchange", "d34db33f" }
             });
 
-            await channel.CloseAsync();
+            await incompatibleChannel.CloseAsync();
             await rabbitmqClient.CloseAsync();
 
 
             ok.ShouldNotBeNull();
 
 
-            await client.DurableQueueDeclare("incompatibleargs", new QueueBinding[]
-            {
-                new("test", "#")
-            }, null, CancellationToken.None);
+            await channel.DurableQueueDeclare("incompatible_args", [
+                new QueueBinding("test", "#")
+            ], null, CancellationToken.None);
         }
 
 
         [Fact]
         public async Task PublishHandleOverflow()
         {
-            var queue1 = await client.DynamicQueueDeclare(null, new RabbitMQArguments
+            var queue1 = await channel.DynamicQueueDeclare(null, new RabbitMQArguments
             {
                 { "x-max-length", 5 },
                 { "x-overflow", "reject-publish" }
             }, CancellationToken.None);
 
-            var queue2 = await client.DynamicQueueDeclare(null, null, CancellationToken.None);
+            var queue2 = await channel.DynamicQueueDeclare(null, null, CancellationToken.None);
 
             var body = Encoding.UTF8.GetBytes("Hello world!");
             var properties = new MessageProperties();
 
 
             for (var i = 0; i < 5; i++)
-                await client.Publish(body, properties, null, queue1, true);
+                await channel.Publish(body, properties, null, queue1, true);
 
 
-            var publishOverMaxLength = () => client.Publish(body, properties, null, queue1, true);
+            var publishOverMaxLength = () => channel.Publish(body, properties, null, queue1, true);
             await publishOverMaxLength.ShouldThrowAsync<NackException>();
 
             // The channel should recover and allow further publishing
-            await client.Publish(body, properties, null, queue2, true);
+            await channel.Publish(body, properties, null, queue2, true);
         }
 
 
@@ -151,9 +168,7 @@ namespace Tapeti.Tests.Client
                     reconnectedCompletion.TrySetResult();
                 });
 
-            // Trigger the connection to be established
-            await client.Publish(Encoding.UTF8.GetBytes("hello, void!"), new MessageProperties(), "nowhere", "nobody", false);
-
+            await transport.Open();
 
             proxy.RabbitMQProxy.Enabled = false;
             await proxy.RabbitMQProxy.UpdateAsync();
@@ -186,20 +201,18 @@ namespace Tapeti.Tests.Client
         }
 
 
-        private TapetiClient CreateClient()
+        private ITapetiTransport CreateTransport()
         {
-            return new TapetiClient(
-                new TapetiConfig.Config(dependencyResolver),
-                new TapetiConnectionParams
-                {
-                    HostName = "127.0.0.1",
-                    Port = proxy.RabbitMQPort,
-                    ManagementPort = proxy.RabbitMQManagementPort,
-                    Username = RabbitMQFixture.RabbitMQUsername,
-                    Password = RabbitMQFixture.RabbitMQPassword,
-                    PrefetchCount = 50
-                },
-                connectionEventListener);
+            var factory = new TapetiTransportFactory(logger);
+            return factory.Create(new TapetiConnectionParams
+            {
+                HostName = "127.0.0.1",
+                Port = proxy.RabbitMQPort,
+                ManagementPort = proxy.RabbitMQManagementPort,
+                Username = RabbitMQFixture.RabbitMQUsername,
+                Password = RabbitMQFixture.RabbitMQPassword,
+                PrefetchCount = 50
+            });
         }
     }
 }

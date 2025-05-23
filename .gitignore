@@ -10,3 +10,5 @@ publish/
 docs/_build/
 
 Tapeti.Cmd/Properties/launchSettings.json
+
+nohup.out

@@ -14,12 +14,14 @@ using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Exceptions;
 using Tapeti.Helpers;
+using Tapeti.Transport;
 
 namespace Tapeti.Connection
 {
     /// <summary>
     /// Implementation of ITapetiClient for the RabbitMQ Client library
     /// </summary>
+    /*
     internal class TapetiClient : ITapetiClient
     {
         private const int MandatoryReturnTimeout = 300000;
@@ -36,7 +38,6 @@ namespace Tapeti.Connection
         private readonly TapetiChannel defaultPublishChannel;
         private readonly List<TapetiChannel> dedicatedChannels = new();
 
-        private readonly HttpClient managementClient;
         private readonly MessageHandlerTracker messageHandlerTracker = new();
 
         // These fields are for use in a single TapetiChannel's queue only!
@@ -77,7 +78,7 @@ namespace Tapeti.Connection
 
             logger = config.DependencyResolver.Resolve<ILogger>();
 
-            connection = new TapetiClientConnection(logger, connectionParams) 
+            connection = new TapetiClientConnection(logger, connectionParams)
             {
                 ConnectionEventListener = connectionEventListener
             };
@@ -85,20 +86,8 @@ namespace Tapeti.Connection
             defaultConsumeChannel = connection.CreateChannel(null, InitConsumeModel);
             defaultPublishChannel = connection.CreateChannel(() => config.GetFeatures().PublisherConfirms, InitPublishModel);
 
-            connection.OnQueueReconnect += () => defaultConsumeChannel.QueueRetryable(_ => Task.CompletedTask);
+            //TODO connection.OnQueueReconnect += () => defaultConsumeChannel.QueueRetryable(_ => Task.CompletedTask);
 
-
-            var handler = new HttpClientHandler
-            {
-                Credentials = new NetworkCredential(connectionParams.Username, connectionParams.Password)
-            };
-
-            managementClient = new HttpClient(handler)
-            {
-                Timeout = TimeSpan.FromSeconds(30)
-            };
-
-            managementClient.DefaultRequestHeaders.Add("Connection", "close");
         }
 
 
@@ -144,49 +133,58 @@ namespace Tapeti.Connection
                 throw new ArgumentNullException(nameof(routingKey));
 
 
-            await defaultPublishChannel.QueueWithProvider(async channelProvider =>
+            await defaultPublishChannel.Enqueue(async transportChannel =>
             {
+                // TODO rely on client's built-in publisher confirms?
                 Task<int>? publishResultTask = null;
                 var messageInfo = new ConfirmMessageInfo(GetReturnKey(exchange ?? string.Empty, routingKey), new TaskCompletionSource<int>());
 
-
-                await channelProvider.WithRetryableChannel(async innerChannel =>
+                // TODO ported from WithRetryableChannel, should be improved
+                while (true)
                 {
-                    if (exchange != null)
-                        await DeclareExchange(innerChannel, exchange);
-
-                    // The delivery tag is lost after a reconnect, register under the new tag
-                    if (config.GetFeatures().PublisherConfirms)
-                    {
-                        lastDeliveryTag++;
-
-                        Monitor.Enter(confirmLock);
-                        try
-                        {
-                            confirmMessages.Add(lastDeliveryTag, messageInfo);
-                        }
-                        finally
-                        {
-                            Monitor.Exit(confirmLock);
-                        }
-
-                        publishResultTask = messageInfo.CompletionSource.Task;
-                    }
-                    else
-                        mandatory = false;
-
                     try
                     {
-                        await innerChannel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body);
-                    }
-                    catch
-                    {
-                        messageInfo.CompletionSource.SetCanceled();
-                        publishResultTask = null;
+                        if (exchange != null)
+                            await DeclareExchange(transportChannel, exchange);
 
-                        throw;
+                        // The delivery tag is lost after a reconnect, register under the new tag
+                        if (config.GetFeatures().PublisherConfirms)
+                        {
+                            lastDeliveryTag++;
+
+                            Monitor.Enter(confirmLock);
+                            try
+                            {
+                                confirmMessages.Add(lastDeliveryTag, messageInfo);
+                            }
+                            finally
+                            {
+                                Monitor.Exit(confirmLock);
+                            }
+
+                            publishResultTask = messageInfo.CompletionSource.Task;
+                        }
+                        else
+                            mandatory = false;
+
+                        try
+                        {
+                            await transportChannel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body);
+                        }
+                        catch
+                        {
+                            messageInfo.CompletionSource.SetCanceled();
+                            publishResultTask = null;
+
+                            throw;
+                        }
+
+                        break;
                     }
-                });
+                    catch (AlreadyClosedException)
+                    {
+                    }
+                }
 
 
                 if (publishResultTask == null)
@@ -226,6 +224,7 @@ namespace Tapeti.Connection
 
 
         /// <inheritdoc />
+        /*
         public async Task<ITapetiConsumerTag?> Consume(string queueName, IConsumer consumer, TapetiConsumeOptions options, CancellationToken cancellationToken)
         {
             if (deletedQueues.Contains(queueName))
@@ -248,16 +247,17 @@ namespace Tapeti.Connection
                     return;
 
                 capturedConnectionReference = connection.GetConnectionReference();
-                var basicConsumer = new TapetiBasicConsumer(innerChannel, consumer, messageHandlerTracker, capturedConnectionReference, 
+                var basicConsumer = new TapetiBasicConsumer(innerChannel, consumer, messageHandlerTracker, capturedConnectionReference,
                     (connectionReference, deliveryTag, result) => Respond(channel, connectionReference, deliveryTag, result));
 
                 consumerTag = await innerChannel.BasicConsumeAsync(queueName, false, basicConsumer, cancellationToken: CancellationToken.None);
             }).ConfigureAwait(false);
 
-            return consumerTag == null 
-                ? null 
+            return consumerTag == null
+                ? null
                 : new TapetiConsumerTag(this, channel, consumerTag, capturedConnectionReference);
         }
+        *
 
 
         private async Task Cancel(TapetiChannel channel, string consumerTag, long connectionReference)
@@ -320,94 +320,10 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task<bool> GetDurableQueueDeclareRequired(string queueName, IRabbitMQArguments? arguments)
-        {
-            var existingQueue = await GetQueueInfo(queueName).ConfigureAwait(false);
-            if (existingQueue == null) 
-                return true;
-            
-            if (!existingQueue.Durable || existingQueue.AutoDelete || existingQueue.Exclusive)
-                throw new InvalidOperationException($"Durable queue {queueName} already exists with incompatible parameters, durable = {existingQueue.Durable} (expected True), autoDelete = {existingQueue.AutoDelete} (expected False), exclusive = {existingQueue.Exclusive} (expected False)");
-
-            var existingArguments = ConvertJsonArguments(existingQueue.Arguments);
-            if (existingArguments.NullSafeSameValues(arguments))
-                return true;
-
-            (logger as IBindingLogger)?.QueueExistsWarning(queueName, existingArguments, arguments);
-            return false;
-        }
-
-
-        private static RabbitMQArguments? ConvertJsonArguments(IReadOnlyDictionary<string, JValue>? arguments)
-        {
-            if (arguments == null)
-                return null;
-
-            var result = new RabbitMQArguments();
-            foreach (var pair in arguments)
-            {
-                // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault - by design
-                object value = pair.Value.Type switch
-                {
-                    JTokenType.Integer => pair.Value.Value<int>(),
-                    JTokenType.Float => pair.Value.Value<double>(),
-                    JTokenType.String => pair.Value.Value<string>() ?? string.Empty,
-                    JTokenType.Boolean => pair.Value.Value<bool>(),
-                    _ => throw new ArgumentOutOfRangeException(nameof(arguments))
-                };
-
-                result.Add(pair.Key, value);
-            }
-
-            return result;
-        }
 
 
 
-        /// <inheritdoc />
-        public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
-        {
-            var declareRequired = await GetDurableQueueDeclareRequired(queueName, arguments).ConfigureAwait(false);
 
-            var existingBindings = (await GetQueueBindings(queueName).ConfigureAwait(false)).ToList();
-            var currentBindings = bindings.ToList();
-            var bindingLogger = logger as IBindingLogger;
-
-            // Metadata operations are performed at startup so they can always run on the defaultConsumeChannel,
-            // regardless of whether the consumer of the queue will use a dedicated channel.
-            await defaultConsumeChannel.Queue(async innerChannel =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                if (declareRequired)
-                {
-                    bindingLogger?.QueueDeclare(queueName, true, false);
-                    await innerChannel.QueueDeclareAsync(queueName, true, false, false, GetDeclareArguments(arguments), cancellationToken: cancellationToken);
-                }
-
-                foreach (var binding in currentBindings.Except(existingBindings))
-                {
-                    await DeclareExchange(innerChannel, binding.Exchange);
-                    bindingLogger?.QueueBind(queueName, true, binding.Exchange, binding.RoutingKey);
-                    await innerChannel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
-                }
-
-                foreach (var deletedBinding in existingBindings.Except(currentBindings))
-                {
-                    bindingLogger?.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
-                    await innerChannel.QueueUnbindAsync(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey, cancellationToken: cancellationToken);
-                }
-            }).ConfigureAwait(false);
-        }
-
-
-        private static IDictionary<string, object?>? GetDeclareArguments(IRabbitMQArguments? arguments)
-        {
-            return arguments == null || arguments.Count == 0 
-                ? null 
-                : arguments.ToDictionary(p => p.Key, object? (p) => p.Value);
-        }
 
 
         /// <inheritdoc />
@@ -512,36 +428,6 @@ namespace Tapeti.Connection
         }
 
 
-        /// <inheritdoc />
-        public async Task<string> DynamicQueueDeclare(string? queuePrefix, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
-        {
-            string? queueName = null;
-            var bindingLogger = logger as IBindingLogger;
-
-            await defaultConsumeChannel.Queue(async innerChannel =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                if (!string.IsNullOrEmpty(queuePrefix))
-                {
-                    queueName = queuePrefix + "." + Guid.NewGuid().ToString("N");
-                    bindingLogger?.QueueDeclare(queueName, false, false);
-                    await innerChannel.QueueDeclareAsync(queueName, arguments: GetDeclareArguments(arguments), cancellationToken: cancellationToken);
-                }
-                else
-                {
-                    queueName = (await innerChannel.QueueDeclareAsync(arguments: GetDeclareArguments(arguments), cancellationToken: cancellationToken)).QueueName;
-                    bindingLogger?.QueueDeclare(queueName, false, false);
-                }
-            }).ConfigureAwait(false);
-
-            cancellationToken.ThrowIfCancellationRequested();
-            if (queueName == null)
-                throw new InvalidOperationException("Failed to declare dynamic queue");
-
-            return queueName;
-        }
 
         /// <inheritdoc />
         public async Task DynamicQueueBind(string queueName, QueueBinding binding, CancellationToken cancellationToken)
@@ -577,169 +463,19 @@ namespace Tapeti.Connection
         }
 
 
-        private static readonly List<HttpStatusCode> TransientStatusCodes = new()
-        {
-            HttpStatusCode.GatewayTimeout,
-            HttpStatusCode.RequestTimeout,
-            HttpStatusCode.ServiceUnavailable
-        };
-
-
-        private class ManagementQueueInfo
-        {
-            [JsonProperty("name")]
-            public string? Name { get; set; }
-
-            [JsonProperty("vhost")]
-            public string? VHost { get; set; }
-
-            [JsonProperty("durable")]
-            public bool Durable { get; set; }
-
-            [JsonProperty("auto_delete")]
-            public bool AutoDelete { get; set; }
-
-            [JsonProperty("exclusive")]
-            public bool Exclusive { get; set; }
-
-            [JsonProperty("arguments")]
-            public Dictionary<string, JValue>? Arguments { get; set; }
-
-            [JsonProperty("messages")]
-            public uint Messages { get; set; }
-        }
 
 
 
-        private async Task<ManagementQueueInfo?> GetQueueInfo(string queueName)
-        {
-            var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
-            var queuePath = Uri.EscapeDataString(queueName);
-
-            return await WithRetryableManagementAPI($"queues/{virtualHostPath}/{queuePath}", async response =>
-            {
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                    return null;
-
-                response.EnsureSuccessStatusCode();
-
-                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                return JsonConvert.DeserializeObject<ManagementQueueInfo>(content);
-            }).ConfigureAwait(false);
-        }
 
 
-        private class ManagementBinding
-        {
-            [JsonProperty("source")]
-            public string? Source { get; set; }
-
-            [JsonProperty("vhost")]
-            public string? Vhost { get; set; }
-
-            [JsonProperty("destination")]
-            public string? Destination { get; set; }
-
-            [JsonProperty("destination_type")]
-            public string? DestinationType { get; set; }
-
-            [JsonProperty("routing_key")]
-            public string? RoutingKey { get; set; }
-
-            [JsonProperty("arguments")]
-            public Dictionary<string, string>? Arguments { get; set; }
-
-            [JsonProperty("properties_key")]
-            public string? PropertiesKey { get; set; }
-        }
-
-        
-        private async Task<IEnumerable<QueueBinding>> GetQueueBindings(string queueName)
-        {
-            var virtualHostPath = Uri.EscapeDataString(connectionParams.VirtualHost);
-            var queuePath = Uri.EscapeDataString(queueName);
-
-            return await WithRetryableManagementAPI($"queues/{virtualHostPath}/{queuePath}/bindings", async response =>
-            {
-                response.EnsureSuccessStatusCode();
-
-                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var bindings = JsonConvert.DeserializeObject<IEnumerable<ManagementBinding>>(content);
-
-                // Filter out the binding to an empty source, which is always present for direct-to-queue routing
-                return bindings?
-                    .Where(binding => !string.IsNullOrEmpty(binding.Source) && !string.IsNullOrEmpty(binding.RoutingKey))
-                    .Select(binding => new QueueBinding(binding.Source!, binding.RoutingKey!)) 
-                       ?? Enumerable.Empty<QueueBinding>();
-            }).ConfigureAwait(false);
-        }
 
 
-        private static readonly TimeSpan[] ExponentialBackoff =
-        {
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(2),
-            TimeSpan.FromSeconds(3),
-            TimeSpan.FromSeconds(5),
-            TimeSpan.FromSeconds(8),
-            TimeSpan.FromSeconds(13),
-            TimeSpan.FromSeconds(21),
-            TimeSpan.FromSeconds(34),
-            TimeSpan.FromSeconds(55)
-        };
 
 
-        private async Task<T> WithRetryableManagementAPI<T>(string path, Func<HttpResponseMessage, Task<T>> handleResponse)
-        {
-            // Workaround for: https://github.com/dotnet/runtime/issues/23581#issuecomment-354391321
-            // "localhost" can cause a 1 second delay *per call*. Not an issue in production scenarios, but annoying while debugging.
-            var hostName = connectionParams.HostName;
-            if (hostName.Equals("localhost", StringComparison.InvariantCultureIgnoreCase))
-                hostName = "127.0.0.1";
-            
-            var requestUri = new Uri($"http://{hostName}:{connectionParams.ManagementPort}/api/{path}");
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-            var retryDelayIndex = 0;
-
-            while (true)
-            {
-                try
-                {
-                    var response = await managementClient.SendAsync(request).ConfigureAwait(false);
-                    return await handleResponse(response).ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                }
-                catch (WebException e)
-                {
-                    if (e.Response is not HttpWebResponse response)
-                        throw;
-
-                    if (!TransientStatusCodes.Contains(response.StatusCode))
-                        throw;
-                }
-
-                await Task.Delay(ExponentialBackoff[retryDelayIndex]).ConfigureAwait(false);
-
-                if (retryDelayIndex < ExponentialBackoff.Length - 1)
-                    retryDelayIndex++;
-            }
-        }
 
 
-        private readonly HashSet<string> declaredExchanges = new();
 
-        private async ValueTask DeclareExchange(IChannel channel, string exchange)
-        {
-            if (declaredExchanges.Contains(exchange))
-                return;
 
-            (logger as IBindingLogger)?.ExchangeDeclare(exchange);
-            await channel.ExchangeDeclareAsync(exchange, "topic", true);
-            declaredExchanges.Add(exchange);
-        }
 
 
         private TapetiChannel CreateDedicatedConsumeChannel()
@@ -751,7 +487,7 @@ namespace Tapeti.Connection
         }
 
 
-        private Task HandleBasicReturn(object? sender, BasicReturnEventArgs e)        
+        private Task HandleBasicReturn(object? sender, BasicReturnEventArgs e)
         {
             /*
              * "If the message is also published as mandatory, the basic.return is sent to the client before basic.ack."
@@ -763,7 +499,7 @@ namespace Tapeti.Connection
              * "Since all messages with the same routing key are routed the same way. I assumed that once I get a
              *  basic.return about a specific routing key, all messages with this routing key can be considered undelivered"
              * https://stackoverflow.com/questions/21336659/how-to-tell-which-amqp-message-was-not-routed-from-basic-return-response
-             */
+             *
             var key = GetReturnKey(e.Exchange, e.RoutingKey);
 
             if (!returnRoutingKeys.TryGetValue(key, out var returnInfo))
@@ -822,7 +558,7 @@ namespace Tapeti.Connection
             {
                 foreach (var deliveryTag in GetDeliveryTags(e))
                 {
-                    if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo)) 
+                    if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo))
                         continue;
 
                     messageInfo.CompletionSource.SetCanceled();
@@ -886,4 +622,5 @@ namespace Tapeti.Connection
         }
 
     }
+    */
 }

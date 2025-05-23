@@ -1,46 +1,34 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
-using RabbitMQ.Client;
-using RabbitMQ.Client.Exceptions;
 using Tapeti.Tasks;
+using Tapeti.Transport;
 
 namespace Tapeti.Connection
 {
-    internal interface ITapetiChannelModelProvider
+    internal class TapetiChannel : ITapetiChannel
     {
-        Task WithChannel(Func<IChannel, Task> operation);
-        Task WithRetryableChannel(Func<IChannel, Task> operation);
-    }
+        public TapetiChannelRecreatedEvent? OnRecreated { get; set; }
 
 
-    internal delegate Task<TapetiChannelReference> AcquireChannelProc(TapetiChannelReference? channelReference);
-
-    
-    /// <summary>
-    /// Represents both a RabbitMQ Client Channel (IModel) as well as it's associated single-thread task queue.
-    /// Access to the IModel is limited by design to enforce this relationship.
-    /// </summary>
-    internal class TapetiChannel
-    {
-        private TapetiChannelReference? channelReference;
-        private readonly AcquireChannelProc acquireChannelProc;
+        private readonly ITapetiTransport transport;
+        private readonly TapetiChannelOptions options;
+        private ITapetiTransportChannel? transportChannel;
 
         private readonly object taskQueueLock = new();
         private SerialTaskQueue? taskQueue;
-        private readonly ModelProvider modelProvider;
 
-        
-        public TapetiChannel(AcquireChannelProc acquireChannelProc)
+
+        public TapetiChannel(ITapetiTransport transport, TapetiChannelOptions options)
         {
-            this.acquireChannelProc = acquireChannelProc;
-            modelProvider = new ModelProvider(this);
+            this.transport = transport;
+            this.options = options;
         }
 
 
         public async Task Close()
         {
             SerialTaskQueue? capturedTaskQueue;
-            
+
             lock (taskQueueLock)
             {
                 capturedTaskQueue = taskQueue;
@@ -49,45 +37,52 @@ namespace Tapeti.Connection
 
             if (capturedTaskQueue == null)
                 return;
-            
+
             await capturedTaskQueue.AddSync(() =>
             {
-                channelReference?.Channel.Dispose();
-                channelReference = null;
+                transportChannel = null;
             }).ConfigureAwait(false);
 
             capturedTaskQueue.Dispose();
         }
 
 
-        public void ClearModel()
+        public Task Enqueue(Func<ITapetiTransportChannel, Task> operation)
         {
-            channelReference = null;
+            return GetTaskQueue().Add(async () => await operation(await GetTransportChannel()));
         }
 
-
-        public Task Queue(Func<IChannel, Task> operation)
+        public Task<T> Enqueue<T>(Func<ITapetiTransportChannel, Task<T>> operation)
         {
-            return GetTaskQueue().Add(() => modelProvider.WithChannel(operation));
-        }
+            var result = new TaskCompletionSource<T>();
 
-
-
-        public Task QueueRetryable(Func<IChannel, Task> operation)
-        {
-            return GetTaskQueue().Add(() => modelProvider.WithRetryableChannel(operation));
-        }
-
-
-
-        public Task QueueWithProvider(Func<ITapetiChannelModelProvider, Task> operation)
-        {
-            return GetTaskQueue().Add(async () =>
+            GetTaskQueue().Add(async () =>
             {
-                await operation(modelProvider).ConfigureAwait(false);
+                try
+                {
+                    result.SetResult(await operation(await GetTransportChannel()));
+                }
+                catch (Exception e)
+                {
+                    result.SetException(e);
+                }
             });
+
+            return result.Task;
         }
 
+
+        private async Task<ITapetiTransportChannel> GetTransportChannel()
+        {
+            if (transportChannel is not null)
+            {
+                // TODO check if channel is still open
+            }
+            else
+                transportChannel = await transport.CreateChannel(options);
+
+            return transportChannel;
+        }
 
 
         private SerialTaskQueue GetTaskQueue()
@@ -95,47 +90,6 @@ namespace Tapeti.Connection
             lock (taskQueueLock)
             {
                 return taskQueue ??= new SerialTaskQueue();
-            }
-        }
-
-
-        private async Task<IChannel> GetChannel()
-        {
-            channelReference = await acquireChannelProc(channelReference);
-            return channelReference?.Channel ?? throw new InvalidOperationException("RabbitMQ Model is unavailable");
-        }
-
-
-        private class ModelProvider : ITapetiChannelModelProvider
-        {
-            private readonly TapetiChannel owner;
-
-            
-            public ModelProvider(TapetiChannel owner)
-            {
-                this.owner = owner;
-            }
-
-            
-            public async Task WithChannel(Func<IChannel, Task> operation)
-            {
-                await operation(await owner.GetChannel());
-            }
-            
-
-            public async Task WithRetryableChannel(Func<IChannel, Task> operation)
-            {
-                while (true)
-                {
-                    try
-                    {
-                        await operation(await owner.GetChannel());
-                        break;
-                    }
-                    catch (AlreadyClosedException)
-                    {
-                    }
-                }
             }
         }
     }

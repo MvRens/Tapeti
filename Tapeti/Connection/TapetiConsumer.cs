@@ -24,7 +24,7 @@ namespace Tapeti.Connection
         private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiConsumer(CancellationToken cancellationToken, ITapetiConfig config, string queueName, IEnumerable<IBinding> bindings)
+        public TapetiConsumer(ITapetiConfig config, string queueName, IEnumerable<IBinding> bindings, CancellationToken cancellationToken)
         {
             this.cancellationToken = cancellationToken;
             this.config = config;
@@ -76,10 +76,10 @@ namespace Tapeti.Connection
                     Binding = new ExceptionContextBinding(queueName),
                     ConnectionClosed = CancellationToken.None
                 };
-                
+
                 var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
                 await HandleException(exceptionContext).ConfigureAwait(false);
-                
+
                 return exceptionContext.ConsumeResult;
             }
         }
@@ -121,7 +121,7 @@ namespace Tapeti.Connection
                 Binding = binding,
                 ConnectionClosed = cancellationToken
             };
-            
+
             try
             {
                 await MiddlewareHelper.GoAsync(config.Middleware.Message,

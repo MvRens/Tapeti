@@ -98,6 +98,15 @@ namespace Tapeti
 
 
         /// <summary>
+        /// Open the connection to RabbitMQ.
+        /// </summary>
+        /// <remarks>
+        /// There is usually no need to call this method manually, the connection will be opened on demand.
+        /// </remarks>
+        ValueTask Open();
+
+
+        /// <summary>
         /// Closes the connection to RabbitMQ.
         /// </summary>
         Task Close();

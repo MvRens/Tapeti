@@ -5,23 +5,34 @@ using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Helpers;
+using Tapeti.Transport;
 
 namespace Tapeti.Connection
 {
+    internal enum TapetiSubscriberChannelType
+    {
+        Default,
+        Dedicated
+    }
+
+
+    internal delegate ITapetiChannel ChannelFactory(TapetiSubscriberChannelType channelType);
+
+
     /// <inheritdoc />
     internal class TapetiSubscriber : ISubscriber
     {
-        private readonly Func<ITapetiClient> clientFactory;
+        private readonly ChannelFactory channelFactory;
         private readonly ITapetiConfig config;
         private bool consuming;
-        private readonly List<ITapetiConsumerTag> consumerTags = new();
+        private readonly List<ITapetiConsumerControl> consumers = [];
 
         private CancellationTokenSource? initializeCancellationTokenSource;
 
 
-        public TapetiSubscriber(Func<ITapetiClient> clientFactory, ITapetiConfig config)
+        public TapetiSubscriber(ChannelFactory channelFactory, ITapetiConfig config)
         {
-            this.clientFactory = clientFactory;
+            this.channelFactory = channelFactory;
             this.config = config;
         }
 
@@ -41,6 +52,7 @@ namespace Tapeti.Connection
 
 
 
+        // TODO change to per-channel
         /// <summary>
         /// Applies the configured bindings and declares the queues in RabbitMQ. For internal use only.
         /// </summary>
@@ -52,6 +64,7 @@ namespace Tapeti.Connection
         }
 
 
+        // TODO is this still relevant?
         /// <summary>
         /// Called after the connection is lost. For internal use only.
         /// Guaranteed to be called from within the taskQueue thread.
@@ -61,10 +74,11 @@ namespace Tapeti.Connection
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = null;
 
-            consumerTags.Clear();
+            consumers.Clear();
         }
 
 
+        // TODO is this still relevant?
         /// <summary>
         /// Called after the connection is lost and regained. Reapplies the bindings and if Resume
         /// has already been called, restarts the consumers. For internal use only.
@@ -75,7 +89,7 @@ namespace Tapeti.Connection
             initializeCancellationTokenSource?.Cancel();
             initializeCancellationTokenSource = new CancellationTokenSource();
 
-            consumerTags.Clear();
+            consumers.Clear();
 
             var cancellationToken = initializeCancellationTokenSource.Token;
 
@@ -108,12 +122,15 @@ namespace Tapeti.Connection
             if (!consuming)
                 return;
 
-            initializeCancellationTokenSource?.Cancel();
-            initializeCancellationTokenSource = null;
+            if (initializeCancellationTokenSource is not null)
+            {
+                await initializeCancellationTokenSource.CancelAsync();
+                initializeCancellationTokenSource = null;
+            }
 
-            await Task.WhenAll(consumerTags.Select(async tag => await tag.Cancel())).ConfigureAwait(false);
+            await Task.WhenAll(consumers.Select(async tag => await tag.Cancel())).ConfigureAwait(false);
 
-            consumerTags.Clear();
+            consumers.Clear();
             consuming = false;
         }
 
@@ -125,12 +142,20 @@ namespace Tapeti.Connection
 
             CustomBindingTarget bindingTarget;
 
+            // Declaring queues and bindings is always performed on the default channel, the channel
+            // used for consuming the queue is determined later on.
+            var channel = channelFactory(TapetiSubscriberChannelType.Default);
+
+
+            // TODO keep track of declared queues and exchanges
+            // this used to be handled by the TapetiClient, but it seems wrong to make the transport keep track of this
+
             if (config.GetFeatures().DeclareDurableQueues)
-                bindingTarget = new DeclareDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+                bindingTarget = new DeclareDurableQueuesBindingTarget(channel, routingKeyStrategy, exchangeStrategy, cancellationToken);
             else if (config.GetFeatures().VerifyDurableQueues)
-                bindingTarget = new PassiveDurableQueuesBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+                bindingTarget = new PassiveDurableQueuesBindingTarget(channel, routingKeyStrategy, exchangeStrategy, cancellationToken);
             else
-                bindingTarget = new NoVerifyBindingTarget(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken);
+                bindingTarget = new NoVerifyBindingTarget(channel, routingKeyStrategy, exchangeStrategy, cancellationToken);
 
             foreach (var binding in config.Bindings)
                 await binding.Apply(bindingTarget).ConfigureAwait(false);
@@ -149,31 +174,66 @@ namespace Tapeti.Connection
                 return binding.QueueName;
             });
 
-            consumerTags.AddRange(
-                (await Task.WhenAll(queues.Select(async group =>
+            consumers.AddRange(
+                await Task.WhenAll(queues.Select(async group =>
                 {
                     var queueName = group.Key;
-                    var consumer = new TapetiConsumer(cancellationToken, config, queueName, group);
+                    var consumer = new TapetiConsumer(config, queueName, group, cancellationToken);
 
-                    return await clientFactory().Consume(queueName, consumer, GetConsumeOptions(group), cancellationToken).ConfigureAwait(false);
-                })).ConfigureAwait(false))
-                .Where(t => t?.ConsumerTag != null)
-                .Cast<ITapetiConsumerTag>());
+                    var channel = group.Any(b => b.DedicatedChannel)
+                        ? channelFactory(TapetiSubscriberChannelType.Dedicated)
+                        : channelFactory(TapetiSubscriberChannelType.Default);
+
+
+                    // ReSharper disable once MoveLocalFunctionAfterJumpStatement
+                    Task<ITapetiTransportConsumer?> Consume(ITapetiTransportChannel transportChannel)
+                    {
+                        return transportChannel.Consume(queueName, consumer, cancellationToken);
+                    }
+
+
+                    var transportConsumer = await channel.Enqueue(Consume);
+                    var control = new TapetiConsumerControl(transportConsumer);
+
+                    channel.OnRecreated += async newTransportChannel =>
+                    {
+                        control.SetTransportConsumer(await Consume(newTransportChannel));
+                    };
+
+                    return (ITapetiConsumerControl)control;
+                })).ConfigureAwait(false));
         }
 
 
-        private static TapetiConsumeOptions GetConsumeOptions(IEnumerable<IBinding> bindings)
+        private class TapetiConsumerControl : ITapetiConsumerControl
         {
-            return new TapetiConsumeOptions
+            private ITapetiTransportConsumer? transportConsumer;
+
+
+            public TapetiConsumerControl(ITapetiTransportConsumer? transportConsumer)
             {
-                DedicatedChannel = bindings.Any(b => b.DedicatedChannel)
-            };
+                this.transportConsumer = transportConsumer;
+            }
+
+            public async Task Cancel()
+            {
+                if (transportConsumer is null)
+                    return;
+
+                await transportConsumer.Cancel();
+            }
+
+
+            public void SetTransportConsumer(ITapetiTransportConsumer? newTransportConsumer)
+            {
+                transportConsumer = newTransportConsumer;
+            }
         }
 
 
         private abstract class CustomBindingTarget : IBindingTarget
         {
-            protected readonly Func<ITapetiClient> ClientFactory;
+            protected readonly ITapetiChannel Channel;
             protected readonly IRoutingKeyStrategy RoutingKeyStrategy;
             protected readonly IExchangeStrategy ExchangeStrategy;
             protected readonly CancellationToken CancellationToken;
@@ -188,9 +248,9 @@ namespace Tapeti.Connection
             private readonly Dictionary<string, List<DynamicQueueInfo>> dynamicQueues = new();
 
 
-            protected CustomBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken)
+            protected CustomBindingTarget(ITapetiChannel channel, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken)
             {
-                ClientFactory = clientFactory;
+                Channel = channel;
                 RoutingKeyStrategy = routingKeyStrategy;
                 ExchangeStrategy = exchangeStrategy;
                 CancellationToken = cancellationToken;
@@ -211,13 +271,13 @@ namespace Tapeti.Connection
             public async ValueTask<string> BindDynamic(Type messageClass, string? queuePrefix, IRabbitMQArguments? arguments)
             {
                 var result = await DeclareDynamicQueue(messageClass, queuePrefix, arguments).ConfigureAwait(false);
-                if (!result.IsNewMessageClass) 
+                if (!result.IsNewMessageClass)
                     return result.QueueName;
 
                 var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
                 var exchange = ExchangeStrategy.GetExchange(messageClass);
 
-                await ClientFactory().DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey), CancellationToken).ConfigureAwait(false);
+                await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey), CancellationToken)).ConfigureAwait(false);
 
                 return result.QueueName;
             }
@@ -234,7 +294,7 @@ namespace Tapeti.Connection
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
-                return await ClientFactory().DynamicQueueDeclare(queuePrefix, arguments, CancellationToken).ConfigureAwait(false);
+                return await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
             }
 
 
@@ -276,7 +336,7 @@ namespace Tapeti.Connection
                 }
 
                 // Declare a new queue
-                var queueName = await ClientFactory().DynamicQueueDeclare(queuePrefix, arguments, CancellationToken).ConfigureAwait(false);
+                var queueName = await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
                 var queueInfo = new DynamicQueueInfo
                 {
                     QueueName = queueName,
@@ -308,7 +368,7 @@ namespace Tapeti.Connection
             private readonly HashSet<string> obsoleteDurableQueues = new();
 
 
-            public DeclareDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
+            public DeclareDurableQueuesBindingTarget(ITapetiChannel channel, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(channel, routingKeyStrategy, exchangeStrategy, cancellationToken)
             {
             }
 
@@ -337,7 +397,7 @@ namespace Tapeti.Connection
                     if (!durableQueueInfo.MessageClasses.Contains(messageClass))
                         durableQueueInfo.MessageClasses.Add(messageClass);
                 }
-                
+
                 return default;
         }
 
@@ -371,13 +431,12 @@ namespace Tapeti.Connection
 
             public override async Task Apply()
             {
-                var client = ClientFactory();
-                await DeclareQueues(client).ConfigureAwait(false);
-                await DeleteObsoleteQueues(client).ConfigureAwait(false);
+                await DeclareQueues().ConfigureAwait(false);
+                await DeleteObsoleteQueues().ConfigureAwait(false);
             }
 
 
-            private async Task DeclareQueues(ITapetiClient client)
+            private async Task DeclareQueues()
             {
                 await Task.WhenAll(durableQueues.Select(async queue =>
                 {
@@ -389,16 +448,16 @@ namespace Tapeti.Connection
                         return new QueueBinding(exchange, routingKey);
                     });
 
-                    await client.DurableQueueDeclare(queue.Key, bindings, queue.Value.Arguments, CancellationToken).ConfigureAwait(false);
+                    await Channel.Enqueue(transportChannel => transportChannel.DurableQueueDeclare(queue.Key, bindings, queue.Value.Arguments, CancellationToken)).ConfigureAwait(false);
                 })).ConfigureAwait(false);
             }
 
 
-            private async Task DeleteObsoleteQueues(ITapetiClient client)
+            private async Task DeleteObsoleteQueues()
             {
                 await Task.WhenAll(obsoleteDurableQueues.Except(durableQueues.Keys).Select(async queue =>
                 {
-                    await client.DurableQueueDelete(queue, true, CancellationToken).ConfigureAwait(false);
+                    await Channel.Enqueue(transportChannel => transportChannel.DurableQueueDelete(queue, true, CancellationToken)).ConfigureAwait(false);
                 })).ConfigureAwait(false);
             }
         }
@@ -409,7 +468,7 @@ namespace Tapeti.Connection
             private readonly HashSet<string> durableQueues = new();
 
 
-            public PassiveDurableQueuesBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
+            public PassiveDurableQueuesBindingTarget(ITapetiChannel channel, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(channel, routingKeyStrategy, exchangeStrategy, cancellationToken)
             {
             }
 
@@ -435,14 +494,14 @@ namespace Tapeti.Connection
                 if (!durableQueues.Add(queueName))
                     return;
 
-                await ClientFactory().DurableQueueVerify(queueName, arguments, CancellationToken).ConfigureAwait(false);
+                await Channel.Enqueue(transportChannel => transportChannel.DurableQueueVerify(queueName, arguments, CancellationToken)).ConfigureAwait(false);
             }
         }
 
 
         private class NoVerifyBindingTarget : CustomBindingTarget
         {
-            public NoVerifyBindingTarget(Func<ITapetiClient> clientFactory, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(clientFactory, routingKeyStrategy, exchangeStrategy, cancellationToken)
+            public NoVerifyBindingTarget(ITapetiChannel channel, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(channel, routingKeyStrategy, exchangeStrategy, cancellationToken)
             {
             }
 

@@ -14,16 +14,16 @@ namespace Tapeti.Connection
     internal class TapetiPublisher : IInternalPublisher
     {
         private readonly ITapetiConfig config;
-        private readonly Func<ITapetiClient> clientFactory;
+        private readonly Func<ITapetiChannel> channelFactory;
         private readonly IExchangeStrategy exchangeStrategy;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiPublisher(ITapetiConfig config, Func<ITapetiClient> clientFactory)
+        public TapetiPublisher(ITapetiConfig config, Func<ITapetiChannel> channelFactory)
         {
             this.config = config;
-            this.clientFactory = clientFactory;
+            this.channelFactory = channelFactory;
 
             exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
             routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
@@ -140,7 +140,7 @@ namespace Tapeti.Connection
                 async () =>
                 {
                     var body = messageSerializer.Serialize(message, writableProperties);
-                    await clientFactory().Publish(body, writableProperties, exchange, routingKey, mandatory).ConfigureAwait(false);
+                    await channelFactory().Enqueue(transportChannel => transportChannel.Publish(body, writableProperties, exchange, routingKey, mandatory)).ConfigureAwait(false);
                 }).ConfigureAwait(false);
         }
 
