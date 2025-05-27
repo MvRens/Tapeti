@@ -195,10 +195,10 @@ namespace Tapeti.Connection
                     var transportConsumer = await channel.Enqueue(Consume);
                     var control = new TapetiConsumerControl(transportConsumer);
 
-                    channel.OnRecreated += async newTransportChannel =>
+                    channel.AttachObserver(new ChannelRecreatedObserver(async newTransportChannel =>
                     {
                         control.SetTransportConsumer(await Consume(newTransportChannel));
-                    };
+                    }));
 
                     return (ITapetiConsumerControl)control;
                 })).ConfigureAwait(false));
@@ -520,6 +520,29 @@ namespace Tapeti.Connection
             {
                 return default;
             }
+        }
+    }
+
+    internal class ChannelRecreatedObserver : ITapetiChannelObserver
+    {
+        private readonly Func<ITapetiTransportChannel, ValueTask> onRecreated;
+
+
+        public ChannelRecreatedObserver(Func<ITapetiTransportChannel, ValueTask> onRecreated)
+        {
+            this.onRecreated = onRecreated;
+            throw new NotImplementedException();
+        }
+
+
+        public ValueTask OnShutdown(ChannelShutdownEventArgs e)
+        {
+            return default;
+        }
+
+        public ValueTask OnRecreated(ITapetiTransportChannel newChannel)
+        {
+            return onRecreated(newChannel);
         }
     }
 }

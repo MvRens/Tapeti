@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMemberInSuper.Global
@@ -9,6 +10,7 @@ namespace Tapeti
     /// <summary>
     /// Contains information about the established connection.
     /// </summary>
+    [PublicAPI]
     public class ConnectedEventArgs
     {
         /// <summary>
@@ -34,6 +36,7 @@ namespace Tapeti
     /// <summary>
     /// Contains information about the reason for a lost connection.
     /// </summary>
+    [PublicAPI]
     public class DisconnectedEventArgs
     {
         /// <summary>

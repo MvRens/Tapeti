@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using Tapeti.Config;
 using Tapeti.Connection;
+using Tapeti.Default;
+using Tapeti.Exceptions;
 using Tapeti.Helpers;
 
 namespace Tapeti.Transport;
@@ -83,6 +86,7 @@ public class TapetiTransport : ITapetiTransport
 
     private readonly ILogger logger;
     private readonly TapetiConnectionParams connectionParams;
+    private readonly List<ITapetiTransportObserver> observers = [];
 
     internal readonly RabbitMQManagementAPI ManagementAPI;
 
@@ -93,7 +97,7 @@ public class TapetiTransport : ITapetiTransport
     private RabbitMQ.Client.IConnection? connection;
     private bool isReconnect;
     private DateTime connectedDateTime;
-    private IChannel? connectionMonitorChannel;
+    private TapetiChannel? connectionMonitorChannel;
 
 
     /// <inheritdoc cref="TapetiTransport"/>
@@ -115,9 +119,9 @@ public class TapetiTransport : ITapetiTransport
 
 
     /// <inheritdoc />
-    public ValueTask Open()
+    public async ValueTask Open()
     {
-        throw new NotImplementedException();
+        await WithConnection((_, _) => ValueTask.CompletedTask);
     }
 
 
@@ -156,21 +160,12 @@ public class TapetiTransport : ITapetiTransport
     /// <inheritdoc />
     public async Task<ITapetiTransportChannel> CreateChannel(TapetiChannelOptions options)
     {
-        /*
-        var sameConnection = channelReference is not null && channelReference.Value.ConnectionReference == Interlocked.Read(ref connectionReference);
-        if (sameConnection && channelReference!.Value.Channel.IsOpen)
-            return channelReference.Value;
-        */
-
         ITapetiTransportChannel channel = null!;
 
         await WithConnection(async (capturedConnection, capturedConnectionReference) =>
         {
-            // TODO use native publisher confirm tracking?
             var clientChannel = await capturedConnection.CreateChannelAsync(new CreateChannelOptions(options.PublisherConfirmationsEnabled, false, null, null));
-
-            //onInitChannel?.Invoke(clientChannel);
-            channel = new TapetiTransportChannel(this, logger, clientChannel, capturedConnectionReference);
+            channel = new TapetiTransportChannel(this, logger, options, clientChannel, capturedConnectionReference);
         });
 
         return channel;
@@ -178,6 +173,13 @@ public class TapetiTransport : ITapetiTransport
         // TODO move to channel recreate
         //if (sameConnection && (DateTime.UtcNow - channelReference!.Value.CreatedDateTime).TotalMilliseconds <= MinimumChannelRecreateDelay)
         //  Thread.Sleep(ChannelRecreateDelay);
+    }
+
+
+    /// <inheritdoc />
+    public void AttachObserver(ITapetiTransportObserver observer)
+    {
+        observers.Add(observer);
     }
 
 
@@ -192,32 +194,27 @@ public class TapetiTransport : ITapetiTransport
         await connectionLock.WaitAsync();
         try
         {
-            long capturedConnectionReference;
-
             if (connection is not { IsOpen: true })
             {
-                try
+                if (connection is not null)
                 {
-                    if (connection is not null)
+                    try
+                    {
                         await connection.CloseAsync();
-                }
-                catch (AlreadyClosedException)
-                {
-                }
-                finally
-                {
-                    connection?.Dispose();
+                    }
+                    catch (AlreadyClosedException)
+                    {
+                    }
+                    finally
+                    {
+                        await connection.DisposeAsync();
+                    }
                 }
 
-                // TODO disconnected event
-                // TODO logger.Connect(new ConnectContext(connectionParams, isReconnect));
-
-                capturedConnectionReference = Interlocked.Increment(ref connectionReference);
                 connection = await Connect();
             }
-            else
-                capturedConnectionReference = Interlocked.Read(ref connectionReference);
 
+            var capturedConnectionReference = Interlocked.Read(ref connectionReference);
             await callback(connection, capturedConnectionReference);
         }
         finally
@@ -243,61 +240,55 @@ public class TapetiTransport : ITapetiTransport
             try
             {
                 connectionFactory ??= CreateConnectionFactory();
+                var capturedConnectionReference = Interlocked.Increment(ref connectionReference);
+
                 newConnection = await connectionFactory.CreateConnectionAsync();
-                connectionMonitorChannel = await newConnection.CreateChannelAsync();
-                if (connectionMonitorChannel == null)
-                    throw new BrokerUnreachableException(new AggregateException());
 
-                var capturedConnectionMonitorChannel = connectionMonitorChannel;
-
-                connectionMonitorChannel.ChannelShutdownAsync += async (_, e) =>
+                if (connectionMonitorChannel is null)
                 {
-                    bool capturedIsClosing;
+                    // Prevent deadlocks by providing this channel with a special transport interface
+                    // which only works for the current connection
+                    var immediateTransport = new SingleConnectionTransport(this, newConnection, capturedConnectionReference);
 
-                    await connectionLock.WaitAsync();
-                    try
+                    connectionMonitorChannel = new TapetiChannel(immediateTransport, new TapetiChannelOptions
                     {
-                        if (connectionMonitorChannel == null || connectionMonitorChannel != capturedConnectionMonitorChannel)
-                            return;
+                        PublisherConfirmationsEnabled = false
+                    });
 
-                        capturedConnectionMonitorChannel = null;
-                        capturedIsClosing = IsClosing;
-                    }
-                    finally
-                    {
-                        connectionLock.Release();
-                    }
+                    connectionMonitorChannel.AttachObserver(new ConnectionMonitorChannelObserver(this, capturedConnectionReference));
+                    await connectionMonitorChannel.Open();
 
-                    // TODO ConnectionEventListener?.Disconnected(new DisconnectedEventArgs(e.ReplyCode, e.ReplyText));
-                    // TODO logger.Disconnect(new DisconnectContext(connectionParams, e.ReplyCode, e.ReplyText));
-
-                    // Reconnect if the disconnect was unexpected
-                    // TODO if (!capturedIsClosing)
-                        // Note: I'm not too happy with this design, but letting the Client handle the reconnect is
-                        // effectively how it was done before TapetiClientConnection was split off and since it
-                        // manages the channels it is the best I could come up with for now.
-                        // TODO OnQueueReconnect?.Invoke();
-                };
+                    immediateTransport.SetConnected();
+                }
 
                 connectedDateTime = DateTime.UtcNow;
 
-                /* TODO
                 var connectedEventArgs = new ConnectedEventArgs(connectionParams, newConnection.LocalPort);
-
                 if (isReconnect)
-                    ConnectionEventListener?.Reconnected(connectedEventArgs);
+                    NotifyReconnected(connectedEventArgs);
                 else
-                    ConnectionEventListener?.Connected(connectedEventArgs);
+                    NotifyConnected(connectedEventArgs);
 
-                logger.ConnectSuccess(new ConnectContext(connectionParams, isReconnect, newConnection.LocalPort));
-                */
+                logger.ConnectSuccess(new ConnectContext
+                {
+                    ConnectionParams = connectionParams,
+                    IsReconnect = isReconnect,
+                    LocalPort = newConnection.LocalPort,
+                    Exception = null
+                });
                 isReconnect = true;
 
                 break;
             }
             catch (BrokerUnreachableException e)
             {
-                // TODO logger.ConnectFailed(new ConnectContext(connectionParams, isReconnect, exception: e));
+                logger.ConnectFailed(new ConnectContext
+                {
+                    ConnectionParams = connectionParams,
+                    IsReconnect = isReconnect,
+                    LocalPort = 0,
+                    Exception = e
+                });
                 Thread.Sleep(ReconnectDelay);
             }
         }
@@ -341,32 +332,99 @@ public class TapetiTransport : ITapetiTransport
     }
 
 
+    private void NotifyConnected(ConnectedEventArgs e)
+    {
+        foreach (var observer in observers)
+            observer.Connected(e);
+    }
+
+
+    private void NotifyReconnected(ConnectedEventArgs e)
+    {
+        foreach (var observer in observers)
+            observer.Reconnected(e);
+    }
+
+
+    private void NotifyDisconnected(DisconnectedEventArgs e)
+    {
+        foreach (var observer in observers)
+            observer.Disconnected(e);
+    }
+
+
+    private void ConnectionMonitorChannelShutdown(ChannelShutdownEventArgs e, long channelConnectionReference)
+    {
+        if (channelConnectionReference != GetConnectionReference())
+            return;
+
+        var replyCode = e.ReplyCode.GetValueOrDefault();
+        var replyText = e.ReplyText ?? string.Empty;
+
+        NotifyDisconnected(new DisconnectedEventArgs(replyCode, replyText));
+        logger.Disconnect(new DisconnectContext
+        {
+            ConnectionParams = connectionParams,
+            ReplyCode = replyCode,
+            ReplyText = replyText
+        });
+    }
+
+
+    private ValueTask ConnectionMonitorChannelRecreated()
+    {
+        return default;
+    }
+
 
     private class TapetiTransportChannel : ITapetiTransportChannel
     {
+        private const int MandatoryReturnTimeout = 300000;
+
+
         private readonly TapetiTransport owner;
         private readonly ILogger logger;
+        private readonly TapetiChannelOptions options;
         private readonly IChannel channel;
         private readonly long connectionReference;
 
         private bool shutdownCalled;
         private readonly List<ITapetiTransportChannelObserver> observers = [];
 
-        private readonly HashSet<string> declaredExchanges = new();
+        private readonly HashSet<string> declaredExchanges = [];
+        private readonly HashSet<string> deletedQueues = [];
+
+        private ulong lastDeliveryTag;
+
+        // These fields must be locked using confirmLock, since the callbacks for BasicAck/BasicReturn can run in a different thread
+        private readonly object confirmLock = new();
+        private readonly Dictionary<ulong, ConfirmMessageInfo> confirmMessages = new();
+        private readonly Dictionary<string, ReturnInfo> returnRoutingKeys = new();
 
 
-        public TapetiTransportChannel(TapetiTransport owner, ILogger logger, IChannel channel, long connectionReference)
+
+        public TapetiTransportChannel(TapetiTransport owner, ILogger logger, TapetiChannelOptions options, IChannel channel, long connectionReference)
         {
             this.owner = owner;
             this.logger = logger;
+            this.options = options;
             this.channel = channel;
             this.connectionReference = connectionReference;
 
             channel.ChannelShutdownAsync += async (_, e) =>
             {
-                // TODO parameters
-                await Shutdown();
+                await NotifyShutdown(new ChannelShutdownEventArgs
+                {
+                    IsClosing = owner.IsClosing,
+                    ReplyCode = e.ReplyCode,
+                    ReplyText = e.ReplyText
+                });
             };
+
+
+            channel.BasicReturnAsync += HandleBasicReturn;
+            channel.BasicAcksAsync += HandleBasicAck;
+            channel.BasicNacksAsync += HandleBasicNack;
         }
 
 
@@ -384,7 +442,98 @@ public class TapetiTransport : ITapetiTransport
         public async Task Publish(byte[] body, IMessageProperties properties, string? exchange, string routingKey, bool mandatory)
         {
             await ValidateConnectionReference();
-            throw new NotImplementedException();
+
+            if (string.IsNullOrEmpty(routingKey))
+                throw new ArgumentNullException(nameof(routingKey));
+
+
+            Task<int>? publishResultTask = null;
+            var messageInfo = new ConfirmMessageInfo
+            {
+                ReturnKey = GetReturnKey(exchange ?? string.Empty, routingKey),
+                CompletionSource = new TaskCompletionSource<int>()
+            };
+
+            // TODO ported from WithRetryableChannel, should be improved
+            while (true)
+            {
+                try
+                {
+                    if (exchange != null)
+                        await DeclareExchange(exchange);
+
+                    // The delivery tag is lost after a reconnect, register under the new tag
+                    if (options.PublisherConfirmationsEnabled)
+                    {
+                        lastDeliveryTag++;
+
+                        Monitor.Enter(confirmLock);
+                        try
+                        {
+                            confirmMessages.Add(lastDeliveryTag, messageInfo);
+                        }
+                        finally
+                        {
+                            Monitor.Exit(confirmLock);
+                        }
+
+                        publishResultTask = messageInfo.CompletionSource.Task;
+                    }
+                    else
+                        mandatory = false;
+
+                    try
+                    {
+                        await channel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body);
+                    }
+                    catch
+                    {
+                        messageInfo.CompletionSource.SetCanceled();
+                        publishResultTask = null;
+
+                        throw;
+                    }
+
+                    break;
+                }
+                catch (AlreadyClosedException)
+                {
+                }
+            }
+
+
+            if (publishResultTask == null)
+                return;
+
+            var delayCancellationTokenSource = new CancellationTokenSource();
+            var signalledTask = await Task.WhenAny(
+                publishResultTask,
+                Task.Delay(MandatoryReturnTimeout, delayCancellationTokenSource.Token)).ConfigureAwait(false);
+
+            if (signalledTask != publishResultTask)
+                throw new TimeoutException(
+                    $"Timeout while waiting for basic.return for message with exchange '{exchange}' and routing key '{routingKey}'");
+
+            await delayCancellationTokenSource.CancelAsync();
+
+            if (publishResultTask.IsCanceled)
+                throw new NackException(
+                    $"Mandatory message with with exchange '{exchange}' and routing key '{routingKey}' was nacked");
+
+            var replyCode = publishResultTask.Result;
+
+            switch (replyCode)
+            {
+                // There is no RabbitMQ.Client.Framing.Constants value for this "No route" reply code
+                // at the time of writing...
+                case 312:
+                    throw new NoRouteException(
+                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' does not have a route");
+
+                case > 0:
+                    throw new NoRouteException(
+                        $"Mandatory message with exchange '{exchange}' and routing key '{routingKey}' could not be delivered, reply code: {replyCode}");
+            }
         }
 
         public async Task DurableQueueDeclare(string queueName, IEnumerable<QueueBinding> bindings, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
@@ -471,19 +620,25 @@ public class TapetiTransport : ITapetiTransport
             if (currentReference == connectionReference)
                 return;
 
-            await Shutdown();
+            await NotifyShutdown(new ChannelShutdownEventArgs
+            {
+                IsClosing = owner.IsClosing,
+                ReplyCode = null,
+                ReplyText = null
+            });
+
             throw new ConnectionInvalidatedException(connectionReference, currentReference);
         }
 
 
-        private async ValueTask Shutdown()
+        private async ValueTask NotifyShutdown(ChannelShutdownEventArgs e)
         {
             if (shutdownCalled)
                 return;
 
             shutdownCalled = true;
             foreach (var observer in observers)
-                await observer.OnShutdown();
+                await observer.OnShutdown(e);
         }
 
 
@@ -546,6 +701,239 @@ public class TapetiTransport : ITapetiTransport
             return arguments == null || arguments.Count == 0
                 ? null
                 : arguments.ToDictionary(p => p.Key, object? (p) => p.Value);
+        }
+
+
+        private static string GetReturnKey(string exchange, string routingKey)
+        {
+            return exchange + ':' + routingKey;
+        }
+
+
+        private Task HandleBasicReturn(object? sender, BasicReturnEventArgs e)
+        {
+            /*
+             * "If the message is also published as mandatory, the basic.return is sent to the client before basic.ack."
+             * - https://www.rabbitmq.com/confirms.html
+             *
+             * Because there is no delivery tag included in the basic.return message. This solution is modeled after
+             * user OhJeez' answer on StackOverflow:
+             *
+             * "Since all messages with the same routing key are routed the same way. I assumed that once I get a
+             *  basic.return about a specific routing key, all messages with this routing key can be considered undelivered"
+             * https://stackoverflow.com/questions/21336659/how-to-tell-which-amqp-message-was-not-routed-from-basic-return-response
+             */
+            var key = GetReturnKey(e.Exchange, e.RoutingKey);
+
+            if (!returnRoutingKeys.TryGetValue(key, out var returnInfo))
+            {
+                returnInfo = new ReturnInfo
+                {
+                    RefCount = 0,
+                    FirstReplyCode = e.ReplyCode
+                };
+
+                returnRoutingKeys.Add(key, returnInfo);
+            }
+
+            returnInfo.RefCount++;
+            return Task.CompletedTask;
+        }
+
+
+        private Task HandleBasicAck(object? sender, BasicAckEventArgs e)
+        {
+            Monitor.Enter(confirmLock);
+            try
+            {
+                foreach (var deliveryTag in GetDeliveryTags(e))
+                {
+                    if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo))
+                        continue;
+
+                    if (returnRoutingKeys.TryGetValue(messageInfo.ReturnKey, out var returnInfo))
+                    {
+                        messageInfo.CompletionSource.SetResult(returnInfo.FirstReplyCode);
+
+                        returnInfo.RefCount--;
+                        if (returnInfo.RefCount == 0)
+                            returnRoutingKeys.Remove(messageInfo.ReturnKey);
+                    }
+                    else
+                        messageInfo.CompletionSource.SetResult(0);
+
+                    confirmMessages.Remove(deliveryTag);
+                }
+            }
+            finally
+            {
+                Monitor.Exit(confirmLock);
+            }
+
+            return Task.CompletedTask;
+        }
+
+
+        private Task HandleBasicNack(object? sender, BasicNackEventArgs e)
+        {
+            Monitor.Enter(confirmLock);
+            try
+            {
+                foreach (var deliveryTag in GetDeliveryTags(e))
+                {
+                    if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo))
+                        continue;
+
+                    messageInfo.CompletionSource.SetCanceled();
+                    confirmMessages.Remove(e.DeliveryTag);
+                }
+            }
+            finally
+            {
+                Monitor.Exit(confirmLock);
+            }
+
+            return Task.CompletedTask;
+        }
+
+
+        private ulong[] GetDeliveryTags(BasicAckEventArgs e)
+        {
+            return e.Multiple
+                ? confirmMessages.Keys.Where(tag => tag <= e.DeliveryTag).ToArray()
+                : [e.DeliveryTag];
+        }
+
+
+        private ulong[] GetDeliveryTags(BasicNackEventArgs e)
+        {
+            return e.Multiple
+                ? confirmMessages.Keys.Where(tag => tag <= e.DeliveryTag).ToArray()
+                : [e.DeliveryTag];
+        }
+    }
+
+
+    private class ConfirmMessageInfo
+    {
+        public required string ReturnKey { get; init; }
+        public required TaskCompletionSource<int> CompletionSource { get; init; }
+    }
+
+
+    private class ReturnInfo
+    {
+        public required uint RefCount { get; set; }
+        public required int FirstReplyCode { get; init; }
+    }
+
+    private class ConnectContext : IConnectSuccessContext, IConnectFailedContext
+    {
+        public required TapetiConnectionParams ConnectionParams { get; init; }
+        public required bool IsReconnect { get; init; }
+        public required int LocalPort { get; init; }
+        public required Exception? Exception { get; init; }
+    }
+
+    private class DisconnectContext : IDisconnectContext
+    {
+        public required TapetiConnectionParams ConnectionParams { get; init; }
+        public required ushort ReplyCode { get; init; }
+        public required string ReplyText { get; init; }
+    }
+
+
+    private class SingleConnectionTransport : ITapetiTransport
+    {
+        public bool IsClosing => owner.IsClosing;
+
+
+        private readonly TapetiTransport owner;
+        private readonly RabbitMQ.Client.IConnection connection;
+        private readonly long connectionReference;
+
+        private bool connected;
+
+
+        public SingleConnectionTransport(TapetiTransport owner, RabbitMQ.Client.IConnection connection, long connectionReference)
+        {
+            this.owner = owner;
+            this.connection = connection;
+            this.connectionReference = connectionReference;
+        }
+
+
+        public ValueTask DisposeAsync()
+        {
+            GC.SuppressFinalize(this);
+            return default;
+        }
+
+
+        public ValueTask Open()
+        {
+            return default;
+        }
+
+        public ValueTask Close()
+        {
+            return default;
+        }
+
+
+        public void SetConnected()
+        {
+            connected = true;
+        }
+
+
+        public async Task<ITapetiTransportChannel> CreateChannel(TapetiChannelOptions options)
+        {
+            // Initially the channel is opened within the lock, and we should simply create the channel on the
+            // provided connection. Once the initial connection is established however, go through the normal route
+            // to trigger a reconnect if required.
+            if (connected)
+                return await owner.CreateChannel(options);
+
+            if (!connection.IsOpen || owner.GetConnectionReference() != connectionReference)
+                throw new AlreadyClosedException(new ShutdownEventArgs(ShutdownInitiator.Library, 0, "Cannot create a channel on an already closed connection."));
+
+            var clientChannel = await connection.CreateChannelAsync(new CreateChannelOptions(options.PublisherConfirmationsEnabled, false, null, null));
+            return new TapetiTransportChannel(owner, owner.logger, options, clientChannel, connectionReference);
+        }
+
+
+        public void AttachObserver(ITapetiTransportObserver observer)
+        {
+            owner.AttachObserver(observer);
+        }
+    }
+
+
+    private class ConnectionMonitorChannelObserver : ITapetiChannelObserver
+    {
+        private readonly TapetiTransport owner;
+        private long connectionReference;
+
+
+        public ConnectionMonitorChannelObserver(TapetiTransport owner, long connectionReference)
+        {
+            this.owner = owner;
+            this.connectionReference = connectionReference;
+        }
+
+
+        public ValueTask OnShutdown(ChannelShutdownEventArgs e)
+        {
+            owner.ConnectionMonitorChannelShutdown(e, connectionReference);
+            return default;
+        }
+
+
+        public ValueTask OnRecreated(ITapetiTransportChannel newChannel)
+        {
+            connectionReference = owner.GetConnectionReference();
+            return owner.ConnectionMonitorChannelRecreated();
         }
     }
 }

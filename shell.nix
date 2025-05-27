@@ -12,5 +12,5 @@
   ]);
   multiPkgs = pkgs: (with pkgs; [
   ]);
-  runScript = "nohup rider &";
+  runScript = "nohup rider > /dev/null 2>&1 &";
 }).env

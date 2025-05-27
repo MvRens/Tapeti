@@ -38,7 +38,10 @@ namespace Tapeti.Tests.Config
             transport.CreateChannel(Arg.Any<TapetiChannelOptions>())
                 .Returns(Task.FromResult(transportChannel1));
 
-            channel = new TapetiChannel(transport, new TapetiChannelOptions());
+            channel = new TapetiChannel(transport, new TapetiChannelOptions
+            {
+                PublisherConfirmationsEnabled = false
+            });
 
 
             var routingKeyStrategy = Substitute.For<IRoutingKeyStrategy>();

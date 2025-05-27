@@ -53,6 +53,12 @@ public interface ITapetiTransport : IAsyncDisposable
     /// Will open the connection if required.
     /// </remarks>
     Task<ITapetiTransportChannel> CreateChannel(TapetiChannelOptions options);
+
+
+    /// <summary>
+    /// Attaches an observer to this transport to be notified of connection changes.
+    /// </summary>
+    void AttachObserver(ITapetiTransportObserver observer);
 }
 
 
@@ -64,7 +70,7 @@ public class TapetiChannelOptions
     /// <summary>
     /// Determines if publisher confirmations are enabled.
     /// </summary>
-    public bool PublisherConfirmationsEnabled { get; set; }
+    public required bool PublisherConfirmationsEnabled { get; init; }
 }
 
 
@@ -154,13 +160,37 @@ public interface ITapetiTransportConsumer
 
 
 /// <summary>
-///
+/// Received updates on the status of the connection.
+/// </summary>
+public interface ITapetiTransportObserver
+{
+    /// <summary>
+    /// Called when a connection to RabbitMQ has been established.
+    /// </summary>
+    void Connected(ConnectedEventArgs e);
+
+
+    /// <summary>
+    /// Called when the connection to RabbitMQ has been recovered after an unexpected disconnect.
+    /// </summary>
+    void Reconnected(ConnectedEventArgs e);
+
+
+    /// <summary>
+    /// Called when the connection to RabbitMQ has been lost.
+    /// </summary>
+    void Disconnected(DisconnectedEventArgs e);
+}
+
+
+
+/// <summary>
+/// Received updates on the status of the channel.
 /// </summary>
 public interface ITapetiTransportChannelObserver
 {
     /// <summary>
     /// Called when a RabbitMQ Client channel is shut down.
     /// </summary>
-    // TODO parameters
-    ValueTask OnShutdown();
+    ValueTask OnShutdown(ChannelShutdownEventArgs e);
 }

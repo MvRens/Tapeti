@@ -102,10 +102,10 @@ public class TapetiConnection : IConnection
         return new TapetiPublisher(config, () => EnsureInitialized().DefaultPublishChannel);
     }
 
-    public async ValueTask Open()
+    /// <inheritdoc />
+    public ValueTask Open()
     {
-        // TODO
-        throw new NotImplementedException();
+        return EnsureInitialized().Transport.Open();
     }
 
 
@@ -165,12 +165,16 @@ public class TapetiConnection : IConnection
                 return initializedConnection;
 
             var transport = transportFactory.Create(Params ?? new TapetiConnectionParams());
-            // TODO register connection events subscriber - new ConnectionEventListener(this)
+            transport.AttachObserver(new TransportObserver(this));
 
             initializedConnection = new InitializedConnection
             {
                 Transport = transport,
-                DefaultConsumeChannel = new TapetiChannel(transport, new TapetiChannelOptions()),
+                DefaultConsumeChannel = new TapetiChannel(transport, new TapetiChannelOptions
+                {
+                    PublisherConfirmationsEnabled = false
+                }),
+
                 DefaultPublishChannel = new TapetiChannel(transport, new TapetiChannelOptions
                 {
                     PublisherConfirmationsEnabled = true
@@ -192,54 +196,26 @@ public class TapetiConnection : IConnection
 
         public ITapetiChannel CreateDedicatedChannel()
         {
-            var channel = new TapetiChannel(Transport, new TapetiChannelOptions());
+            var channel = new TapetiChannel(Transport, new TapetiChannelOptions
+            {
+                PublisherConfirmationsEnabled = false
+            });
+
             DedicatedChannels.Add(channel);
 
             return channel;
         }
     }
 
-
-    private class ConnectionEventListener: IConnectionEventListener
-    {
-        private readonly TapetiConnection owner;
-
-        internal ConnectionEventListener(TapetiConnection owner)
-        {
-            this.owner = owner;
-        }
-
-        public void Connected(ConnectedEventArgs e)
-        {
-            owner.OnConnected(e);
-        }
-
-        public void Disconnected(DisconnectedEventArgs e)
-        {
-            owner.OnDisconnected(e);
-        }
-
-        public void Reconnected(ConnectedEventArgs e)
-        {
-            owner.OnReconnected(e);
-        }
-    }
-
-
-    /// <summary>
-    /// Called when a connection to RabbitMQ has been established.
-    /// </summary>
-    private void OnConnected(ConnectedEventArgs e)
+    private void TransportConnected(ConnectedEventArgs e)
     {
         var connectedEvent = Connected;
         if (connectedEvent != null)
             Task.Run(() => connectedEvent.Invoke(this, e));
     }
 
-    /// <summary>
-    /// Called when the connection to RabbitMQ has been lost.
-    /// </summary>
-    private void OnReconnected(ConnectedEventArgs e)
+
+    private void TransportReconnected(ConnectedEventArgs e)
     {
         subscriber?.Reconnect();
 
@@ -248,15 +224,41 @@ public class TapetiConnection : IConnection
             Task.Run(() => reconnectedEvent.Invoke(this, e));
     }
 
-    /// <summary>
-    /// Called when the connection to RabbitMQ has been recovered after an unexpected disconnect.
-    /// </summary>
-    private void OnDisconnected(DisconnectedEventArgs e)
+
+    private void TransportDisconnected(DisconnectedEventArgs e)
     {
         subscriber?.Disconnect();
 
         var disconnectedEvent = Disconnected;
         if (disconnectedEvent != null)
             Task.Run(() => disconnectedEvent.Invoke(this, e));
+    }
+
+
+    private class TransportObserver : ITapetiTransportObserver
+    {
+        private readonly TapetiConnection owner;
+
+
+        public TransportObserver(TapetiConnection owner)
+        {
+            this.owner = owner;
+        }
+
+
+        public void Connected(ConnectedEventArgs e)
+        {
+            owner.TransportConnected(e);
+        }
+
+        public void Reconnected(ConnectedEventArgs e)
+        {
+            owner.TransportReconnected(e);
+        }
+
+        public void Disconnected(DisconnectedEventArgs e)
+        {
+            owner.TransportDisconnected(e);
+        }
     }
 }

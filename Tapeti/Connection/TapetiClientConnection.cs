@@ -31,7 +31,7 @@ namespace Tapeti.Connection
         /// <summary>
         /// Receives events when the connection state changes.
         /// </summary>
-        public IConnectionEventListener? ConnectionEventListener { get; set; }
+        //public IConnectionEventListener? ConnectionEventListener { get; set; }
 
         public event Action? OnQueueReconnect;
 
@@ -85,7 +85,7 @@ namespace Tapeti.Connection
             //return channel;
             return null!;
         }
-        
+
 
 
         private class ConnectContext : IConnectSuccessContext, IConnectFailedContext

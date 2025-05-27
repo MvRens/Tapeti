@@ -140,6 +140,8 @@ namespace Tapeti.Connection
                 async () =>
                 {
                     var body = messageSerializer.Serialize(message, writableProperties);
+
+                    // TODO retry logic
                     await channelFactory().Enqueue(transportChannel => transportChannel.Publish(body, writableProperties, exchange, routingKey, mandatory)).ConfigureAwait(false);
                 }).ConfigureAwait(false);
         }

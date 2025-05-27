@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NSubstitute;
@@ -28,7 +27,7 @@ namespace Tapeti.Tests.Client
         private RabbitMQFixture.RabbitMQTestProxy proxy = null!;
         private ITapetiTransport transport = null!;
         private ITapetiTransportChannel channel = null!;
-        private readonly IConnectionEventListener connectionEventListener = Substitute.For<IConnectionEventListener>();
+        private readonly ITapetiTransportObserver transportObserver = Substitute.For<ITapetiTransportObserver>();
         private readonly MockLogger logger;
 
 
@@ -48,6 +47,8 @@ namespace Tapeti.Tests.Client
             try
             {
                 transport = CreateTransport();
+                transport.AttachObserver(transportObserver);
+
                 channel = await transport.CreateChannel(new TapetiChannelOptions
                 {
                     PublisherConfirmationsEnabled = true
@@ -130,7 +131,7 @@ namespace Tapeti.Tests.Client
 
             var queue2 = await channel.DynamicQueueDeclare(null, null, CancellationToken.None);
 
-            var body = Encoding.UTF8.GetBytes("Hello world!");
+            var body = "Hello world!"u8.ToArray();
             var properties = new MessageProperties();
 
 
@@ -152,7 +153,7 @@ namespace Tapeti.Tests.Client
             var disconnectedCompletion = new TaskCompletionSource();
             var reconnectedCompletion = new TaskCompletionSource();
 
-            connectionEventListener
+            transportObserver
                 .When(c => c.Disconnected(Arg.Any<DisconnectedEventArgs>()))
                 .Do(_ =>
                 {
@@ -160,7 +161,7 @@ namespace Tapeti.Tests.Client
                     disconnectedCompletion.TrySetResult();
                 });
 
-            connectionEventListener
+            transportObserver
                 .When(c => c.Reconnected(Arg.Any<ConnectedEventArgs>()))
                 .Do(_ =>
                 {
