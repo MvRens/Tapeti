@@ -68,6 +68,11 @@ public interface ITapetiTransport : IAsyncDisposable
 public class TapetiChannelOptions
 {
     /// <summary>
+    /// The channel type, for logging purposes.
+    /// </summary>
+    public required ChannelType ChannelType { get; init; }
+
+    /// <summary>
     /// Determines if publisher confirmations are enabled.
     /// </summary>
     public required bool PublisherConfirmationsEnabled { get; init; }
@@ -79,6 +84,17 @@ public class TapetiChannelOptions
 /// </summary>
 public interface ITapetiTransportChannel
 {
+    /// <summary>
+    /// A unique number associated with the connection the channel was created on.
+    /// </summary>
+    public long ConnectionReference { get; }
+
+    /// <summary>
+    /// The number of this channel, unique to the connection.
+    /// </summary>
+    public long ChannelNumber { get; }
+
+
     /// <summary>
     /// Attaches an observer to this channel to be notified of status changes.
     /// </summary>

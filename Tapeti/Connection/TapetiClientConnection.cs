@@ -85,40 +85,5 @@ namespace Tapeti.Connection
             //return channel;
             return null!;
         }
-
-
-
-        private class ConnectContext : IConnectSuccessContext, IConnectFailedContext
-        {
-            public TapetiConnectionParams ConnectionParams { get; }
-            public bool IsReconnect { get; }
-            public int LocalPort { get; }
-            public Exception? Exception { get; }
-
-
-            public ConnectContext(TapetiConnectionParams connectionParams, bool isReconnect, int localPort = 0, Exception? exception = null)
-            {
-                ConnectionParams = connectionParams;
-                IsReconnect = isReconnect;
-                LocalPort = localPort;
-                Exception = exception;
-            }
-        }
-
-
-        private class DisconnectContext : IDisconnectContext
-        {
-            public TapetiConnectionParams ConnectionParams { get; }
-            public ushort ReplyCode { get; }
-            public string ReplyText { get; }
-
-
-            public DisconnectContext(TapetiConnectionParams connectionParams, ushort replyCode, string replyText)
-            {
-                ConnectionParams = connectionParams;
-                ReplyCode = replyCode;
-                ReplyText = replyText;
-            }
-        }
     }
 }

@@ -36,6 +36,8 @@ namespace Tapeti.Tests.Client
 
         public async Task InitializeAsync()
         {
+            fixture.LogConnectionInfo(testOutputHelper);
+
             proxy = await fixture.AcquireProxy();
         }
 

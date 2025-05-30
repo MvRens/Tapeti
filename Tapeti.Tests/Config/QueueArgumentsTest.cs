@@ -9,8 +9,10 @@ using Shouldly;
 using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
+using Tapeti.Tests.Mock;
 using Tapeti.Transport;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Tapeti.Tests.Config
 {
@@ -30,16 +32,18 @@ namespace Tapeti.Tests.Config
         private readonly Dictionary<string, IRabbitMQArguments> declaredQueues = new();
 
 
-        public QueueArgumentsTest()
+        public QueueArgumentsTest(ITestOutputHelper testOutputHelper)
         {
             var transport = Substitute.For<ITapetiTransport>();
             var transportChannel1 = Substitute.For<ITapetiTransportChannel>();
+            var logger = new MockLogger(testOutputHelper);
 
             transport.CreateChannel(Arg.Any<TapetiChannelOptions>())
                 .Returns(Task.FromResult(transportChannel1));
 
-            channel = new TapetiChannel(transport, new TapetiChannelOptions
+            channel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
+                ChannelType = ChannelType.ConsumeDefault,
                 PublisherConfirmationsEnabled = false
             });
 

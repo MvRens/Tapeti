@@ -43,7 +43,7 @@ namespace Tapeti.Serilog
 
 
         /// <inheritdoc />
-        public void Connect(IConnectContext connectContext)
+        public void Connect(ConnectContext connectContext)
         {
             seriLogger
                 .ForContext("isReconnect", connectContext.IsReconnect)
@@ -54,7 +54,7 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(IConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext connectContext)
         {
             seriLogger.Error(connectContext.Exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}",
                 connectContext.ConnectionParams.HostName,
@@ -63,7 +63,7 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(IConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext connectContext)
         {
             seriLogger
                 .ForContext("isReconnect", connectContext.IsReconnect)
@@ -75,7 +75,7 @@ namespace Tapeti.Serilog
         }
 
         /// <inheritdoc />
-        public void Disconnect(IDisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext disconnectContext)
         {
             seriLogger
                 .Information("Tapeti: connection closed, reply text = {replyText}, reply code = {replyCode}",

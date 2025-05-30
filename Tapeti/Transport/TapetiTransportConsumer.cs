@@ -4,35 +4,22 @@ using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Tapeti.Default;
 
-namespace Tapeti.Connection
+namespace Tapeti.Transport
 {
-    /// <summary>
-    /// Called to report the result of a consumed message back to RabbitMQ.
-    /// </summary>
-    /// <param name="expectedConnectionReference">The connection reference on which the consumed message was received</param>
-    /// <param name="deliveryTag">The delivery tag of the consumed message</param>
-    /// <param name="result">The result which should be sent back</param>
-    public delegate Task ResponseFunc(long expectedConnectionReference, ulong deliveryTag, ConsumeResult result);
-
-
     /// <summary>
     /// Implements the bridge between the RabbitMQ Client consumer and a Tapeti Consumer
     /// </summary>
-    internal class TapetiBasicConsumer : AsyncDefaultBasicConsumer
+    internal class TapetiTransportConsumer : AsyncDefaultBasicConsumer
     {
         private readonly IConsumer consumer;
         private readonly IMessageHandlerTracker messageHandlerTracker;
-        private readonly long connectionReference;
-        private readonly ResponseFunc onRespond;
 
 
         /// <inheritdoc />
-        public TapetiBasicConsumer(IChannel channel, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker, long connectionReference, ResponseFunc onRespond) : base(channel)
+        public TapetiTransportConsumer(IChannel channel, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker) : base(channel)
         {
             this.consumer = consumer;
             this.messageHandlerTracker = messageHandlerTracker;
-            this.connectionReference = connectionReference;
-            this.onRespond = onRespond;
         }
 
 
@@ -60,16 +47,46 @@ namespace Tapeti.Connection
                 try
                 {
                     var response = await consumer.Consume(exchange, routingKey, properties.ToMessageProperties(), bodyArray).ConfigureAwait(false);
-                    await onRespond(connectionReference, deliveryTag, response).ConfigureAwait(false);
+                    await Respond(deliveryTag, response).ConfigureAwait(false);
                 }
                 catch
                 {
-                    await onRespond(connectionReference, deliveryTag, ConsumeResult.Error).ConfigureAwait(false);
+                    await Respond(deliveryTag, ConsumeResult.Error).ConfigureAwait(false);
                 }
             }
             finally
             {
                 messageHandlerTracker.Exit();
+            }
+        }
+
+
+        private async Task Respond(ulong deliveryTag, ConsumeResult result)
+        {
+            // If the connection was closed in the meantime, don't respond with an
+            // invalid deliveryTag. The message will be re-queued.
+            if (Channel.IsClosed)
+                return;
+
+            // No need for a retryable channel here, if the connection is lost we can't
+            // use the deliveryTag anymore.
+            switch (result)
+            {
+                case ConsumeResult.Success:
+                case ConsumeResult.ExternalRequeue:
+                    await Channel.BasicAckAsync(deliveryTag, false);
+                    break;
+
+                case ConsumeResult.Error:
+                    await Channel.BasicNackAsync(deliveryTag, false, false);
+                    break;
+
+                case ConsumeResult.Requeue:
+                    await Channel.BasicNackAsync(deliveryTag, false, true);
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(result), result, null);
             }
         }
     }

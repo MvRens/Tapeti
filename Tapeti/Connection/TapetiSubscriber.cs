@@ -78,7 +78,14 @@ namespace Tapeti.Connection
         }
 
 
-        // TODO is this still relevant?
+        // TODO re-apply the bindings when the channel is recreated
+        // each channel would have to recreate only those bindings relevant for it's consumers?
+        // otherwise a channel-level exception on the default channel would redeclare dynamic queues
+        // which are already being consumed on another?
+        // for full reconnects this is not an issue
+        // best way might be to have binding and consuming on the same channel and automatically re-apply
+        // when the channel is recreated one way or the other.
+        /*
         /// <summary>
         /// Called after the connection is lost and regained. Reapplies the bindings and if Resume
         /// has already been called, restarts the consumers. For internal use only.
@@ -101,6 +108,7 @@ namespace Tapeti.Connection
                     await ConsumeQueues(cancellationToken).ConfigureAwait(false);
             }, CancellationToken.None);
         }
+        */
 
 
         /// <inheritdoc />
@@ -128,7 +136,7 @@ namespace Tapeti.Connection
                 initializeCancellationTokenSource = null;
             }
 
-            await Task.WhenAll(consumers.Select(async tag => await tag.Cancel())).ConfigureAwait(false);
+            await Task.WhenAll(consumers.Select(async consumerControl => await consumerControl.Cancel())).ConfigureAwait(false);
 
             consumers.Clear();
             consuming = false;
@@ -220,6 +228,7 @@ namespace Tapeti.Connection
                 if (transportConsumer is null)
                     return;
 
+                // TODO should this through the channel's task queue?
                 await transportConsumer.Cancel();
             }
 
@@ -315,7 +324,7 @@ namespace Tapeti.Connection
                 }
 
                 // Ensure routing keys are unique per dynamic queue, so that a requeue
-                // will not cause the side-effect of calling another handler again as well.
+                // will not cause the side effect of calling another handler again as well.
                 foreach (var existingQueueInfo in prefixQueues)
                 {
                     // ReSharper disable once InvertIf
@@ -340,7 +349,7 @@ namespace Tapeti.Connection
                 var queueInfo = new DynamicQueueInfo
                 {
                     QueueName = queueName,
-                    MessageClasses = new List<Type> { messageClass },
+                    MessageClasses = [messageClass],
                     Arguments = arguments
                 };
 
@@ -365,7 +374,7 @@ namespace Tapeti.Connection
 
 
             private readonly Dictionary<string, DurableQueueInfo> durableQueues = new();
-            private readonly HashSet<string> obsoleteDurableQueues = new();
+            private readonly HashSet<string> obsoleteDurableQueues = [];
 
 
             public DeclareDurableQueuesBindingTarget(ITapetiChannel channel, IRoutingKeyStrategy routingKeyStrategy, IExchangeStrategy exchangeStrategy, CancellationToken cancellationToken) : base(channel, routingKeyStrategy, exchangeStrategy, cancellationToken)
@@ -375,17 +384,14 @@ namespace Tapeti.Connection
 
             public override ValueTask BindDurable(Type messageClass, string queueName, IRabbitMQArguments? arguments)
             {
-                // Collect the message classes per queue so we can determine afterwards
+                // Collect the message classes per queue so we can determine afterward
                 // if any of the bindings currently set on the durable queue are no
                 // longer valid and should be removed.
                 if (!durableQueues.TryGetValue(queueName, out var durableQueueInfo))
                 {
                     durableQueues.Add(queueName, new DurableQueueInfo
                     {
-                        MessageClasses = new List<Type>
-                        {
-                            messageClass
-                        },
+                        MessageClasses = [messageClass],
                         Arguments = arguments
                     });
                 }
@@ -531,7 +537,6 @@ namespace Tapeti.Connection
         public ChannelRecreatedObserver(Func<ITapetiTransportChannel, ValueTask> onRecreated)
         {
             this.onRecreated = onRecreated;
-            throw new NotImplementedException();
         }
 
 

@@ -36,7 +36,7 @@ namespace Tapeti.Config
         /// Contains the raw body of the message.
         /// </summary>
         byte[]? RawBody { get; }
-        
+
         /// <summary>
         /// Contains the decoded message instance.
         /// </summary>
@@ -57,6 +57,7 @@ namespace Tapeti.Config
         /// Note that this token is cancelled regardless of whether the connection will be reestablished, as any
         /// messages still in the queue will be redelivered with a new token.
         /// </summary>
+        // TODO change to cancellationtoken per channel
         CancellationToken ConnectionClosed { get; }
 
         /// <summary>
@@ -83,7 +84,7 @@ namespace Tapeti.Config
         /// <typeparam name="T">The payload type as passed to Enrich</typeparam>
         T Get<T>() where T : IMessageContextPayload;
 
-        
+
         /// <summary>
         /// Returns true and the payload value if this message context was previously enriched with the payload T.
         /// </summary>

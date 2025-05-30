@@ -97,35 +97,7 @@ namespace Tapeti.Connection
         /*
         public async Task<ITapetiConsumerTag?> Consume(string queueName, IConsumer consumer, TapetiConsumeOptions options, CancellationToken cancellationToken)
         {
-            if (deletedQueues.Contains(queueName))
-                return null;
 
-            if (string.IsNullOrEmpty(queueName))
-                throw new ArgumentNullException(nameof(queueName));
-
-
-            long capturedConnectionReference = -1;
-            string? consumerTag = null;
-
-            var channel = options.DedicatedChannel
-                ? CreateDedicatedConsumeChannel()
-                : defaultConsumeChannel;
-
-            await channel.QueueRetryable(async innerChannel =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                capturedConnectionReference = connection.GetConnectionReference();
-                var basicConsumer = new TapetiBasicConsumer(innerChannel, consumer, messageHandlerTracker, capturedConnectionReference,
-                    (connectionReference, deliveryTag, result) => Respond(channel, connectionReference, deliveryTag, result));
-
-                consumerTag = await innerChannel.BasicConsumeAsync(queueName, false, basicConsumer, cancellationToken: CancellationToken.None);
-            }).ConfigureAwait(false);
-
-            return consumerTag == null
-                ? null
-                : new TapetiConsumerTag(this, channel, consumerTag, capturedConnectionReference);
         }
         *
 
@@ -156,38 +128,7 @@ namespace Tapeti.Connection
         }
 
 
-        private async Task Respond(TapetiChannel channel, long expectedConnectionReference, ulong deliveryTag, ConsumeResult result)
-        {
-            await channel.Queue(async innerChannel =>
-            {
-                // If the connection was re-established in the meantime, don't respond with an
-                // invalid deliveryTag. The message will be requeued.
-                var currentConnectionReference = connection.GetConnectionReference();
-                if (currentConnectionReference != expectedConnectionReference)
-                    return;
 
-                // No need for a retryable channel here, if the connection is lost we can't
-                // use the deliveryTag anymore.
-                switch (result)
-                {
-                    case ConsumeResult.Success:
-                    case ConsumeResult.ExternalRequeue:
-                        await innerChannel.BasicAckAsync(deliveryTag, false);
-                        break;
-
-                    case ConsumeResult.Error:
-                        await innerChannel.BasicNackAsync(deliveryTag, false, false);
-                        break;
-
-                    case ConsumeResult.Requeue:
-                        await innerChannel.BasicNackAsync(deliveryTag, false, true);
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(result), result, null);
-                }
-            }).ConfigureAwait(false);
-        }
 
 
 
@@ -297,21 +238,6 @@ namespace Tapeti.Connection
             }).ConfigureAwait(false);
         }
 
-
-
-        /// <inheritdoc />
-        public async Task DynamicQueueBind(string queueName, QueueBinding binding, CancellationToken cancellationToken)
-        {
-            await defaultConsumeChannel.Queue(async innerChannel =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                await DeclareExchange(innerChannel, binding.Exchange);
-                (logger as IBindingLogger)?.QueueBind(queueName, false, binding.Exchange, binding.RoutingKey);
-                await innerChannel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
-            }).ConfigureAwait(false);
-        }
 
 
         /// <inheritdoc />

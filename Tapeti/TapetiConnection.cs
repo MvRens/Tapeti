@@ -35,6 +35,7 @@ public class TapetiConnection : IConnection
 
     private readonly ITapetiConfig config;
     private readonly ITapetiTransportFactory transportFactory;
+    private readonly ILogger logger;
 
     private readonly object initializedConnectionLock = new();
     private InitializedConnection? initializedConnection;
@@ -56,6 +57,7 @@ public class TapetiConnection : IConnection
         (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
 
         transportFactory = config.DependencyResolver.Resolve<ITapetiTransportFactory>();
+        logger = config.DependencyResolver.Resolve<ILogger>();
     }
 
 
@@ -169,14 +171,17 @@ public class TapetiConnection : IConnection
 
             initializedConnection = new InitializedConnection
             {
+                Logger = logger,
                 Transport = transport,
-                DefaultConsumeChannel = new TapetiChannel(transport, new TapetiChannelOptions
+                DefaultConsumeChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
                 {
+                    ChannelType = ChannelType.ConsumeDefault,
                     PublisherConfirmationsEnabled = false
                 }),
 
-                DefaultPublishChannel = new TapetiChannel(transport, new TapetiChannelOptions
+                DefaultPublishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
                 {
+                    ChannelType = ChannelType.PublishDefault,
                     PublisherConfirmationsEnabled = true
                 })
             };
@@ -188,6 +193,7 @@ public class TapetiConnection : IConnection
 
     private class InitializedConnection
     {
+        public required ILogger Logger { get; init; }
         public required ITapetiTransport Transport { get; init; }
         public required TapetiChannel DefaultConsumeChannel { get; init; }
         public required TapetiChannel DefaultPublishChannel { get; init; }
@@ -196,9 +202,10 @@ public class TapetiConnection : IConnection
 
         public ITapetiChannel CreateDedicatedChannel()
         {
-            var channel = new TapetiChannel(Transport, new TapetiChannelOptions
+            var channel = new TapetiChannel(Logger, Transport, new TapetiChannelOptions
             {
-                PublisherConfirmationsEnabled = false
+                ChannelType = ChannelType.ConsumeDedicated,
+                PublisherConfirmationsEnabled = false,
             });
 
             DedicatedChannels.Add(channel);
@@ -217,7 +224,7 @@ public class TapetiConnection : IConnection
 
     private void TransportReconnected(ConnectedEventArgs e)
     {
-        subscriber?.Reconnect();
+        //subscriber?.Reconnect();
 
         var reconnectedEvent = Reconnected;
         if (reconnectedEvent != null)
@@ -227,11 +234,14 @@ public class TapetiConnection : IConnection
 
     private void TransportDisconnected(DisconnectedEventArgs e)
     {
+        // TODO still required, or is it handled by the channel shutdown?
         subscriber?.Disconnect();
 
         var disconnectedEvent = Disconnected;
         if (disconnectedEvent != null)
             Task.Run(() => disconnectedEvent.Invoke(this, e));
+
+        // TODO queue reconnect
     }
 
 

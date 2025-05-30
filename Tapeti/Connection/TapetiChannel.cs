@@ -9,6 +9,7 @@ namespace Tapeti.Connection;
 
 internal class TapetiChannel : ITapetiChannel
 {
+    private readonly ILogger logger;
     private readonly ITapetiTransport transport;
     private readonly TapetiChannelOptions options;
     private ITapetiTransportChannel? transportChannel;
@@ -19,8 +20,9 @@ internal class TapetiChannel : ITapetiChannel
     private SerialTaskQueue? taskQueue;
 
 
-    public TapetiChannel(ITapetiTransport transport, TapetiChannelOptions options)
+    public TapetiChannel(ILogger logger, ITapetiTransport transport, TapetiChannelOptions options)
     {
+        this.logger = logger;
         this.transport = transport;
         this.options = options;
     }
@@ -92,6 +94,14 @@ internal class TapetiChannel : ITapetiChannel
         {
             transportChannel = await transport.CreateChannel(options);
             transportChannel.AttachObserver(new TransportChannelObserver(this));
+
+            (logger as IChannelLogger)?.ChannelCreated(new ChannelCreatedContext
+            {
+                ChannelType = options.ChannelType,
+                ConnectionReference = transportChannel.ConnectionReference,
+                ChannelNumber = transportChannel.ChannelNumber,
+                IsRecreate = false
+            });
         }
 
         return transportChannel;
@@ -109,7 +119,18 @@ internal class TapetiChannel : ITapetiChannel
 
     private async ValueTask TransportChannelShutdown(ChannelShutdownEventArgs e)
     {
-        // TODO logging
+        if (transportChannel is null)
+            return;
+
+        (logger as IChannelLogger)?.ChannelShutdown(new ChannelShutdownContext
+        {
+            ChannelType = options.ChannelType,
+            ConnectionReference = transportChannel.ConnectionReference,
+            ChannelNumber = transportChannel.ChannelNumber,
+            Initiator = e.Initiator,
+            ReplyCode = e.ReplyCode.GetValueOrDefault(0),
+            ReplyText = e.ReplyText ?? string.Empty,
+        });
 
         var capturedTaskQueue = GetTaskQueue();
         await capturedTaskQueue.Add(async () =>

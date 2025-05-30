@@ -9,22 +9,22 @@ namespace Tapeti.Default
     public class DevNullLogger : ILogger
     {
         /// <inheritdoc />
-        public void Connect(IConnectContext connectContext)
+        public void Connect(ConnectContext connectContext)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(IConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext connectContext)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(IConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext connectContext)
         {
         }
 
         /// <inheritdoc />
-        public void Disconnect(IDisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext disconnectContext)
         {
         }
 

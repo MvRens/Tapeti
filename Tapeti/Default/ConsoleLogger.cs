@@ -23,25 +23,25 @@ namespace Tapeti.Default
 
         
         /// <inheritdoc />
-        public void Connect(IConnectContext connectContext)
+        public void Connect(ConnectContext connectContext)
         {
             Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnecting" : "Connecting")} to {connectContext.ConnectionParams.HostName}:{connectContext.ConnectionParams.Port}{connectContext.ConnectionParams.VirtualHost}");
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(IConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext connectContext)
         {
             Console.WriteLine($"[Tapeti] Connection failed: {connectContext.Exception}");
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(IConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext connectContext)
         {
             Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnected" : "Connected")} using local port {connectContext.LocalPort}");
         }
 
         /// <inheritdoc />
-        public void Disconnect(IDisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext disconnectContext)
         {
             Console.WriteLine($"[Tapeti] Connection closed: {(!string.IsNullOrEmpty(disconnectContext.ReplyText) ? disconnectContext.ReplyText : "<no reply text>")} (reply code: {disconnectContext.ReplyCode})");
         }

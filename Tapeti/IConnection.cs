@@ -16,20 +16,12 @@ namespace Tapeti
         /// <summary>
         /// The connection parameters used to establish the connection.
         /// </summary>
-        public TapetiConnectionParams ConnectionParams { get; }
+        public required TapetiConnectionParams ConnectionParams { get; init; }
 
         /// <summary>
         /// The local port for the connection. Useful for identifying the connection in the management interface.
         /// </summary>
-        public int LocalPort { get; }
-
-
-        /// <summary></summary>
-        public ConnectedEventArgs(TapetiConnectionParams connectionParams, int localPort)
-        {
-            ConnectionParams = connectionParams;
-            LocalPort = localPort;
-        }
+        public required int LocalPort { get; init; }
     }
 
 
@@ -42,20 +34,12 @@ namespace Tapeti
         /// <summary>
         /// The ReplyCode as indicated by the client library
         /// </summary>
-        public ushort ReplyCode { get; }
+        public required ushort ReplyCode { get; init; }
 
         /// <summary>
         /// The ReplyText as indicated by the client library
         /// </summary>
-        public string ReplyText { get; }
-
-
-        /// <summary></summary>
-        public DisconnectedEventArgs(ushort replyCode, string replyText)
-        {
-            ReplyCode = replyCode;
-            ReplyText = replyText;
-        }
+        public required string ReplyText { get; init; }
     }
 
 

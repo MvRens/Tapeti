@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using RabbitMQ.Client;
 using Tapeti.Transport;
 
 namespace Tapeti.Connection;
@@ -64,6 +65,9 @@ public class ChannelShutdownEventArgs
     /// Determines if the connection is closing by request.
     /// </summary>
     public required bool IsClosing { get; init; }
+
+    /// <inheritdoc cref="ShutdownInitiator"/>
+    public required ShutdownInitiator Initiator { get; init; }
 
     /// <summary>
     /// The reply code as provided by RabbitMQ, if the connection was closed by a protocol message.
