@@ -366,6 +366,7 @@ public class TapetiTransport : ITapetiTransport
 
         public long ConnectionReference { get; }
         public long ChannelNumber { get; }
+        public bool IsOpen => channel.IsOpen;
 
         private readonly TapetiTransport owner;
         private readonly ILogger logger;
@@ -552,34 +553,105 @@ public class TapetiTransport : ITapetiTransport
             if (declareRequired)
             {
                 bindingLogger?.QueueDeclare(queueName, true, false);
-                await channel.QueueDeclareAsync(queueName, true, false, false, GetDeclareArguments(arguments), cancellationToken: cancellationToken);
+                await channel.QueueDeclareAsync(queueName, true, false, false, GetDeclareArguments(arguments), cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             foreach (var binding in currentBindings.Except(existingBindings))
             {
-                await DeclareExchange(binding.Exchange);
+                await DeclareExchange(binding.Exchange).ConfigureAwait(false);
                 bindingLogger?.QueueBind(queueName, true, binding.Exchange, binding.RoutingKey);
-                await channel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
+                await channel.QueueBindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             foreach (var deletedBinding in existingBindings.Except(currentBindings))
             {
                 bindingLogger?.QueueUnbind(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey);
-                await channel.QueueUnbindAsync(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey, cancellationToken: cancellationToken);
+                await channel.QueueUnbindAsync(queueName, deletedBinding.Exchange, deletedBinding.RoutingKey, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
         }
 
         public async Task DurableQueueVerify(string queueName, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
         {
             await ValidateConnectionReference();
-            throw new NotImplementedException();
+
+            if (!await GetDurableQueueDeclareRequired(queueName, arguments).ConfigureAwait(false))
+                return;
+
+            if (cancellationToken.IsCancellationRequested)
+                return;
+
+            (logger as IBindingLogger)?.QueueDeclare(queueName, true, true);
+            await channel.QueueDeclarePassiveAsync(queueName, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task DurableQueueDelete(string queueName, bool onlyIfEmpty, CancellationToken cancellationToken)
         {
             await ValidateConnectionReference();
-            throw new NotImplementedException();
+
+            if (!onlyIfEmpty)
+            {
+                var deletedMessages = await channel.QueueDeleteAsync(queueName, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                owner.state.SetQueueDeleted(queueName);
+                (logger as IBindingLogger)?.QueueObsolete(queueName, true, deletedMessages);
+                return;
+            }
+
+
+            bool retry;
+            do
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
+                retry = false;
+
+                // Get queue information from the Management API, since the AMQP operations will
+                // throw an error if the queue does not exist or still contains messages and resets
+                // the connection. The resulting reconnect will cause subscribers to reset.
+                var queueInfo = await owner.ManagementAPI.GetQueueInfo(queueName).ConfigureAwait(false);
+                if (queueInfo == null)
+                {
+                    owner.state.SetQueueDeleted(queueName);
+                    return;
+                }
+
+                if (queueInfo.Messages == 0)
+                {
+                    // Still pass onlyIfEmpty to prevent concurrency issues if a message arrived between
+                    // the call to the Management API and deleting the queue. Because the QueueWithRetryableChannel
+                    // includes the GetQueueInfo, the next time around it should have Messages > 0
+                    try
+                    {
+                        await channel.QueueDeleteAsync(queueName, false, true, cancellationToken: cancellationToken);
+
+                        owner.state.SetQueueDeleted(queueName);
+                        (logger as IBindingLogger)?.QueueObsolete(queueName, true, 0);
+                    }
+                    catch (OperationInterruptedException e)
+                    {
+                        if (e.ShutdownReason?.ReplyCode == Constants.PreconditionFailed)
+                            retry = true;
+                        else
+                            throw;
+                    }
+                }
+                else
+                {
+                    // Remove all bindings instead
+                    var existingBindings = (await owner.ManagementAPI.GetQueueBindings(queueName).ConfigureAwait(false)).ToList();
+
+                    if (existingBindings.Count > 0)
+                    {
+                        foreach (var binding in existingBindings)
+                            await channel.QueueUnbindAsync(queueName, binding.Exchange, binding.RoutingKey, cancellationToken: cancellationToken);
+                    }
+
+                    (logger as IBindingLogger)?.QueueObsolete(queueName, false, queueInfo.Messages);
+                }
+            } while (retry);
         }
+
 
         public async Task<string> DynamicQueueDeclare(string? queuePrefix, IRabbitMQArguments? arguments, CancellationToken cancellationToken)
         {

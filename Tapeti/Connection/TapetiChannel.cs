@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using RabbitMQ.Client.Exceptions;
 using Tapeti.Tasks;
 using Tapeti.Transport;
 
@@ -53,12 +55,12 @@ internal class TapetiChannel : ITapetiChannel
     }
 
 
-    public Task Enqueue(Func<ITapetiTransportChannel, Task> operation)
+    public Task EnqueueOnce(Func<ITapetiTransportChannel, Task> operation)
     {
         return GetTaskQueue().Add(async () => await operation(await GetTransportChannel()));
     }
 
-    public Task<T> Enqueue<T>(Func<ITapetiTransportChannel, Task<T>> operation)
+    public Task<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, Task<T>> operation)
     {
         var result = new TaskCompletionSource<T>();
 
@@ -78,6 +80,53 @@ internal class TapetiChannel : ITapetiChannel
     }
 
 
+    public Task EnqueueRetry(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken)
+    {
+        return GetTaskQueue().Add(() => RetryOperation(operation, cancellationToken));
+    }
+
+    public Task<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, Task<T>> operation, CancellationToken cancellationToken)
+    {
+        var result = new TaskCompletionSource<T>();
+
+        GetTaskQueue().Add(async () =>
+        {
+            try
+            {
+                await RetryOperation(async c =>
+                {
+                    result.SetResult(await operation(c));
+                }, cancellationToken);
+            }
+            catch (Exception e)
+            {
+                result.SetException(e);
+            }
+        });
+
+        return result.Task;
+    }
+
+
+    private async Task RetryOperation(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var channel = await GetTransportChannel();
+            try
+            {
+                await operation(channel);
+                break;
+            }
+            // TODO is this enough error handling?
+            catch (AlreadyClosedException)
+            {
+                // Retry
+            }
+        }
+    }
+
+
     public void AttachObserver(ITapetiChannelObserver observer)
     {
         observers.Add(observer);
@@ -86,23 +135,19 @@ internal class TapetiChannel : ITapetiChannel
 
     private async Task<ITapetiTransportChannel> GetTransportChannel()
     {
-        if (transportChannel is not null)
-        {
-            // TODO check if channel is still open
-        }
-        else
-        {
-            transportChannel = await transport.CreateChannel(options);
-            transportChannel.AttachObserver(new TransportChannelObserver(this));
+        if (transportChannel is not null && transportChannel.IsOpen)
+            return transportChannel;
 
-            (logger as IChannelLogger)?.ChannelCreated(new ChannelCreatedContext
-            {
-                ChannelType = options.ChannelType,
-                ConnectionReference = transportChannel.ConnectionReference,
-                ChannelNumber = transportChannel.ChannelNumber,
-                IsRecreate = false
-            });
-        }
+        transportChannel = await transport.CreateChannel(options);
+        transportChannel.AttachObserver(new TransportChannelObserver(this));
+
+        (logger as IChannelLogger)?.ChannelCreated(new ChannelCreatedContext
+        {
+            ChannelType = options.ChannelType,
+            ConnectionReference = transportChannel.ConnectionReference,
+            ChannelNumber = transportChannel.ChannelNumber,
+            IsRecreate = false
+        });
 
         return transportChannel;
     }

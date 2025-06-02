@@ -101,7 +101,7 @@ public class TapetiConnection : IConnection
     /// <inheritdoc />
     public IPublisher GetPublisher()
     {
-        return new TapetiPublisher(config, () => EnsureInitialized().DefaultPublishChannel);
+        return new TapetiPublisher(() => EnsureInitialized().DefaultPublishChannel, config);
     }
 
     /// <inheritdoc />

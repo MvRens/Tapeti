@@ -94,6 +94,10 @@ public interface ITapetiTransportChannel
     /// </summary>
     public long ChannelNumber { get; }
 
+    /// <summary>
+    /// Determines if this channel is still open.
+    /// </summary>
+    public bool IsOpen { get; }
 
     /// <summary>
     /// Attaches an observer to this channel to be notified of status changes.

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using Tapeti.Transport;
@@ -16,14 +17,28 @@ public interface ITapetiChannel
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access.
     /// </summary>
-    Task Enqueue(Func<ITapetiTransportChannel, Task> operation);
+    Task EnqueueOnce(Func<ITapetiTransportChannel, Task> operation);
 
 
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
     /// and returns its result.
     /// </summary>
-    Task<T> Enqueue<T>(Func<ITapetiTransportChannel, Task<T>> operation);
+    Task<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, Task<T>> operation);
+
+
+    /// <summary>
+    /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
+    /// and retries the operation if the channel is closed in the meantime.
+    /// </summary>
+    Task EnqueueRetry(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken);
+
+
+    /// <summary>
+    /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
+    /// retries the operation if the channel is closed in the meantime, and returns its result.
+    /// </summary>
+    Task<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, Task<T>> operation, CancellationToken cancellationToken);
 
 
     /// <summary>

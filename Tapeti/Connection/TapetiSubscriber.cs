@@ -200,7 +200,7 @@ namespace Tapeti.Connection
                     }
 
 
-                    var transportConsumer = await channel.Enqueue(Consume);
+                    var transportConsumer = await channel.EnqueueOnce(Consume);
                     var control = new TapetiConsumerControl(transportConsumer);
 
                     channel.AttachObserver(new ChannelRecreatedObserver(async newTransportChannel =>
@@ -286,7 +286,7 @@ namespace Tapeti.Connection
                 var routingKey = RoutingKeyStrategy.GetRoutingKey(messageClass);
                 var exchange = ExchangeStrategy.GetExchange(messageClass);
 
-                await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey), CancellationToken)).ConfigureAwait(false);
+                await Channel.EnqueueOnce(transportChannel => transportChannel.DynamicQueueBind(result.QueueName, new QueueBinding(exchange, routingKey), CancellationToken)).ConfigureAwait(false);
 
                 return result.QueueName;
             }
@@ -303,7 +303,7 @@ namespace Tapeti.Connection
             {
                 // If we don't know the routing key, always create a new queue to ensure there is no overlap.
                 // Keep it out of the dynamicQueues dictionary, so it can't be re-used later on either.
-                return await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
+                return await Channel.EnqueueOnce(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
             }
 
 
@@ -345,7 +345,7 @@ namespace Tapeti.Connection
                 }
 
                 // Declare a new queue
-                var queueName = await Channel.Enqueue(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
+                var queueName = await Channel.EnqueueOnce(transportChannel => transportChannel.DynamicQueueDeclare(queuePrefix, arguments, CancellationToken)).ConfigureAwait(false);
                 var queueInfo = new DynamicQueueInfo
                 {
                     QueueName = queueName,
@@ -454,7 +454,7 @@ namespace Tapeti.Connection
                         return new QueueBinding(exchange, routingKey);
                     });
 
-                    await Channel.Enqueue(transportChannel => transportChannel.DurableQueueDeclare(queue.Key, bindings, queue.Value.Arguments, CancellationToken)).ConfigureAwait(false);
+                    await Channel.EnqueueOnce(transportChannel => transportChannel.DurableQueueDeclare(queue.Key, bindings, queue.Value.Arguments, CancellationToken)).ConfigureAwait(false);
                 })).ConfigureAwait(false);
             }
 
@@ -463,7 +463,7 @@ namespace Tapeti.Connection
             {
                 await Task.WhenAll(obsoleteDurableQueues.Except(durableQueues.Keys).Select(async queue =>
                 {
-                    await Channel.Enqueue(transportChannel => transportChannel.DurableQueueDelete(queue, true, CancellationToken)).ConfigureAwait(false);
+                    await Channel.EnqueueOnce(transportChannel => transportChannel.DurableQueueDelete(queue, true, CancellationToken)).ConfigureAwait(false);
                 })).ConfigureAwait(false);
             }
         }
@@ -500,7 +500,7 @@ namespace Tapeti.Connection
                 if (!durableQueues.Add(queueName))
                     return;
 
-                await Channel.Enqueue(transportChannel => transportChannel.DurableQueueVerify(queueName, arguments, CancellationToken)).ConfigureAwait(false);
+                await Channel.EnqueueOnce(transportChannel => transportChannel.DurableQueueVerify(queueName, arguments, CancellationToken)).ConfigureAwait(false);
             }
         }
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
 using Tapeti.Config;
@@ -20,7 +21,7 @@ namespace Tapeti.Connection
         private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiPublisher(ITapetiConfig config, Func<ITapetiChannel> channelFactory)
+        public TapetiPublisher(Func<ITapetiChannel> channelFactory, ITapetiConfig config)
         {
             this.config = config;
             this.channelFactory = channelFactory;
@@ -140,9 +141,8 @@ namespace Tapeti.Connection
                 async () =>
                 {
                     var body = messageSerializer.Serialize(message, writableProperties);
-
-                    // TODO retry logic
-                    await channelFactory().Enqueue(transportChannel => transportChannel.Publish(body, writableProperties, exchange, routingKey, mandatory)).ConfigureAwait(false);
+                    await channelFactory().EnqueueRetry(transportChannel => transportChannel.Publish(body, writableProperties, exchange, routingKey, mandatory),
+                        CancellationToken.None).ConfigureAwait(false);
                 }).ConfigureAwait(false);
         }
 
