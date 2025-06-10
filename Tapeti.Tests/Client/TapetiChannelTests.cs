@@ -50,7 +50,8 @@ public class TapetiChannelTests : IAsyncLifetime
             publishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
                 ChannelType = ChannelType.PublishDefault,
-                PublisherConfirmationsEnabled = true
+                PublisherConfirmationsEnabled = true,
+                PrefetchCount = 0
             });
         }
         catch
@@ -124,7 +125,7 @@ public class TapetiChannelTests : IAsyncLifetime
                 reconnectedCompletion.TrySetResult();
             });
 
-        await transport.Open();
+        await publishChannel.Open();
 
         proxy.RabbitMQProxy.Enabled = false;
         await proxy.RabbitMQProxy.UpdateAsync();

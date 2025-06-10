@@ -95,6 +95,7 @@ public class TapetiTransport : ITapetiTransport
     private ConnectionFactory? connectionFactory;
     private long connectionReference;
     private RabbitMQ.Client.IConnection? connection;
+    private List<TapetiTransportChannel> channels = [];
     private bool isReconnect;
     private DateTime connectedDateTime;
     private TapetiTransportState state;
@@ -152,7 +153,7 @@ public class TapetiTransport : ITapetiTransport
             }
             finally
             {
-                capturedConnection.Dispose();
+                await capturedConnection.DisposeAsync();
             }
         }
     }
@@ -161,19 +162,20 @@ public class TapetiTransport : ITapetiTransport
     /// <inheritdoc />
     public async Task<ITapetiTransportChannel> CreateChannel(TapetiChannelOptions options)
     {
-        ITapetiTransportChannel channel = null!;
+        TapetiTransportChannel channel = null!;
 
         await WithConnection(async (capturedConnection, capturedConnectionReference) =>
         {
             var clientChannel = await capturedConnection.CreateChannelAsync(new CreateChannelOptions(options.PublisherConfirmationsEnabled, false, null, null));
+
+            if (options.PrefetchCount > 0)
+                await clientChannel.BasicQosAsync(0, options.PrefetchCount, false);
+
             channel = new TapetiTransportChannel(this, logger, options, clientChannel, state, capturedConnectionReference);
         });
 
+        channels.Add(channel);
         return channel;
-
-        // TODO move to channel recreate
-        //if (sameConnection && (DateTime.UtcNow - channelReference!.Value.CreatedDateTime).TotalMilliseconds <= MinimumChannelRecreateDelay)
-        //  Thread.Sleep(ChannelRecreateDelay);
     }
 
 
@@ -192,6 +194,10 @@ public class TapetiTransport : ITapetiTransport
 
     private async Task WithConnection(Func<RabbitMQ.Client.IConnection, long, ValueTask> callback)
     {
+        List<TapetiTransportChannel>? capturedChannels = null;
+        long capturedConnectionReference = 0;
+        RabbitMQ.Client.IConnection? capturedConnection = null;
+
         await connectionLock.WaitAsync();
         try
         {
@@ -199,6 +205,12 @@ public class TapetiTransport : ITapetiTransport
             {
                 if (connection is not null)
                 {
+                    /*
+                        The connection is already closed so calling CloseAsync again will just result in an
+                        AlreadyClosedException. In the version at the time or writing (7.1.2), DisposeAsync takes a good
+                        20 seconds because it seems to attempt to close the default channel and session?
+                        Haven't done a thorough investigation, but since it is already closed, and we're creating a new
+                        connection anyway, I'll just leave it for now.
                     try
                     {
                         await connection.CloseAsync();
@@ -210,17 +222,46 @@ public class TapetiTransport : ITapetiTransport
                     {
                         await connection.DisposeAsync();
                     }
+                   */
+                }
+
+                // In my testing, not all channels are guaranteed to receive a ChannelShutdown event.
+                // Notify everyone after the connection is re-established (outside the lock).
+                if (channels.Count > 0)
+                {
+                    capturedChannels = channels;
+                    channels = [];
                 }
 
                 connection = await Connect();
             }
 
-            var capturedConnectionReference = Interlocked.Read(ref connectionReference);
-            await callback(connection, capturedConnectionReference);
+            capturedConnectionReference = Interlocked.Read(ref connectionReference);
+            capturedConnection = connection;
         }
         finally
         {
             connectionLock.Release();
+
+            if (capturedConnection is not null)
+                await callback(capturedConnection, capturedConnectionReference);
+
+            if (capturedChannels is not null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    var shutdownEventArgs = new ChannelShutdownEventArgs
+                    {
+                        Initiator = ShutdownInitiator.Library,
+                        IsClosing = false,
+                        ReplyCode = null,
+                        ReplyText = null
+                    };
+
+                    foreach (var channel in capturedChannels)
+                        await channel.NotifyShutdown(shutdownEventArgs);
+                });
+            }
         }
     }
 
@@ -360,19 +401,22 @@ public class TapetiTransport : ITapetiTransport
     }
 
 
-    private class TapetiTransportChannel : ITapetiTransportChannel
+    internal class TapetiTransportChannel : ITapetiTransportChannel
     {
         private const int MandatoryReturnTimeout = 300000;
 
         public long ConnectionReference { get; }
         public long ChannelNumber { get; }
         public bool IsOpen => channel.IsOpen;
+        public CancellationToken ChannelClosed => cancellationTokenSource.Token;
+
+        private readonly IChannel channel;
 
         private readonly TapetiTransport owner;
         private readonly ILogger logger;
         private readonly TapetiChannelOptions options;
-        private readonly IChannel channel;
         private readonly TapetiTransportState state;
+        private readonly CancellationTokenSource cancellationTokenSource = new();
 
         private bool shutdownCalled;
         private readonly List<ITapetiTransportChannelObserver> observers = [];
@@ -414,13 +458,12 @@ public class TapetiTransport : ITapetiTransport
             channel.BasicNacksAsync += HandleBasicNack;
         }
 
-
         public void AttachObserver(ITapetiTransportChannelObserver observer)
         {
             observers.Add(observer);
         }
 
-        public async Task<ITapetiTransportConsumer?> Consume(string queueName, IConsumer consumer, CancellationToken cancellationToken)
+        public async Task<ITapetiTransportConsumer?> Consume(string queueName, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker)
         {
             await ValidateConnectionReference();
 
@@ -431,10 +474,7 @@ public class TapetiTransport : ITapetiTransport
                 throw new ArgumentNullException(nameof(queueName));
 
 
-            if (cancellationToken.IsCancellationRequested)
-                return null;
-
-            var transportConsumer = new TapetiTransportConsumer(channel, consumer, state.MessageHandlerTracker);
+            var transportConsumer = new TapetiTransportConsumer(channel, consumer, messageHandlerTracker, cancellationTokenSource.Token);
             var consumerTag = await channel.BasicConsumeAsync(queueName, false, transportConsumer, cancellationToken: CancellationToken.None);
 
             return new TransportConsumer(channel, consumerTag);
@@ -455,51 +495,38 @@ public class TapetiTransport : ITapetiTransport
                 CompletionSource = new TaskCompletionSource<int>()
             };
 
-            // TODO ported from WithRetryableChannel, should be improved
-            while (true)
+
+            if (exchange != null)
+                await DeclareExchange(exchange);
+
+            // The delivery tag is lost after a reconnect, register under the new tag
+            if (options.PublisherConfirmationsEnabled)
             {
+                lastDeliveryTag++;
+
+                Monitor.Enter(confirmLock);
                 try
                 {
-                    if (exchange != null)
-                        await DeclareExchange(exchange);
-
-                    // The delivery tag is lost after a reconnect, register under the new tag
-                    if (options.PublisherConfirmationsEnabled)
-                    {
-                        lastDeliveryTag++;
-
-                        Monitor.Enter(confirmLock);
-                        try
-                        {
-                            confirmMessages.Add(lastDeliveryTag, messageInfo);
-                        }
-                        finally
-                        {
-                            Monitor.Exit(confirmLock);
-                        }
-
-                        publishResultTask = messageInfo.CompletionSource.Task;
-                    }
-                    else
-                        mandatory = false;
-
-                    try
-                    {
-                        await channel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body);
-                    }
-                    catch
-                    {
-                        messageInfo.CompletionSource.SetCanceled();
-                        publishResultTask = null;
-
-                        throw;
-                    }
-
-                    break;
+                    confirmMessages.Add(lastDeliveryTag, messageInfo);
                 }
-                catch (AlreadyClosedException)
+                finally
                 {
+                    Monitor.Exit(confirmLock);
                 }
+
+                publishResultTask = messageInfo.CompletionSource.Task;
+            }
+            else
+                mandatory = false;
+
+            try
+            {
+                await channel.BasicPublishAsync(exchange ?? string.Empty, routingKey, mandatory, properties.ToBasicProperties(), body, CancellationToken.None);
+            }
+            catch
+            {
+                messageInfo.CompletionSource.SetCanceled(CancellationToken.None);
+                throw;
             }
 
 
@@ -710,10 +737,12 @@ public class TapetiTransport : ITapetiTransport
         }
 
 
-        private async ValueTask NotifyShutdown(ChannelShutdownEventArgs e)
+        public async ValueTask NotifyShutdown(ChannelShutdownEventArgs e)
         {
             if (shutdownCalled)
                 return;
+
+            await cancellationTokenSource.CancelAsync();
 
             shutdownCalled = true;
             foreach (var observer in observers)
@@ -727,7 +756,7 @@ public class TapetiTransport : ITapetiTransport
                 return;
 
             (logger as IBindingLogger)?.ExchangeDeclare(exchange);
-            await channel.ExchangeDeclareAsync(exchange, "topic", true);
+            await channel.ExchangeDeclareAsync(exchange, "topic", true, cancellationToken: CancellationToken.None);
             state.SetExchangeDeclared(exchange);
         }
 
@@ -863,7 +892,7 @@ public class TapetiTransport : ITapetiTransport
                     if (!confirmMessages.TryGetValue(deliveryTag, out var messageInfo))
                         continue;
 
-                    messageInfo.CompletionSource.SetCanceled();
+                    messageInfo.CompletionSource.SetCanceled(CancellationToken.None);
                     confirmMessages.Remove(e.DeliveryTag);
                 }
             }

@@ -13,13 +13,16 @@ namespace Tapeti.Transport
     {
         private readonly IConsumer consumer;
         private readonly IMessageHandlerTracker messageHandlerTracker;
+        private readonly CancellationToken cancellationToken;
 
 
         /// <inheritdoc />
-        public TapetiTransportConsumer(IChannel channel, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker) : base(channel)
+        public TapetiTransportConsumer(IChannel channel, IConsumer consumer,
+            IMessageHandlerTracker messageHandlerTracker, CancellationToken cancellationToken) : base(channel)
         {
             this.consumer = consumer;
             this.messageHandlerTracker = messageHandlerTracker;
+            this.cancellationToken = cancellationToken;
         }
 
 
@@ -31,7 +34,8 @@ namespace Tapeti.Transport
             string routingKey,
             IReadOnlyBasicProperties properties,
             ReadOnlyMemory<byte> body,
-            CancellationToken cancellationToken = default)
+            // At the time of writing, RabbitMQ.NET's AsyncConsumerDispatcher does not pass any cancellation token
+            CancellationToken uselessCancellationToken = default)
         {
             messageHandlerTracker.Enter();
             try
@@ -46,8 +50,41 @@ namespace Tapeti.Transport
 
                 try
                 {
-                    var response = await consumer.Consume(exchange, routingKey, properties.ToMessageProperties(), bodyArray).ConfigureAwait(false);
-                    await Respond(deliveryTag, response).ConfigureAwait(false);
+
+                    // If the message handler hangs and does not respond to the channel's CancellationToken, the
+                    // connection will eventually get an 'End of stream' making recovery difficult. Spawning a new
+                    // Task will allow us to guard against this scenario.
+                    var consumeTask = Task.Run(async () =>
+                    {
+                        var response = await consumer.Consume(exchange, routingKey, properties.ToMessageProperties(), bodyArray).ConfigureAwait(false);
+                        await Respond(deliveryTag, response).ConfigureAwait(false);
+                    }, cancellationToken);
+
+
+                    try
+                    {
+                        var cancelledTask = new TaskCompletionSource();
+                        await using var cancelledTaskRegistration = cancellationToken.Register(() => cancelledTask.TrySetCanceled());
+
+                        var completedTask = Task.WhenAny(consumeTask, cancelledTask.Task);
+                        if (completedTask == consumeTask)
+                        {
+                            if (!consumeTask.IsCompletedSuccessfully)
+                                // Await to throw any exceptions
+                                await consumeTask.ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            // Return from HandleBasicDeliverAsync to prevent the connection from clogging,
+                            // track the consumeTask externally.
+                            messageHandlerTracker.Detach(consumeTask);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        if (!cancellationToken.IsCancellationRequested)
+                            throw;
+                    }
                 }
                 catch
                 {
@@ -74,15 +111,15 @@ namespace Tapeti.Transport
             {
                 case ConsumeResult.Success:
                 case ConsumeResult.ExternalRequeue:
-                    await Channel.BasicAckAsync(deliveryTag, false);
+                    await Channel.BasicAckAsync(deliveryTag, false, CancellationToken.None);
                     break;
 
                 case ConsumeResult.Error:
-                    await Channel.BasicNackAsync(deliveryTag, false, false);
+                    await Channel.BasicNackAsync(deliveryTag, false, false, CancellationToken.None);
                     break;
 
                 case ConsumeResult.Requeue:
-                    await Channel.BasicNackAsync(deliveryTag, false, true);
+                    await Channel.BasicNackAsync(deliveryTag, false, true, CancellationToken.None);
                     break;
 
                 default:

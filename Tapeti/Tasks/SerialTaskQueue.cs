@@ -22,7 +22,7 @@ namespace Tapeti.Tasks
             lock (previousTaskLock)
             {
                 previousTask = previousTask.ContinueWith(
-                    _ => action(), 
+                    _ => action(),
                     CancellationToken.None,
                     TaskContinuationOptions.None,
                     TaskScheduler.Default);
@@ -42,7 +42,7 @@ namespace Tapeti.Tasks
             lock (previousTaskLock)
             {
                 var task = previousTask.ContinueWith(
-                    _ => func(), 
+                    _ => func(),
                     CancellationToken.None,
                     TaskContinuationOptions.None,
                     TaskScheduler.Default);
@@ -51,7 +51,7 @@ namespace Tapeti.Tasks
 
                 // 'task' completes at the moment a Task is returned (for example, an await is encountered),
                 // this is used to chain the next. We return the unwrapped Task however, so that the caller
-                // awaits until the full task chain has completed.
+                // waits until the full task chain has completed.
                 return task.Unwrap();
             }
         }

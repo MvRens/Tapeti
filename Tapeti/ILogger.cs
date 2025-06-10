@@ -146,6 +146,11 @@ public class ChannelShutdownContext
 
     /// <inheritdoc cref="ShutdownEventArgs.ReplyText"/>
     public required string ReplyText { get; init; }
+
+    /// <summary>
+    /// Determines if the connection is closing by request.
+    /// </summary>
+    public bool IsClosing { get; set; }
 }
 
 

@@ -50,7 +50,8 @@ namespace Tapeti.Tests.Client
                 channel = await transport.CreateChannel(new TapetiChannelOptions
                 {
                     ChannelType = ChannelType.ConsumeDefault,
-                    PublisherConfirmationsEnabled = true
+                    PublisherConfirmationsEnabled = true,
+                    PrefetchCount = 50
                 });
             }
             catch

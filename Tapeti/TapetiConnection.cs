@@ -123,7 +123,15 @@ public class TapetiConnection : IConnection
         }
 
         if (capturedInitializedConnection is not null)
+        {
+            await capturedInitializedConnection.DefaultConsumeChannel.Close();
+            await capturedInitializedConnection.DefaultPublishChannel.Close();
+
+            foreach (var channel in capturedInitializedConnection.DedicatedChannels)
+                await channel.Close();
+
             await capturedInitializedConnection.Transport.Close();
+        }
     }
 
 
@@ -166,23 +174,28 @@ public class TapetiConnection : IConnection
             if (initializedConnection is not null)
                 return initializedConnection;
 
-            var transport = transportFactory.Create(Params ?? new TapetiConnectionParams());
+            var connectionParams = Params ?? new TapetiConnectionParams();
+            var transport = transportFactory.Create(connectionParams);
             transport.AttachObserver(new TransportObserver(this));
 
             initializedConnection = new InitializedConnection
             {
                 Logger = logger,
                 Transport = transport,
+                PrefetchCount = connectionParams.PrefetchCount,
+
                 DefaultConsumeChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
                 {
                     ChannelType = ChannelType.ConsumeDefault,
-                    PublisherConfirmationsEnabled = false
+                    PublisherConfirmationsEnabled = false,
+                    PrefetchCount = connectionParams.PrefetchCount
                 }),
 
                 DefaultPublishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
                 {
                     ChannelType = ChannelType.PublishDefault,
-                    PublisherConfirmationsEnabled = true
+                    PublisherConfirmationsEnabled = true,
+                    PrefetchCount = 0
                 })
             };
 
@@ -199,6 +212,8 @@ public class TapetiConnection : IConnection
         public required TapetiChannel DefaultPublishChannel { get; init; }
         public List<TapetiChannel> DedicatedChannels { get; } = [];
 
+        public required ushort PrefetchCount { get; init; }
+
 
         public ITapetiChannel CreateDedicatedChannel()
         {
@@ -206,6 +221,7 @@ public class TapetiConnection : IConnection
             {
                 ChannelType = ChannelType.ConsumeDedicated,
                 PublisherConfirmationsEnabled = false,
+                PrefetchCount = PrefetchCount
             });
 
             DedicatedChannels.Add(channel);
@@ -224,8 +240,6 @@ public class TapetiConnection : IConnection
 
     private void TransportReconnected(ConnectedEventArgs e)
     {
-        //subscriber?.Reconnect();
-
         var reconnectedEvent = Reconnected;
         if (reconnectedEvent != null)
             Task.Run(() => reconnectedEvent.Invoke(this, e));
@@ -234,14 +248,9 @@ public class TapetiConnection : IConnection
 
     private void TransportDisconnected(DisconnectedEventArgs e)
     {
-        // TODO still required, or is it handled by the channel shutdown?
-        subscriber?.Disconnect();
-
         var disconnectedEvent = Disconnected;
         if (disconnectedEvent != null)
             Task.Run(() => disconnectedEvent.Invoke(this, e));
-
-        // TODO queue reconnect
     }
 
 

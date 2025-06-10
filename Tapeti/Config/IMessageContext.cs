@@ -57,8 +57,7 @@ namespace Tapeti.Config
         /// Note that this token is cancelled regardless of whether the connection will be reestablished, as any
         /// messages still in the queue will be redelivered with a new token.
         /// </summary>
-        // TODO change to cancellationtoken per channel
-        CancellationToken ConnectionClosed { get; }
+        CancellationToken ChannelClosed { get; }
 
         /// <summary>
         /// Stores additional properties in the message context which can be passed between middleware stages.

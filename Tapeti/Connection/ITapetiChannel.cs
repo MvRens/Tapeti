@@ -45,6 +45,12 @@ public interface ITapetiChannel
     /// Attaches an observer to this channel to be notified of status changes.
     /// </summary>
     void AttachObserver(ITapetiChannelObserver observer);
+
+
+    /// <summary>
+    /// Keeps track of the message handlers running on this channel.
+    /// </summary>
+    IMessageHandlerTracker MessageHandlerTracker { get; }
 }
 
 

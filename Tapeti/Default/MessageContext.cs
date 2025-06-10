@@ -37,7 +37,7 @@ namespace Tapeti.Default
         public IBinding Binding { get; set; } = null!;
 
         /// <inheritdoc />
-        public CancellationToken ConnectionClosed { get; set; }
+        public CancellationToken ChannelClosed { get; set; }
 
 
         public void Store<T>(T payload) where T : IMessageContextPayload

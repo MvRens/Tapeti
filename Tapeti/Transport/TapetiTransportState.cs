@@ -1,13 +1,9 @@
 using System.Collections.Generic;
-using Tapeti.Default;
 
 namespace Tapeti.Transport;
 
 internal class TapetiTransportState
 {
-    public IMessageHandlerTracker MessageHandlerTracker { get; } = new MessageHandlerTracker();
-
-
     private readonly HashSet<string> declaredExchanges = [];
     private readonly HashSet<string> deletedQueues = [];
 

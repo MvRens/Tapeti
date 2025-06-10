@@ -76,6 +76,13 @@ public class TapetiChannelOptions
     /// Determines if publisher confirmations are enabled.
     /// </summary>
     public required bool PublisherConfirmationsEnabled { get; init; }
+
+    /// <summary>
+    /// The amount of message to prefetch. See http://www.rabbitmq.com/consumer-prefetch.html for more information.
+    ///
+    /// If set to 0, no limit will be applied.
+    /// </summary>
+    public required ushort PrefetchCount { get; init; }
 }
 
 
@@ -100,6 +107,11 @@ public interface ITapetiTransportChannel
     public bool IsOpen { get; }
 
     /// <summary>
+    /// A cancellation token which is cancelled when the channel is closed.
+    /// </summary>
+    public CancellationToken ChannelClosed { get; }
+
+    /// <summary>
     /// Attaches an observer to this channel to be notified of status changes.
     /// </summary>
     void AttachObserver(ITapetiTransportChannelObserver observer);
@@ -109,9 +121,9 @@ public interface ITapetiTransportChannel
     /// </summary>
     /// <param name="queueName"></param>
     /// <param name="consumer">The consumer implementation which will receive the messages from the queue</param>
-    /// <param name="cancellationToken">Cancelled when the connection is lost</param>
+    /// <param name="messageHandlerTracker"></param>
     /// <returns>A representation of the consumer and channel.</returns>
-    Task<ITapetiTransportConsumer?> Consume(string queueName, IConsumer consumer, CancellationToken cancellationToken);
+    Task<ITapetiTransportConsumer?> Consume(string queueName, IConsumer consumer, IMessageHandlerTracker messageHandlerTracker);
 
     /// <summary>
     /// Publishes a message. The exchange and routing key are determined by the registered strategies.

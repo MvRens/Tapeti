@@ -1,13 +1,10 @@
 using System;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Newtonsoft.Json;
 using NSubstitute;
-using Shouldly;
 using Tapeti.Connection;
+using Tapeti.Tests.Helpers;
 using Tapeti.Tests.Mock;
 using Tapeti.Transport;
 using Xunit;
@@ -52,13 +49,15 @@ public class TapetiSubscriberTests : IAsyncLifetime
             publishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
                 ChannelType = ChannelType.PublishDefault,
-                PublisherConfirmationsEnabled = true
+                PublisherConfirmationsEnabled = true,
+                PrefetchCount = 0
             });
 
             consumeChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
                 ChannelType = ChannelType.ConsumeDefault,
-                PublisherConfirmationsEnabled = false
+                PublisherConfirmationsEnabled = false,
+                PrefetchCount = 50
             });
         }
         catch
@@ -84,7 +83,9 @@ public class TapetiSubscriberTests : IAsyncLifetime
     [Fact]
     public async Task ChannelTimeout()
     {
-        var cancellationTokenSource = new CancellationTokenSource();
+        var channelShutdown = new TaskCompletionSource();
+        var channelRecreated = new TaskCompletionSource();
+
 
         await consumeChannel.EnqueueOnce(async channel =>
         {
@@ -107,68 +108,36 @@ public class TapetiSubscriberTests : IAsyncLifetime
         await subscriber.Resume();
 
 
+        var channelObserver = Substitute.For<ITapetiChannelObserver>();
+
+        #pragma warning disable CA2012
+        channelObserver.OnShutdown(Arg.Any<ChannelShutdownEventArgs>())
+            .Returns(_ =>
+            {
+                channelShutdown.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+        channelObserver.OnRecreated(Arg.Any<ITapetiTransportChannel>())
+            .Returns(_ =>
+            {
+                channelRecreated.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+        #pragma warning restore CA2012
+
+        consumeChannel.AttachObserver(channelObserver);
+
+
+
         var publisher = new TapetiPublisher(() => publishChannel, config);
         await publisher.PublishDirect(new TestMessage(), "channel.timeout.test", null, true);
 
 
-        var hadConsumer = false;
-        var consumerLost = false;
-        var start = DateTime.UtcNow;
-        var end = start.AddMinutes(3);
-        var reconnected = false;
+        await channelShutdown.Task.WithTimeout(TimeSpan.FromMinutes(3), "Channel shutdown");
+        await channelRecreated.Task.WithTimeout(TimeSpan.FromMinutes(2), "Channel re-create");
 
-        var handler = new HttpClientHandler
-        {
-            Credentials = new NetworkCredential(RabbitMQFixture.RabbitMQUsername, RabbitMQFixture.RabbitMQPassword)
-        };
-
-        var managementClient = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
-
-        managementClient.DefaultRequestHeaders.Add("Connection", "close");
-
-        var requestUri = new Uri($"http://127.0.0.1:{proxy.RabbitMQManagementPort}/api/queues/%2F/channel.timeout.test");
-
-        while (DateTime.UtcNow < end)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(5), CancellationToken.None);
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-            var response = await managementClient.SendAsync(request, CancellationToken.None);
-            var responseContent = await response.Content.ReadAsStringAsync(CancellationToken.None);
-            var responseData = JsonConvert.DeserializeObject<RabbitMQQueueDetails>(responseContent);
-
-            responseData.ShouldNotBeNull();
-
-            testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Consumers: {responseData.Consumers}");
-
-            if (responseData.Consumers > 0)
-            {
-                if (consumerLost)
-                {
-                    testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Consumer reconnected, test successful");
-                    reconnected = true;
-                    break;
-                }
-
-                hadConsumer = true;
-            }
-            else if (hadConsumer)
-            {
-                testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Consumer lost, waiting for reconnect");
-                consumerLost = true;
-                hadConsumer = false;
-            }
-        }
-
-        if (!reconnected)
-            testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Timeout, cancelling test...");
-
-        await cancellationTokenSource.CancelAsync();
-
-        reconnected.ShouldBeTrue();
+        await TestController.Redelivered.Task.WithTimeout(TimeSpan.FromSeconds(10), "Message redelivery");
     }
 
 
@@ -188,15 +157,20 @@ public class TapetiSubscriberTests : IAsyncLifetime
 
 
 
+    [PublicAPI]
     public class TestMessage
     {
     }
+
 
     [PublicAPI]
     [Tapeti.Config.Annotations.DurableQueue("channel.timeout.test")]
     public class TestController
     {
+        public static readonly TaskCompletionSource Redelivered = new();
+
         private readonly ITestOutputHelper testOutputHelper;
+        private bool isRedelivery;
 
 
         public TestController(ITestOutputHelper testOutputHelper)
@@ -207,21 +181,18 @@ public class TapetiSubscriberTests : IAsyncLifetime
 
         public async Task TestControllerMethod(TestMessage message, CancellationToken cancellationToken)
         {
-            testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Received message, holding until cancelled...");
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            if (isRedelivery)
+            {
+                testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Received message again!");
+                Redelivered.SetResult();
+            }
+            else
+            {
+                testOutputHelper.WriteLine($"[{DateTime.Now.ToLongTimeString()}] Received message, holding until cancelled...");
+
+                isRedelivery = true;
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
         }
     }
-
-
-    #pragma warning disable CA1822
-    #pragma warning restore CA1822
-
-
-    #pragma warning disable CS0649
-    private class RabbitMQQueueDetails
-    {
-        [JsonProperty("consumers")]
-        public int Consumers;
-    }
-    #pragma warning restore CS0649
 }

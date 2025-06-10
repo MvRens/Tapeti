@@ -44,7 +44,8 @@ namespace Tapeti.Tests.Config
             channel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
                 ChannelType = ChannelType.ConsumeDefault,
-                PublisherConfirmationsEnabled = false
+                PublisherConfirmationsEnabled = false,
+                PrefetchCount = 50
             });
 
 
@@ -145,10 +146,10 @@ namespace Tapeti.Tests.Config
         {
             var config = GetControllerConfig<ConflictingArgumentsDurableQueueTestController>();
 
-            var testApplyBindings = () =>
+            var testApplyBindings = async () =>
             {
                 var subscriber = new TapetiSubscriber(_ => channel, config);
-                return subscriber.ApplyBindings();
+                await subscriber.ApplyBindings();
             };
 
             await testApplyBindings.ShouldThrowAsync<TopologyConfigurationException>();
