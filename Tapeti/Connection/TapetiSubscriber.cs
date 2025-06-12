@@ -54,7 +54,7 @@ namespace Tapeti.Connection
             if (consuming)
                 Stop().GetAwaiter().GetResult();
         }
-        
+
 
         /// <inheritdoc />
         public async Task Resume()
@@ -142,10 +142,10 @@ namespace Tapeti.Connection
 
 
                     // ReSharper disable once MoveLocalFunctionAfterJumpStatement
-                    Task<ITapetiTransportConsumer?> Consume(ITapetiTransportChannel transportChannel)
+                    ValueTask<ITapetiTransportConsumer?> Consume(ITapetiTransportChannel transportChannel)
                     {
                         var consumer = new TapetiConsumer(config, queueName, group, transportChannel.ChannelClosed);
-                        return transportChannel.Consume(queueName, consumer, channel.MessageHandlerTracker);
+                        return new ValueTask<ITapetiTransportConsumer?>(transportChannel.Consume(queueName, consumer, channel.MessageHandlerTracker));
                     }
 
 

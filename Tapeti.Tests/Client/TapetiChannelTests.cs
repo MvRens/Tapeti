@@ -95,11 +95,11 @@ public class TapetiChannelTests : IAsyncLifetime
         });
 
 
-        var publishOverMaxLength = () => publishChannel.EnqueueOnce(channel => channel.Publish(body, properties, null, queue1, true));
+        var publishOverMaxLength = () => publishChannel.EnqueueOnce(channel => new ValueTask(channel.Publish(body, properties, null, queue1, true))).AsTask();
         await publishOverMaxLength.ShouldThrowAsync<NackException>();
 
         // The channel should recover and allow further publishing
-        await publishChannel.EnqueueRetry(channel => channel.Publish(body, properties, null, queue2, true), CancellationToken.None);
+        await publishChannel.EnqueueRetry(channel => new ValueTask(channel.Publish(body, properties, null, queue2, true)), CancellationToken.None);
     }
 
 

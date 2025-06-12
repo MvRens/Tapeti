@@ -70,7 +70,7 @@ namespace Tapeti.Tests.Client
             }, c => c.Handler2);
 
 
-            var handler = await RequestResponseFilterController.ValidResponse.Task;
+            var handler = await RequestResponseFilterController.ValidResponse.Task.WithTimeout(TimeSpan.FromSeconds(5));
             handler.ShouldBe(2);
 
             var invalidHandler = await Task.WhenAny(RequestResponseFilterController.InvalidResponse.Task, Task.Delay(1000));

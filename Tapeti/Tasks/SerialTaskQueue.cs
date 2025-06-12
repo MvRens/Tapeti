@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -7,60 +8,81 @@ namespace Tapeti.Tasks
     /// <summary>
     /// An implementation of a queue which runs tasks serially.
     /// </summary>
-    public class SerialTaskQueue : IDisposable
+    public class SerialTaskQueue : IAsyncDisposable
     {
-        private readonly object previousTaskLock = new();
-        private Task previousTask = Task.CompletedTask;
+        private readonly BlockingCollection<Func<ValueTask>> queue = new();
+        private readonly CancellationTokenSource cancellationTokenSource = new();
+        private readonly Task worker;
 
 
-        /// <summary>
-        /// Add the specified synchronous action to the task queue.
-        /// </summary>
-        /// <param name="action"></param>
-        public Task AddSync(Action action)
+        /// <inheritdoc cref="SerialTaskQueue"/>
+        public SerialTaskQueue()
         {
-            lock (previousTaskLock)
-            {
-                previousTask = previousTask.ContinueWith(
-                    _ => action(),
-                    CancellationToken.None,
-                    TaskContinuationOptions.None,
-                    TaskScheduler.Default);
-
-                return previousTask;
-            }
+            worker = Task.Run(Work);
         }
 
 
-
         /// <summary>
-        /// Add the specified asynchronous method to the task queue.
+        /// Add the specified method to the task queue.
         /// </summary>
-        /// <param name="func"></param>
-        public Task Add(Func<Task> func)
+        public ValueTask Add(Func<ValueTask> func)
         {
-            lock (previousTaskLock)
+            cancellationTokenSource.Token.ThrowIfCancellationRequested();
+            var taskCompleted = new TaskCompletionSource();
+
+            queue.Add(async () =>
             {
-                var task = previousTask.ContinueWith(
-                    _ => func(),
-                    CancellationToken.None,
-                    TaskContinuationOptions.None,
-                    TaskScheduler.Default);
+                if (cancellationTokenSource.IsCancellationRequested)
+                    taskCompleted.TrySetCanceled();
 
-                previousTask = task;
+                try
+                {
+                    await func();
+                    taskCompleted.SetResult();
+                }
+                catch (Exception e)
+                {
+                    taskCompleted.SetException(e);
+                }
+            });
 
-                // 'task' completes at the moment a Task is returned (for example, an await is encountered),
-                // this is used to chain the next. We return the unwrapped Task however, so that the caller
-                // waits until the full task chain has completed.
-                return task.Unwrap();
-            }
+            return new ValueTask(taskCompleted.Task);
         }
 
 
         /// <inheritdoc />
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
+
+            await cancellationTokenSource.CancelAsync();
+            queue.CompleteAdding();
+
+            await worker;
+        }
+
+
+        private async Task Work()
+        {
+            try
+            {
+                foreach (var task in queue.GetConsumingEnumerable(cancellationTokenSource.Token))
+                {
+                    try
+                    {
+                        await task();
+                    }
+                    catch
+                    {
+                        // The task should not leak any exceptions, Add should have taken care of that.
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!cancellationTokenSource.IsCancellationRequested)
+                    throw;
+            }
         }
     }
 }

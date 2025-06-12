@@ -44,6 +44,8 @@ namespace _03_FlowRequestResponse
 
             await connection.Subscribe();
 
+            // TODO this example hangs - convert to test and fix
+
 
             var flowStarter = dependencyResolver.Resolve<IFlowStarter>();
 

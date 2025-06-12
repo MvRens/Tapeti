@@ -17,28 +17,28 @@ public interface ITapetiChannel
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access.
     /// </summary>
-    Task EnqueueOnce(Func<ITapetiTransportChannel, Task> operation);
+    ValueTask EnqueueOnce(Func<ITapetiTransportChannel, ValueTask> operation);
 
 
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
     /// and returns its result.
     /// </summary>
-    Task<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, Task<T>> operation);
+    ValueTask<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, ValueTask<T>> operation);
 
 
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
     /// and retries the operation if the channel is closed in the meantime.
     /// </summary>
-    Task EnqueueRetry(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken);
+    ValueTask EnqueueRetry(Func<ITapetiTransportChannel, ValueTask> operation, CancellationToken cancellationToken);
 
 
     /// <summary>
     /// Places the operation to be performed on the channel in the task queue to ensure single-thread access,
     /// retries the operation if the channel is closed in the meantime, and returns its result.
     /// </summary>
-    Task<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, Task<T>> operation, CancellationToken cancellationToken);
+    ValueTask<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, ValueTask<T>> operation, CancellationToken cancellationToken);
 
 
     /// <summary>

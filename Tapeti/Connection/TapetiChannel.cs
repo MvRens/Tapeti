@@ -61,66 +61,51 @@ internal class TapetiChannel : ITapetiChannel
         if (capturedTaskQueue == null)
             return;
 
-        await capturedTaskQueue.AddSync(() => { transportChannel = null; }).ConfigureAwait(false);
-
-        capturedTaskQueue.Dispose();
+        await capturedTaskQueue.DisposeAsync();
     }
 
 
-    public Task EnqueueOnce(Func<ITapetiTransportChannel, Task> operation)
+    public ValueTask EnqueueOnce(Func<ITapetiTransportChannel, ValueTask> operation)
     {
         return GetTaskQueue().Add(async () => await operation(await GetTransportChannel()));
     }
 
-    public Task<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, Task<T>> operation)
+    public async ValueTask<T> EnqueueOnce<T>(Func<ITapetiTransportChannel, ValueTask<T>> operation)
     {
-        var result = new TaskCompletionSource<T>();
+        T result = default!;
 
-        GetTaskQueue().Add(async () =>
+        await GetTaskQueue().Add(async () =>
         {
-            try
-            {
-                result.SetResult(await operation(await GetTransportChannel()));
-            }
-            catch (Exception e)
-            {
-                result.SetException(e);
-            }
+            result = await operation(await GetTransportChannel());
         });
 
-        return result.Task;
+        return result;
     }
 
 
-    public Task EnqueueRetry(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken)
+    public ValueTask EnqueueRetry(Func<ITapetiTransportChannel, ValueTask> operation, CancellationToken cancellationToken)
     {
         return GetTaskQueue().Add(() => RetryOperation(operation, cancellationToken));
     }
 
-    public Task<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, Task<T>> operation, CancellationToken cancellationToken)
+    public async ValueTask<T> EnqueueRetry<T>(Func<ITapetiTransportChannel, ValueTask<T>> operation, CancellationToken cancellationToken)
     {
-        var result = new TaskCompletionSource<T>();
+        T result = default!;
 
-        GetTaskQueue().Add(async () =>
+        await GetTaskQueue().Add(async () =>
         {
-            try
+            await RetryOperation(async c =>
             {
-                await RetryOperation(async c =>
-                {
-                    result.SetResult(await operation(c));
-                }, cancellationToken);
-            }
-            catch (Exception e)
-            {
-                result.SetException(e);
-            }
+                result = await operation(c);
+            }, cancellationToken);
+
         });
 
-        return result.Task;
+        return result;
     }
 
 
-    private async Task RetryOperation(Func<ITapetiTransportChannel, Task> operation, CancellationToken cancellationToken)
+    private async ValueTask RetryOperation(Func<ITapetiTransportChannel, ValueTask> operation, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {

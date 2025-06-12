@@ -10,6 +10,19 @@ namespace Tapeti.Tests.Helpers
             var timeoutTask = Task.Delay(timeout);
             if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
                 throw new TimeoutException($"Task {(!string.IsNullOrEmpty(name) ? name + " " : "")}took too long to complete");
+
+            // Make sure any exception is propagated
+            await task;
+        }
+
+
+        public static async Task<TResult> WithTimeout<TResult>(this Task<TResult> task, TimeSpan timeout, string? name = null)
+        {
+            var timeoutTask = Task.Delay(timeout);
+            if (await Task.WhenAny(task, timeoutTask) == timeoutTask)
+                throw new TimeoutException($"Task {(!string.IsNullOrEmpty(name) ? name + " " : "")}took too long to complete");
+
+            return await task;
         }
     }
 }
