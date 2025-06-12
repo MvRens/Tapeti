@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 
 namespace Tapeti
 {
@@ -39,7 +40,7 @@ namespace Tapeti
         /// </summary>
         /// <typeparam name="TService"></typeparam>
         /// <typeparam name="TImplementation"></typeparam>
-        void RegisterDefault<TService, TImplementation>() where TService : class where TImplementation : class, TService;
+        void RegisterDefault<TService, [MeansImplicitUse] TImplementation>() where TService : class where TImplementation : class, TService;
 
         /// <summary>
         /// Registers a default implementation in the IoC container. If an alternative implementation
@@ -56,7 +57,7 @@ namespace Tapeti
         /// </summary>
         /// <typeparam name="TService"></typeparam>
         /// <typeparam name="TImplementation"></typeparam>
-        void RegisterDefaultSingleton<TService, TImplementation>() where TService : class where TImplementation : class, TService;
+        void RegisterDefaultSingleton<TService, [MeansImplicitUse] TImplementation>() where TService : class where TImplementation : class, TService;
 
         /// <summary>
         /// Registers a default singleton implementation in the IoC container. If an alternative implementation

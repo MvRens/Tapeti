@@ -12,7 +12,7 @@ namespace Tapeti.Serilog
     /// <summary>
     /// Implements the Tapeti ILogger interface for Serilog output.
     /// </summary>
-    public class TapetiSeriLogger: IBindingLogger
+    public class TapetiSeriLogger: IBindingLogger, IChannelLogger
     {
         /// <summary>
         /// Implements the Tapeti ILogger interface for Serilog output. This version
@@ -26,9 +26,9 @@ namespace Tapeti.Serilog
             internal override bool IncludeMessageInfo() => true;
         }
 
-        
-        
-        
+
+
+
         private readonly ISerilogLogger seriLogger;
 
 
@@ -43,44 +43,54 @@ namespace Tapeti.Serilog
 
 
         /// <inheritdoc />
-        public void Connect(ConnectContext connectContext)
+        public void Connect(ConnectContext context)
         {
             seriLogger
-                .ForContext("isReconnect", connectContext.IsReconnect)
-                .Information("Tapeti: trying to connect to {host}:{port}/{virtualHost}", 
-                    connectContext.ConnectionParams.HostName,
-                    connectContext.ConnectionParams.Port,
-                    connectContext.ConnectionParams.VirtualHost);
+                .ForContext("isReconnect", context.IsReconnect)
+                .Information("Tapeti: trying to connect to {host}:{port}/{virtualHost}",
+                    context.ConnectionParams.HostName,
+                    context.ConnectionParams.Port,
+                    context.ConnectionParams.VirtualHost);
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(ConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext context)
         {
-            seriLogger.Error(connectContext.Exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}",
-                connectContext.ConnectionParams.HostName,
-                connectContext.ConnectionParams.Port,
-                connectContext.ConnectionParams.VirtualHost);
+            seriLogger.Error(context.Exception, "Tapeti: could not connect to {host}:{port}/{virtualHost}",
+                context.ConnectionParams.HostName,
+                context.ConnectionParams.Port,
+                context.ConnectionParams.VirtualHost);
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(ConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext context)
         {
             seriLogger
-                .ForContext("isReconnect", connectContext.IsReconnect)
+                .ForContext("isReconnect", context.IsReconnect)
                 .Information("Tapeti: successfully connected to {host}:{port}/{virtualHost} on local port {localPort}",
-                    connectContext.ConnectionParams.HostName,
-                    connectContext.ConnectionParams.Port,
-                    connectContext.ConnectionParams.VirtualHost,
-                    connectContext.LocalPort);
+                    context.ConnectionParams.HostName,
+                    context.ConnectionParams.Port,
+                    context.ConnectionParams.VirtualHost,
+                    context.LocalPort);
         }
 
         /// <inheritdoc />
-        public void Disconnect(DisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext context)
         {
             seriLogger
                 .Information("Tapeti: connection closed, reply text = {replyText}, reply code = {replyCode}",
-                    disconnectContext.ReplyText,
-                    disconnectContext.ReplyCode);
+                    context.ReplyText,
+                    context.ReplyCode);
+        }
+
+        /// <inheritdoc />
+        public void ConsumeStarted(ConsumeStartedContext context)
+        {
+            seriLogger
+                .Information("Tapeti: consumer {startType} for {queueType} {queueName}",
+                    context.IsRestart ? "restarted" : "started",
+                    context.IsDynamicQueue ? "dynamic queue" : "durable queue",
+                    context.QueueName);
         }
 
         /// <inheritdoc />
@@ -88,7 +98,7 @@ namespace Tapeti.Serilog
         {
             var message = new StringBuilder("Tapeti: exception in message handler");
             var messageParams = new List<object?>();
-            
+
             var contextLogger = seriLogger
                 .ForContext("consumeResult", consumeResult)
                 .ForContext("exchange", messageContext.Exchange)
@@ -116,7 +126,7 @@ namespace Tapeti.Serilog
                 messageParams.Add(messageContext.Properties.CorrelationId);
                 messageParams.Add(messageContext.RawBody != null ? Encoding.UTF8.GetString(messageContext.RawBody) : null);
             }
-            
+
             contextLogger.Error(exception, message.ToString(), messageParams.ToArray());
         }
 
@@ -125,7 +135,7 @@ namespace Tapeti.Serilog
         {
             if (passive)
                 seriLogger.Information("Tapeti: verifying durable queue {queueName}", queueName);
-            else 
+            else
                 seriLogger.Information("Tapeti: declaring {queueType} queue {queueName}", durable ? "durable" : "dynamic", queueName);
         }
 
@@ -171,6 +181,31 @@ namespace Tapeti.Serilog
                 seriLogger.Information("Tapeti: obsolete queue {queue} has been unbound but not yet deleted, {messageCount} messages remaining", queueName, messageCount);
         }
 
+
+        /// <inheritdoc />
+        public void ChannelCreated(ChannelCreatedContext context)
+        {
+            seriLogger.Verbose("Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} {createType}",
+                context.ChannelNumber,
+                context.ConnectionReference,
+                context.ChannelType,
+                context.IsRecreate ? "re-created" : "created");
+        }
+
+
+        /// <inheritdoc />
+        public void ChannelShutdown(ChannelShutdownContext context)
+        {
+            seriLogger.Verbose("Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} shut down, code {replyCode}: {replyText}",
+                context.ChannelNumber,
+                context.ConnectionReference,
+                context.ChannelType,
+                context.ReplyCode,
+                context.ReplyText);
+        }
+
+
         internal virtual bool IncludeMessageInfo() => false;
+
     }
 }

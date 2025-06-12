@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 using Tapeti.Config;
 
 namespace Tapeti.Default
@@ -6,25 +7,31 @@ namespace Tapeti.Default
     /// <summary>
     /// Default ILogger implementation which does not log anything.
     /// </summary>
+    [PublicAPI]
     public class DevNullLogger : ILogger
     {
         /// <inheritdoc />
-        public void Connect(ConnectContext connectContext)
+        public void Connect(ConnectContext context)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(ConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext context)
         {
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(ConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext context)
         {
         }
 
         /// <inheritdoc />
-        public void Disconnect(DisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext context)
+        {
+        }
+
+        /// <inheritdoc />
+        public void ConsumeStarted(ConsumeStartedContext context)
         {
         }
 

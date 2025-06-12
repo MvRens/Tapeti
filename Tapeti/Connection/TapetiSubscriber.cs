@@ -30,6 +30,7 @@ namespace Tapeti.Connection
 
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly IExchangeStrategy exchangeStrategy;
+        private readonly ILogger logger;
 
 
         public TapetiSubscriber(ChannelFactory channelFactory, ITapetiConfig config)
@@ -39,6 +40,7 @@ namespace Tapeti.Connection
 
             routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
             exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
+            logger = config.DependencyResolver.Resolve<ILogger>();
         }
 
 
@@ -134,36 +136,64 @@ namespace Tapeti.Connection
                 await Task.WhenAll(queues.Select(async group =>
                 {
                     var queueName = group.Key;
-                    var dynamicQueues = group.Where(b => b.QueueType == QueueType.Dynamic).ToArray();
 
-                    var channel = group.Any(b => b.DedicatedChannel)
+                    // All should in fact be of the same type. It seems this is not enforced in the code at the moment,
+                    // but dynamic queues contain a random generated portion and overlap should be impossible.
+                    var isDynamicQueue = group.Any(b => b.QueueType == QueueType.Dynamic);
+                    var dynamicQueueBindings = isDynamicQueue ? group.ToArray() : [];
+
+                    var channelType = group.Any(b => b.DedicatedChannel)
+                        ? ChannelType.ConsumeDedicated
+                        : ChannelType.ConsumeDefault;
+
+                    var channel = channelType == ChannelType.ConsumeDedicated
                         ? channelFactory(TapetiSubscriberChannelType.Dedicated)
                         : channelFactory(TapetiSubscriberChannelType.Default);
 
 
                     // ReSharper disable once MoveLocalFunctionAfterJumpStatement
-                    ValueTask<ITapetiTransportConsumer?> Consume(ITapetiTransportChannel transportChannel)
+                    async ValueTask<ITapetiTransportConsumer?> Consume(ITapetiTransportChannel transportChannel, bool isRestart)
                     {
                         var consumer = new TapetiConsumer(config, queueName, group, transportChannel.ChannelClosed);
-                        return new ValueTask<ITapetiTransportConsumer?>(transportChannel.Consume(queueName, consumer, channel.MessageHandlerTracker));
+                        var transportConsumer = await transportChannel.Consume(queueName, consumer, channel.MessageHandlerTracker);
+
+                        logger.ConsumeStarted(new ConsumeStartedContext
+                        {
+                            QueueName = queueName,
+                            IsDynamicQueue = isDynamicQueue,
+                            IsRestart = isRestart,
+                            ChannelType = channelType,
+                            ConnectionReference = transportChannel.ConnectionReference,
+                            ChannelNumber = transportChannel.ChannelNumber
+                        });
+
+                        return transportConsumer;
                     }
 
 
-                    var transportConsumer = await channel.EnqueueOnce(Consume);
+                    var transportConsumer = await channel.EnqueueOnce(transportChannel => Consume(transportChannel, false));
                     var control = new TapetiConsumerControl(transportConsumer);
 
-                    channel.AttachObserver(new ChannelRecreatedObserver(async newTransportChannel =>
+                    channel.AttachObserver(new ChannelRecreatedObserver(newTransportChannel =>
                     {
-                        // Dynamic queues are lost and need to be recreated
-                        if (dynamicQueues.Length > 0)
+                        control.SetTransportConsumer(null);
+
+                        // Do not halt the observer while setting up the new bindings
+                        _ = Task.Run(async () =>
                         {
-                            await ReapplyDynamicBindings(newTransportChannel, dynamicQueues, newTransportChannel.ChannelClosed);
+                            // Dynamic queues are lost and need to be recreated
+                            if (isDynamicQueue)
+                            {
+                                await ReapplyDynamicBindings(newTransportChannel, dynamicQueueBindings, newTransportChannel.ChannelClosed);
 
-                            Debug.Assert(dynamicQueues[0].QueueName is not null);
-                            queueName = dynamicQueues[0].QueueName!;
-                        }
+                                Debug.Assert(dynamicQueueBindings[0].QueueName is not null);
+                                queueName = dynamicQueueBindings[0].QueueName!;
+                            }
 
-                        control.SetTransportConsumer(await Consume(newTransportChannel));
+                            control.SetTransportConsumer(await Consume(newTransportChannel, true));
+                        });
+
+                        return default;
                     }));
 
                     return (ITapetiConsumerControl)control;

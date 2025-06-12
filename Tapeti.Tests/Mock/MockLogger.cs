@@ -17,24 +17,29 @@ namespace Tapeti.Tests.Mock
         }
 
 
-        public void Connect(ConnectContext connectContext)
+        public void Connect(ConnectContext context)
         {
-            WriteLine($"{(connectContext.IsReconnect ? "Reconnecting" : "Connecting")} to {connectContext.ConnectionParams.HostName}:{connectContext.ConnectionParams.Port}{connectContext.ConnectionParams.VirtualHost}");
+            WriteLine($"{(context.IsReconnect ? "Reconnecting" : "Connecting")} to {context.ConnectionParams.HostName}:{context.ConnectionParams.Port}{context.ConnectionParams.VirtualHost}");
         }
 
-        public void ConnectFailed(ConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext context)
         {
-            WriteLine($"Connection failed: {connectContext.Exception}");
+            WriteLine($"Connection failed: {context.Exception}");
         }
 
-        public void ConnectSuccess(ConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext context)
         {
-            WriteLine($"{(connectContext.IsReconnect ? "Reconnected" : "Connected")} using local port {connectContext.LocalPort}");
+            WriteLine($"{(context.IsReconnect ? "Reconnected" : "Connected")} using local port {context.LocalPort}");
         }
 
-        public void Disconnect(DisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext context)
         {
-            WriteLine($"Connection closed: {(!string.IsNullOrEmpty(disconnectContext.ReplyText) ? disconnectContext.ReplyText : "<no reply text>")} (reply code: {disconnectContext.ReplyCode})");
+            WriteLine($"Connection closed: {(!string.IsNullOrEmpty(context.ReplyText) ? context.ReplyText : "<no reply text>")} (reply code: {context.ReplyCode})");
+        }
+
+        public void ConsumeStarted(ConsumeStartedContext context)
+        {
+            WriteLine($"Consumer {(context.IsRestart ? "restarted" : "started")} for {(context.IsDynamicQueue ? "dynamic queue" : "durable queue")} {context.QueueName}");
         }
 
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)

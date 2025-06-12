@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using JetBrains.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
 
@@ -10,41 +11,50 @@ namespace Tapeti.Default
     /// <summary>
     /// Default ILogger implementation for console applications.
     /// </summary>
-    public class ConsoleLogger : IBindingLogger
+    public class ConsoleLogger : IBindingLogger, IChannelLogger
     {
         /// <summary>
         /// Default ILogger implementation for console applications. This version
         /// includes the message body if available when an error occurs.
         /// </summary>
+        [PublicAPI]
         public class WithMessageLogging : ConsoleLogger
         {
             internal override bool IncludeMessageBody() => true;
         }
 
-        
+
         /// <inheritdoc />
-        public void Connect(ConnectContext connectContext)
+        public void Connect(ConnectContext context)
         {
-            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnecting" : "Connecting")} to {connectContext.ConnectionParams.HostName}:{connectContext.ConnectionParams.Port}{connectContext.ConnectionParams.VirtualHost}");
+            Console.WriteLine($"[Tapeti] {(context.IsReconnect ? "Reconnecting" : "Connecting")} to {context.ConnectionParams.HostName}:{context.ConnectionParams.Port}{context.ConnectionParams.VirtualHost}");
         }
 
         /// <inheritdoc />
-        public void ConnectFailed(ConnectFailedContext connectContext)
+        public void ConnectFailed(ConnectFailedContext context)
         {
-            Console.WriteLine($"[Tapeti] Connection failed: {connectContext.Exception}");
+            Console.WriteLine($"[Tapeti] Connection failed: {context.Exception}");
         }
 
         /// <inheritdoc />
-        public void ConnectSuccess(ConnectSuccessContext connectContext)
+        public void ConnectSuccess(ConnectSuccessContext context)
         {
-            Console.WriteLine($"[Tapeti] {(connectContext.IsReconnect ? "Reconnected" : "Connected")} using local port {connectContext.LocalPort}");
+            Console.WriteLine($"[Tapeti] {(context.IsReconnect ? "Reconnected" : "Connected")} using local port {context.LocalPort}");
         }
 
         /// <inheritdoc />
-        public void Disconnect(DisconnectContext disconnectContext)
+        public void Disconnect(DisconnectContext context)
         {
-            Console.WriteLine($"[Tapeti] Connection closed: {(!string.IsNullOrEmpty(disconnectContext.ReplyText) ? disconnectContext.ReplyText : "<no reply text>")} (reply code: {disconnectContext.ReplyCode})");
+            Console.WriteLine($"[Tapeti] Connection closed: {(!string.IsNullOrEmpty(context.ReplyText) ? context.ReplyText : "<no reply text>")} (reply code: {context.ReplyCode})");
         }
+
+
+        /// <inheritdoc />
+        public void ConsumeStarted(ConsumeStartedContext context)
+        {
+            Console.WriteLine($"[Tapeti] Consumer {(context.IsRestart ? "restarted" : "started")} for {(context.IsDynamicQueue ? "dynamic queue" : "durable queue")} {context.QueueName}");
+        }
+
 
         /// <inheritdoc />
         public void ConsumeException(Exception exception, IMessageContext messageContext, ConsumeResult consumeResult)
@@ -74,8 +84,8 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public void QueueDeclare(string queueName, bool durable, bool passive)
         {
-            Console.WriteLine(passive 
-                ? $"[Tapeti] Verifying durable queue {queueName}" 
+            Console.WriteLine(passive
+                ? $"[Tapeti] Verifying durable queue {queueName}"
                 : $"[Tapeti] Declaring {(durable ? "durable" : "dynamic")} queue {queueName}");
         }
 
@@ -125,10 +135,25 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public void QueueObsolete(string queueName, bool deleted, uint messageCount)
         {
-            Console.WriteLine(deleted 
-                ? $"[Tapeti] Obsolete queue was deleted: {queueName}" 
+            Console.WriteLine(deleted
+                ? $"[Tapeti] Obsolete queue was deleted: {queueName}"
                 : $"[Tapeti] Obsolete queue bindings removed: {queueName}, {messageCount} messages remaining");
         }
+
+
+        /// <inheritdoc />
+        public void ChannelCreated(ChannelCreatedContext context)
+        {
+            Console.WriteLine($"[Tapeti] Channel #{context.ChannelNumber} on connection {context.ConnectionReference} of type {context.ChannelType} {(context.IsRecreate ? "re-" : "")}created");
+        }
+
+
+        /// <inheritdoc />
+        public void ChannelShutdown(ChannelShutdownContext context)
+        {
+            Console.WriteLine($"[Tapeti] Channel #{context.ChannelNumber} on connection {context.ConnectionReference} of type {context.ChannelType} shut down, code {context.ReplyCode}: {context.ReplyText}");
+        }
+
 
         internal virtual bool IncludeMessageBody() => false;
     }

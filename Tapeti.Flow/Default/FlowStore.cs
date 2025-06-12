@@ -48,8 +48,8 @@ namespace Tapeti.Flow.Default
                 return new FlowStateLockWrapper(this, innerLock.FlowID, innerLock, FlowStateLockSource.Dynamic);
 
             innerLock = await durableFlowStore.LockFlowStateByContinuation(continuationID);
-            return innerLock != null 
-                ? new FlowStateLockWrapper(this, innerLock.FlowID, innerLock, FlowStateLockSource.Durable) 
+            return innerLock != null
+                ? new FlowStateLockWrapper(this, innerLock.FlowID, innerLock, FlowStateLockSource.Durable)
                 : null;
         }
 
@@ -64,6 +64,8 @@ namespace Tapeti.Flow.Default
 
         private async ValueTask<IFlowStateLock> StoreFlowState(Guid flowID, FlowState flowState, IFlowStateLock? currentInnerLock, FlowStateLockSource currentSource, FlowStateLockSource newSource)
         {
+            var innerLock = currentInnerLock;
+
             if (newSource != currentSource)
             {
                 // When transitioning from a durable queue to a dynamic queue or vice versa,
@@ -74,10 +76,12 @@ namespace Tapeti.Flow.Default
                 switch (newSource)
                 {
                     case FlowStateLockSource.Dynamic:
-                        return await dynamicFlowStore.LockNewFlowState(flowID);
+                        innerLock = await dynamicFlowStore.LockNewFlowState(flowID);
+                        break;
 
                     case FlowStateLockSource.Durable:
-                        return await durableFlowStore.LockNewFlowState(flowID);
+                        innerLock = await durableFlowStore.LockNewFlowState(flowID);
+                        break;
 
                     case FlowStateLockSource.New:
                     default:
@@ -85,11 +89,11 @@ namespace Tapeti.Flow.Default
                 }
             }
 
-            if (currentInnerLock is null)
+            if (innerLock is null)
                 throw new InvalidOperationException("Tapeti internal bug, please report: trying to store a flow state that was loaded without a lock");
 
-            await currentInnerLock.StoreFlowState(flowState, newSource == FlowStateLockSource.Durable);
-            return currentInnerLock;
+            await innerLock.StoreFlowState(flowState, newSource == FlowStateLockSource.Durable);
+            return innerLock;
         }
 
 
@@ -120,10 +124,13 @@ namespace Tapeti.Flow.Default
                 FlowID = flowID;
             }
 
-            
-            public ValueTask DisposeAsync()
+
+            public async ValueTask DisposeAsync()
             {
-                return default;
+                GC.SuppressFinalize(this);
+
+                if (innerLock is not null)
+                    await innerLock.DisposeAsync();
             }
 
 

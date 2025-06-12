@@ -1,4 +1,5 @@
 ﻿using System;
+using JetBrains.Annotations;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Tapeti.Config;
@@ -54,6 +55,7 @@ public class ConnectSuccessContext : ConnectContext
 /// <summary>
 /// Contains information about the disconnection.
 /// </summary>
+[PublicAPI]
 public class DisconnectContext
 {
     /// <summary>
@@ -72,6 +74,40 @@ public class DisconnectContext
     public required string ReplyText { get; init; }
 }
 
+
+/// <summary>
+/// Contains information about the started consumer.
+/// </summary>
+public class ConsumeStartedContext
+{
+    /// <summary>
+    /// The name of the queue being consumed.
+    /// </summary>
+    public required string QueueName { get; init; }
+
+    /// <summary>
+    /// Indicates if the queue being consumed is dynamic or durable.
+    /// </summary>
+    public required bool IsDynamicQueue { get; init; }
+
+    /// <summary>
+    /// Indicates if this is a restart of the subscriber caused by a channel being recreated.
+    /// </summary>
+    public required bool IsRestart { get; init; }
+
+    /// <inheritdoc cref="Tapeti.ChannelType"/>
+    public required ChannelType ChannelType { get; init; }
+
+    /// <summary>
+    /// A unique number associated with the connection the channel was created on.
+    /// </summary>
+    public required long ConnectionReference { get; init; }
+
+    /// <summary>
+    /// The number of this channel, unique to the connection it was created on.
+    /// </summary>
+    public required long ChannelNumber { get; init; }
+}
 
 /// <summary>
 /// Indicates how Tapeti uses the channel.
@@ -123,6 +159,7 @@ public class ChannelCreatedContext
 /// <summary>
 /// Contains information related to the channel shutdown event.
 /// </summary>
+[PublicAPI]
 public class ChannelShutdownContext
 {
     /// <inheritdoc cref="Tapeti.ChannelType"/>
@@ -166,26 +203,32 @@ public interface ILogger
     /// <summary>
     /// Called before a connection to RabbitMQ is attempted.
     /// </summary>
-    /// <param name="connectContext">Contains information about the connection being established.</param>
-    void Connect(ConnectContext connectContext);
+    /// <param name="context">Contains information about the connection being established.</param>
+    void Connect(ConnectContext context);
 
     /// <summary>
     /// Called when the connection has failed.
     /// </summary>
-    /// <param name="connectContext">Contains information about the connection that has failed.</param>
-    void ConnectFailed(ConnectFailedContext connectContext);
+    /// <param name="context">Contains information about the connection that has failed.</param>
+    void ConnectFailed(ConnectFailedContext context);
 
     /// <summary>
-    /// Called when a connection to RabbitMQ has been succesfully established.
+    /// Called when a connection to RabbitMQ has been successfully established.
     /// </summary>
-    /// <param name="connectContext">Contains information about the established connection.</param>
-    void ConnectSuccess(ConnectSuccessContext connectContext);
+    /// <param name="context">Contains information about the established connection.</param>
+    void ConnectSuccess(ConnectSuccessContext context);
 
     /// <summary>
     /// Called when the connection to RabbitMQ is lost.
     /// </summary>
-    /// <param name="disconnectContext">Contains information about the disconnect event.</param>
-    void Disconnect(DisconnectContext disconnectContext);
+    /// <param name="context">Contains information about the disconnect event.</param>
+    void Disconnect(DisconnectContext context);
+
+    /// <summary>
+    /// Called when a subscriber starts consuming a queue.
+    /// </summary>
+    /// <param name="context">Contains information about the started consumer.</param>
+    void ConsumeStarted(ConsumeStartedContext context);
 
     /// <summary>
     /// Called when an exception occurs in a consumer.
