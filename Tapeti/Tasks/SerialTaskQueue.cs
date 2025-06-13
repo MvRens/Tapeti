@@ -12,13 +12,12 @@ namespace Tapeti.Tasks
     {
         private readonly BlockingCollection<Func<ValueTask>> queue = new();
         private readonly CancellationTokenSource cancellationTokenSource = new();
-        private readonly Task worker;
 
 
         /// <inheritdoc cref="SerialTaskQueue"/>
         public SerialTaskQueue()
         {
-            worker = Task.Run(Work);
+            new Thread(Work).Start();
         }
 
 
@@ -55,33 +54,34 @@ namespace Tapeti.Tasks
         {
             GC.SuppressFinalize(this);
 
-            await cancellationTokenSource.CancelAsync();
-            queue.CompleteAdding();
+            var queueEmpty = new TaskCompletionSource();
+            queue.Add(() =>
+            {
+                queueEmpty.SetResult();
+                return default;
+            });
 
-            await worker;
+            queue.CompleteAdding();
+            await cancellationTokenSource.CancelAsync();
+
+            await queueEmpty.Task;
         }
 
 
-        private async Task Work()
+        private void Work()
         {
-            try
+            foreach (var taskFunc in queue.GetConsumingEnumerable(CancellationToken.None))
             {
-                foreach (var task in queue.GetConsumingEnumerable(cancellationTokenSource.Token))
+                try
                 {
-                    try
-                    {
-                        await task();
-                    }
-                    catch
-                    {
-                        // The task should not leak any exceptions, Add should have taken care of that.
-                    }
+                    var task = taskFunc();
+                    if (!task.IsCompleted)
+                        task.AsTask().GetAwaiter().GetResult();
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                if (!cancellationTokenSource.IsCancellationRequested)
-                    throw;
+                catch
+                {
+                    // The task should not leak any exceptions, Add should have taken care of that.
+                }
             }
         }
     }

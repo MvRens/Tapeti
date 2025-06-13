@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
+using JetBrains.Annotations;
 
 namespace Tapeti.Flow.Default
 {
@@ -18,10 +20,18 @@ namespace Tapeti.Flow.Default
     /// </summary>
     public class FlowState
     {
+        private FlowMetadata metadata = null!;
+        private IReadOnlyDictionary<Guid, ContinuationMetadata> continuations = null!;
+
+
         /// <summary>
         /// Contains metadata about the flow.
         /// </summary>
-        public required FlowMetadata Metadata { get; init; }
+        public required FlowMetadata Metadata
+        {
+            get => metadata;
+            init => metadata = value;
+        }
 
 
         /// <summary>
@@ -33,7 +43,11 @@ namespace Tapeti.Flow.Default
         /// <summary>
         /// Contains metadata about continuations awaiting a response.
         /// </summary>
-        public required IReadOnlyDictionary<Guid, ContinuationMetadata> Continuations { get; init; }
+        public required IReadOnlyDictionary<Guid, ContinuationMetadata> Continuations
+        {
+            get => continuations;
+            init => continuations = value;
+        }
 
 
         /// <summary>
@@ -75,6 +89,20 @@ namespace Tapeti.Flow.Default
                 Data = Data,
                 Continuations = Continuations.Where(p => p.Key != continuationID).ToDictionary()
             };
+        }
+
+
+        [OnDeserialized]
+        [PublicAPI]
+        internal void OnDeserializedMethod(StreamingContext context)
+        {
+            // Deserialization is the only way these fields should be able to end up as null. It should never happen
+            // or have happened in the past, but older code handled it gracefully so might as well keep that.
+            // And it's a great excuse to not fix the Flow.SQL unit test which uses an empty JSON object ;-)
+            // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+            metadata ??= new FlowMetadata(null);
+            continuations ??= new Dictionary<Guid, ContinuationMetadata>();
+            // ReSharper restore NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
         }
     }
 

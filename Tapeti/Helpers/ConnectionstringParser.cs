@@ -117,7 +117,7 @@ namespace Tapeti.Helpers
         private void SetValue(string key, string value)
         {
             // ReSharper disable once SwitchStatementMissingSomeCases - by design, don't fail on unknown properties
-            switch (key.ToLowerInvariant()) 
+            switch (key.ToLowerInvariant())
             {
                 case "hostname": result.HostName = value; break;
                 case "port": result.Port = int.Parse(value); break;
@@ -126,7 +126,8 @@ namespace Tapeti.Helpers
                 case "password": result.Password = value; break;
                 case "prefetchcount": result.PrefetchCount = ushort.Parse(value); break;
                 case "managementport": result.ManagementPort = int.Parse(value); break;
-                case "consumerDispatchConcurrency": result.ConsumerDispatchConcurrency = ushort.Parse(value); break;
+                case "consumerdispatchconcurrency": result.ConsumerDispatchConcurrency = ushort.Parse(value); break;
+                case "publishchannelpoolsize": result.PublishChannelPoolSize = ushort.Parse(value); break;
             }
         }
     }

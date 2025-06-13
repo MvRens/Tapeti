@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
 
@@ -8,9 +9,11 @@ namespace Tapeti
     /// <summary>
     /// Defines the connection parameters.
     /// </summary>
+    [PublicAPI]
     public class TapetiConnectionParams
     {
         private IDictionary<string, string>? clientProperties;
+        private ushort publishChannelPoolSize;
 
 
         /// <summary>
@@ -40,7 +43,7 @@ namespace Tapeti
 
         /// <summary>
         /// The amount of message to prefetch. See http://www.rabbitmq.com/consumer-prefetch.html for more information.
-        /// 
+        ///
         /// If set to 0, no limit will be applied.
         /// </summary>
         public ushort PrefetchCount { get; set; } = 50;
@@ -70,9 +73,24 @@ namespace Tapeti
         /// If any of the default keys used by the RabbitMQ Client library (product, version) are specified their value
         /// will be overwritten. See DefaultClientProperties in Connection.cs in the RabbitMQ .NET client source for the default values.
         /// </remarks>
-        public IDictionary<string, string>? ClientProperties { 
+        public IDictionary<string, string>? ClientProperties {
             get => clientProperties ??= new Dictionary<string, string>();
             set => clientProperties = value;
+        }
+
+        /// <summary>
+        /// The number of channels reserved for publishing messages.
+        /// </summary>
+        /// <remarks>
+        /// For each channel a corresponding task queue is allocated. This increases throughput at the cost of
+        /// more running background tasks and possibly threads.<br/><br/>
+        /// Defaults to <see cref="Environment.ProcessorCount"/> (up to 16 to account for diminishing returns).
+        /// Setting this value to 0 will silently correct it to 1.
+        /// </remarks>
+        public ushort PublishChannelPoolSize
+        {
+            get => publishChannelPoolSize;
+            set => publishChannelPoolSize = value == 0 ? (ushort)1 : value;
         }
 
 
@@ -80,7 +98,10 @@ namespace Tapeti
         /// </summary>
         public TapetiConnectionParams()
         {
-            ConsumerDispatchConcurrency = Environment.ProcessorCount <= ushort.MaxValue ? (ushort)Environment.ProcessorCount : ushort.MaxValue;
+            var ushortProcessorCount = Environment.ProcessorCount <= ushort.MaxValue ? (ushort)Environment.ProcessorCount : ushort.MaxValue;
+
+            ConsumerDispatchConcurrency = ushortProcessorCount;
+            PublishChannelPoolSize = Math.Min(ushortProcessorCount, (ushort)16);
         }
 
         /// <summary>
@@ -98,12 +119,14 @@ namespace Tapeti
                 Port = uri.Port;
 
             var userInfo = uri.UserInfo.Split(':');
-            if (userInfo.Length <= 0) 
+            if (userInfo.Length <= 0)
                 return;
 
             Username = userInfo[0];
             if (userInfo.Length > 1)
                 Password = userInfo[1];
+
+            // TODO add support for query parameters
         }
     }
 }

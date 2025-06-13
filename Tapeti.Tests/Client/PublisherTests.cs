@@ -58,6 +58,10 @@ public class PublisherTests : IAsyncLifetime
             .Build();
 
         connection = CreateConnection(config);
+        connection.Params = new TapetiConnectionParams
+        {
+            PublishChannelPoolSize = 16
+        };
         await connection.Open();
 
         var publisher = connection.GetPublisher();
@@ -66,9 +70,7 @@ public class PublisherTests : IAsyncLifetime
         await Task.WhenAll(
             Enumerable
                 .Range(0, 20000)
-                .Select(i =>
-                    publisher.Publish(new PublishTestMessage { PublishCount = i })
-                )
+                .Select(i => Task.Run(() => publisher.Publish(new PublishTestMessage { PublishCount = i })))
             ).WithTimeout(TimeSpan.FromSeconds(30));
     }
 

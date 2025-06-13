@@ -49,7 +49,7 @@ public class TapetiChannelTests : IAsyncLifetime
 
             publishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
             {
-                ChannelType = ChannelType.PublishDefault,
+                ChannelType = ChannelType.Publish,
                 PublisherConfirmationsEnabled = true,
                 PrefetchCount = 0
             });

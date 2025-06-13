@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Connection;
@@ -101,7 +102,7 @@ public class TapetiConnection : IConnection
     /// <inheritdoc />
     public IPublisher GetPublisher()
     {
-        return new TapetiPublisher(() => EnsureInitialized().DefaultPublishChannel, config);
+        return new TapetiPublisher(() => EnsureInitialized().GetPublishChannel(), config);
     }
 
     /// <inheritdoc />
@@ -123,15 +124,7 @@ public class TapetiConnection : IConnection
         }
 
         if (capturedInitializedConnection is not null)
-        {
-            await capturedInitializedConnection.DefaultConsumeChannel.Close();
-            await capturedInitializedConnection.DefaultPublishChannel.Close();
-
-            foreach (var channel in capturedInitializedConnection.DedicatedChannels)
-                await channel.Close();
-
-            await capturedInitializedConnection.Transport.Close();
-        }
+            await capturedInitializedConnection.Close();
     }
 
 
@@ -191,12 +184,16 @@ public class TapetiConnection : IConnection
                     PrefetchCount = connectionParams.PrefetchCount
                 }),
 
-                DefaultPublishChannel = new TapetiChannel(logger, transport, new TapetiChannelOptions
-                {
-                    ChannelType = ChannelType.PublishDefault,
-                    PublisherConfirmationsEnabled = true,
-                    PrefetchCount = 0
-                })
+                PublishChannelPool = Enumerable
+                    // ConnectionParams already enforces a minimum of 1
+                    .Range(0, connectionParams.PublishChannelPoolSize)
+                    .Select(_ => new TapetiChannel(logger, transport, new TapetiChannelOptions
+                    {
+                        ChannelType = ChannelType.Publish,
+                        PublisherConfirmationsEnabled = true,
+                        PrefetchCount = 0
+                    }))
+                    .ToArray()
             };
 
             return initializedConnection;
@@ -206,11 +203,15 @@ public class TapetiConnection : IConnection
 
     private class InitializedConnection
     {
+        private readonly List<TapetiChannel> dedicatedChannels = [];
+
+        private readonly object publishChannelIndexLock = new();
+        private int publishChannelIndex;
+
         public required ILogger Logger { get; init; }
         public required ITapetiTransport Transport { get; init; }
         public required TapetiChannel DefaultConsumeChannel { get; init; }
-        public required TapetiChannel DefaultPublishChannel { get; init; }
-        public List<TapetiChannel> DedicatedChannels { get; } = [];
+        public required IReadOnlyList<TapetiChannel> PublishChannelPool { get; init; }
 
         public required ushort PrefetchCount { get; init; }
 
@@ -224,9 +225,43 @@ public class TapetiConnection : IConnection
                 PrefetchCount = PrefetchCount
             });
 
-            DedicatedChannels.Add(channel);
+            dedicatedChannels.Add(channel);
 
             return channel;
+        }
+
+
+        public ITapetiChannel GetPublishChannel()
+        {
+            if (PublishChannelPool.Count == 1)
+                return PublishChannelPool[0];
+
+            int capturedIndex;
+
+            lock (publishChannelIndexLock)
+            {
+                capturedIndex = publishChannelIndex;
+                publishChannelIndex++;
+
+                if (publishChannelIndex >= PublishChannelPool.Count)
+                    publishChannelIndex = 0;
+            }
+
+            return PublishChannelPool[capturedIndex];
+        }
+
+
+        public async Task Close()
+        {
+            await DefaultConsumeChannel.Close();
+
+            foreach (var channel in PublishChannelPool)
+                await channel.Close();
+
+            foreach (var channel in dedicatedChannels)
+                await channel.Close();
+
+            await Transport.Close();
         }
     }
 

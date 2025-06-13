@@ -117,7 +117,7 @@ public enum ChannelType
     /// <summary>
     /// This channel is the default channel for publishing messages.
     /// </summary>
-    PublishDefault,
+    Publish,
 
     /// <summary>
     /// This channel is the default channel for consumers.
