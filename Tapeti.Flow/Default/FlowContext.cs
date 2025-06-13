@@ -17,8 +17,8 @@ namespace Tapeti.Flow.Default
 
         public bool HasFlowStateAndLock => flowState != null && flowStateLock != null;
 
-        public Guid ContinuationID { get; set; }
-        public ContinuationMetadata? ContinuationMetadata { get; set; }
+        public Guid ContinuationID { get; init; }
+        public ContinuationMetadata? ContinuationMetadata { get; init; }
 
         private int storeCalled;
         private int deleteCalled;
@@ -45,12 +45,18 @@ namespace Tapeti.Flow.Default
         }
 
 
+        public void SetFlowState(FlowState newFlowState)
+        {
+            flowState = newFlowState;
+        }
+
+
         public ValueTask Store(bool persistent)
         {
             storeCalled++;
 
-            FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller);
-            return FlowStateLock.StoreFlowState(FlowState, persistent);
+            flowState = FlowState.WithData(Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller));
+            return FlowStateLock.StoreFlowState(flowState, persistent);
         }
 
         public ValueTask Delete()

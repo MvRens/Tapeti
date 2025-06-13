@@ -86,7 +86,12 @@ namespace Tapeti.Tests.Flow.SQL
             flowStateLock.GetFlowState().ShouldBeNull();
 
             await CheckExists(connection, flowId, false);
-            await flowStateLock.StoreFlowState(new FlowState(), true);
+            await flowStateLock.StoreFlowState(new FlowState
+            {
+                Metadata = new FlowMetadata(null),
+                Data = null,
+                Continuations = new Dictionary<Guid, ContinuationMetadata>()
+            }, true);
             await CheckExists(connection, flowId, true);
         }
 
@@ -117,12 +122,16 @@ namespace Tapeti.Tests.Flow.SQL
             var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
             var stateJson = JsonConvert.SerializeObject(new FlowState
             {
+                Metadata = new FlowMetadata(null),
+                Data = null,
                 Continuations = new Dictionary<Guid, ContinuationMetadata>
                 {
                     {
                         continuationId, new ContinuationMetadata
                         {
-                            MethodName = serializedContinuationMethod
+                            MethodName = serializedContinuationMethod,
+                            ConvergeMethodName = null,
+                            ConvergeMethodSync = false
                         }
                     }
                 }
@@ -139,7 +148,7 @@ namespace Tapeti.Tests.Flow.SQL
 
             var flowState = flowStateLock.GetFlowState();
             flowState.ShouldNotBeNull();
-            flowState.Continuations.ShouldContainKey(continuationId);
+            flowState.Continuations.ContainsKey(continuationId).ShouldBeTrue();
 
 
             ContinuationMethodValidator.ValidatedMethods.ShouldContainKeyAndValue(serializedContinuationMethod, serializedContinuationMethod);
@@ -192,7 +201,7 @@ namespace Tapeti.Tests.Flow.SQL
             releaseLocks.SetResult();
 
             await Task.WhenAll(
-                task1.WithTimeout(taskTimeout, "Task1"), 
+                task1.WithTimeout(taskTimeout, "Task1"),
                 task2.WithTimeout(taskTimeout, "Task2")
             );
         }
@@ -250,13 +259,13 @@ namespace Tapeti.Tests.Flow.SQL
 
             await Task.Delay(100);
 
-            lock2Acquired.Task.IsCompleted.ShouldBeFalse(); 
+            lock2Acquired.Task.IsCompleted.ShouldBeFalse();
 
             releaseLock1.SetResult();
             await lock2Acquired.Task.WithTimeout(taskTimeout, "Lock2Acquired");
 
             lock1Released.Task.IsCompleted.ShouldBeTrue();
-            releaseLock2.SetResult(); 
+            releaseLock2.SetResult();
 
 
             await Task.WhenAll(
@@ -293,12 +302,16 @@ namespace Tapeti.Tests.Flow.SQL
             var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
             var stateJson = JsonConvert.SerializeObject(new FlowState
             {
+                Metadata = new FlowMetadata(null),
+                Data = null,
                 Continuations = new Dictionary<Guid, ContinuationMetadata>
                 {
                     {
                         continuationId, new ContinuationMetadata
                         {
-                            MethodName = serializedContinuationMethod
+                            MethodName = serializedContinuationMethod,
+                            ConvergeMethodName = null,
+                            ConvergeMethodSync = false
                         }
                     }
                 }
@@ -341,12 +354,16 @@ namespace Tapeti.Tests.Flow.SQL
             var serializedContinuationMethod = MethodSerializer.Serialize(continuationMethod);
             var stateJson = JsonConvert.SerializeObject(new FlowState
             {
+                Metadata = new FlowMetadata(null),
+                Data = null,
                 Continuations = new Dictionary<Guid, ContinuationMetadata>
                 {
                     {
                         continuationId, new ContinuationMetadata
                         {
-                            MethodName = serializedContinuationMethod
+                            MethodName = serializedContinuationMethod,
+                            ConvergeMethodName = null,
+                            ConvergeMethodSync = false
                         }
                     }
                 }

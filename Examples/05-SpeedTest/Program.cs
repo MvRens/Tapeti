@@ -39,7 +39,7 @@ namespace _05_SpeedTest
             container.RegisterDefaultSingleton<IMessageCounter>(new MessageCounter(MessageCount, () =>
             {
                 var exampleState = dependencyResolver.Resolve<IExampleState>();
-                exampleState.Done();                
+                exampleState.Done();
             }));
 
 
@@ -63,7 +63,6 @@ namespace _05_SpeedTest
             stopwatch.Start();
 
 
-            // TODO this hangs.
             await PublishMessages(publisher);
 
             stopwatch.Stop();

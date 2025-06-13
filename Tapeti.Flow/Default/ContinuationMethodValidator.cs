@@ -95,7 +95,7 @@ namespace Tapeti.Flow.Default
         public void ValidateContinuations(Guid flowId, IReadOnlyDictionary<Guid, ContinuationMetadata> continuations)
         {
             foreach (var pair in continuations)
-                pair.Value.MethodName = ValidateMethodName(flowId, pair.Key, pair.Value.MethodName);
+                pair.Value.MapMethodName(ValidateMethodName(flowId, pair.Key, pair.Value.MethodName));
         }
 
 

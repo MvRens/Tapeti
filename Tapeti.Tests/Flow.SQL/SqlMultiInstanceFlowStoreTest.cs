@@ -88,16 +88,19 @@ namespace Tapeti.Tests.Flow.SQL
             var creationTime2 = new DateTime(2025, 5, 9, 9, 40, 0, DateTimeKind.Utc);
             var stateJson2 = JsonConvert.SerializeObject(new FlowState
             {
+                Metadata = new FlowMetadata(null),
+                Data = null,
                 Continuations = new Dictionary<Guid, ContinuationMetadata>
                 {
                     {
                         continuationId3, new ContinuationMetadata
                         {
-                            MethodName = "Continuation3"
+                            MethodName = "Continuation3",
+                            ConvergeMethodName = null,
+                            ConvergeMethodSync = false
                         }
                     }
-                },
-                Metadata = new FlowMetadata(null)
+                }
             });
 
             await connection.ExecuteAsync(

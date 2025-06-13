@@ -103,13 +103,15 @@ namespace Tapeti.Flow.Default
 
             var continuationID = Guid.NewGuid();
 
-            context.FlowState.Continuations.Add(continuationID,
+            context.SetFlowState(context.FlowState.WithContinuation(
+                continuationID,
                 new ContinuationMetadata
                 {
                     MethodName = responseHandlerInfo.MethodName,
                     ConvergeMethodName = convergeMethodName,
                     ConvergeMethodSync = convergeMethodTaskSync
-                });
+                })
+            );
 
             var properties = new MessageProperties
             {
@@ -227,7 +229,9 @@ namespace Tapeti.Flow.Default
 
             var flowState = new FlowState
             {
-                Metadata = new FlowMetadata(GetReply(flowContext.HandlerContext))
+                Metadata = new FlowMetadata(GetReply(flowContext.HandlerContext)),
+                Data = null,
+                Continuations = new Dictionary<Guid, ContinuationMetadata>()
             };
 
             flowContext.SetFlowState(flowState, flowStateLock);
@@ -324,10 +328,10 @@ namespace Tapeti.Flow.Default
                 throw new ArgumentException($"Unknown converge method in controller {controllerPayload.Controller.GetType().Name}: {convergeMethodName}");
 
             if (convergeMethodSync)
-                yieldPoint = (IYieldPoint?)method.Invoke(controllerPayload.Controller, new object[] { });
+                yieldPoint = (IYieldPoint?)method.Invoke(controllerPayload.Controller, []);
             else
             {
-                var yieldPointTask = method.Invoke(controllerPayload.Controller, new object[] { });
+                var yieldPointTask = method.Invoke(controllerPayload.Controller, []);
                 if (yieldPointTask == null)
                     throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {convergeMethodName}");
 
@@ -349,7 +353,7 @@ namespace Tapeti.Flow.Default
                 public object Message { get; }
                 public ResponseHandlerInfo ResponseHandlerInfo { get; }
 
-                
+
                 public RequestInfo(object message, ResponseHandlerInfo responseHandlerInfo)
                 {
                     Message = message;

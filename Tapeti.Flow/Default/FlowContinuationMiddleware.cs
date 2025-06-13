@@ -43,7 +43,7 @@ namespace Tapeti.Flow.Default
                     Newtonsoft.Json.JsonConvert.PopulateObject(flowContext.FlowState.Data, controllerPayload.Controller);
 
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
-                flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
+                flowContext.SetFlowState(flowContext.FlowState.WithoutContinuation(flowContext.ContinuationID));
 
                 await next().ConfigureAwait(false);
 
