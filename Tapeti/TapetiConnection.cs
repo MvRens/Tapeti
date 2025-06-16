@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -35,8 +35,6 @@ public class TapetiConnection : IConnection
 
 
     private readonly ITapetiConfig config;
-    private readonly ITapetiTransportFactory transportFactory;
-    private readonly ILogger logger;
 
     private readonly object initializedConnectionLock = new();
     private InitializedConnection? initializedConnection;
@@ -56,9 +54,6 @@ public class TapetiConnection : IConnection
     {
         this.config = config;
         (config.DependencyResolver as IDependencyContainer)?.RegisterDefault(GetPublisher);
-
-        transportFactory = config.DependencyResolver.Resolve<ITapetiTransportFactory>();
-        logger = config.DependencyResolver.Resolve<ILogger>();
     }
 
 
@@ -166,6 +161,9 @@ public class TapetiConnection : IConnection
             // and we can't introduce a new method for it either.
             if (initializedConnection is not null)
                 return initializedConnection;
+
+            var transportFactory = config.DependencyResolver.Resolve<ITapetiTransportFactory>();
+            var logger = config.DependencyResolver.Resolve<ILogger>();
 
             var connectionParams = Params ?? new TapetiConnectionParams();
             var transport = transportFactory.Create(connectionParams);
