@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Web;
 using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
@@ -107,8 +109,18 @@ namespace Tapeti
         /// <summary>
         /// Construct a new TapetiConnectionParams instance based on standard URI syntax.
         /// </summary>
+        /// <remarks>
+        /// Supported query parameters are (case-insensitive):<br/>
+        /// <ul>
+        ///   <li>prefetchCount</li>
+        ///   <li>managementPort</li>
+        ///   <li>consumerDispatchConcurrency</li>
+        ///   <li>publishChannelPoolSize</li>
+        /// </ul>
+        /// </remarks>
         /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname/"))</example>
         /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname:5672/virtualHost"))</example>
+        /// <example>new TapetiConnectionParams(new Uri("amqp://username:password@hostname:5672/virtualHost?prefetchCount=50"))</example>
         /// <param name="uri"></param>
         public TapetiConnectionParams(Uri uri) : this()
         {
@@ -118,15 +130,38 @@ namespace Tapeti
             if (!uri.IsDefaultPort)
                 Port = uri.Port;
 
-            var userInfo = uri.UserInfo.Split(':');
-            if (userInfo.Length <= 0)
+            if (uri.UserInfo.Length > 0)
+            {
+                var userInfo = uri.UserInfo.Split(':').Select(Uri.UnescapeDataString).ToArray();
+                if (userInfo.Length > 0)
+                {
+                    Username = userInfo[0];
+                    if (userInfo.Length > 1)
+                        Password = userInfo[1];
+                }
+            }
+
+            if (string.IsNullOrEmpty(uri.Query))
                 return;
 
-            Username = userInfo[0];
-            if (userInfo.Length > 1)
-                Password = userInfo[1];
+            var query = HttpUtility.ParseQueryString(uri.Query);
+            foreach (var key in query.AllKeys)
+            {
+                if (key is null)
+                    continue;
 
-            // TODO add support for query parameters
+                var value = query[key];
+                if (value is null)
+                    continue;
+
+                switch (key.ToLowerInvariant())
+                {
+                    case "prefetchcount": PrefetchCount = ushort.Parse(value); break;
+                    case "managementport": ManagementPort = int.Parse(value); break;
+                    case "consumerdispatchconcurrency": ConsumerDispatchConcurrency = ushort.Parse(value); break;
+                    case "publishchannelpoolsize": PublishChannelPoolSize = ushort.Parse(value); break;
+                }
+            }
         }
     }
 }

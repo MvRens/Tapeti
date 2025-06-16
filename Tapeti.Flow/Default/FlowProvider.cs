@@ -160,12 +160,10 @@ namespace Tapeti.Flow.Default
                 CorrelationId = reply.CorrelationId
             };
 
-            // TODO disallow if replyto is not specified?
-            if (reply.ReplyTo != null)
-                await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory).ConfigureAwait(false);
-            else
-                await publisher.Publish(message, properties, reply.Mandatory).ConfigureAwait(false);
+            if (reply.ReplyTo == null)
+                throw new YieldPointException($"Can not end a flow with a response because it was not started by a message with a valid ReplyTo header. Use IPublisher.Publish instead if you want to broadcast a message.");
 
+            await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory).ConfigureAwait(false);
             await context.Delete().ConfigureAwait(false);
         }
 

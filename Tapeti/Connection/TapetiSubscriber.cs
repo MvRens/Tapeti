@@ -93,9 +93,6 @@ namespace Tapeti.Connection
 
             await channel.EnqueueOnce(async transportChannel =>
             {
-                // TODO keep track of declared queues and exchanges
-                // this used to be handled by the TapetiClient, but it seems wrong to make the transport keep track of this
-
                 if (config.GetFeatures().DeclareDurableQueues)
                     bindingTarget = new DeclareDurableQueuesBindingTarget(transportChannel, routingKeyStrategy, exchangeStrategy, transportChannel.ChannelClosed);
                 else if (config.GetFeatures().VerifyDurableQueues)

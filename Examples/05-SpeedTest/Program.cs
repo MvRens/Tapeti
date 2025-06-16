@@ -26,7 +26,6 @@ namespace _05_SpeedTest
         // Debug vs Release build does not impact the results much.
         private const int PublishChannelPoolSize = 16;
 
-        // TODO anything above 3 and publishing will halt most of the time (but not always)
 
         public static void Main()
         {

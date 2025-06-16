@@ -157,7 +157,7 @@ namespace Tapeti.Tests.Client
             // Dynamic queue is of course empty but should be recreated
             // Note that the reconnected event fires before the queue is re-declared because that relies on
             // the consume channel to be re-created. So we have to wait for that task to trigger.
-            // TODO find a more reliable way to test that the queue has been re-declared
+            // TODO find a more reliable way to test that the queue has been re-declared - perhaps listen to the logger events?
             await Task.Delay(TimeSpan.FromMilliseconds(100));
 
             testOutputHelper.WriteLine("> Sending and waiting for dynamic message");

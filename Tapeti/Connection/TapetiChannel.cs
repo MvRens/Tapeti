@@ -115,7 +115,6 @@ internal class TapetiChannel : ITapetiChannel
                 await operation(channel);
                 break;
             }
-            // TODO is this enough error handling?
             catch (AlreadyClosedException)
             {
                 // Retry
