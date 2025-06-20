@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using JetBrains.Annotations;
+using Serilog.Events;
 using Tapeti.Config;
 using Tapeti.Connection;
 using ISerilogLogger = Serilog.ILogger;
@@ -12,6 +14,7 @@ namespace Tapeti.Serilog
     /// <summary>
     /// Implements the Tapeti ILogger interface for Serilog output.
     /// </summary>
+    [PublicAPI]
     public class TapetiSeriLogger: IBindingLogger, IChannelLogger
     {
         /// <summary>
@@ -21,15 +24,59 @@ namespace Tapeti.Serilog
         public class WithMessageLogging : TapetiSeriLogger
         {
             /// <inheritdoc />
-            public WithMessageLogging(ISerilogLogger seriLogger) : base(seriLogger) { }
-
-            internal override bool IncludeMessageInfo() => true;
+            [Obsolete("Use IncludeMessageInfo and IncludeMessageBody properties instead")]
+            public WithMessageLogging(ISerilogLogger seriLogger) : base(seriLogger)
+            {
+                IncludeMessageInfo = true;
+                IncludeMessageBody = true;
+            }
         }
 
 
 
 
         private readonly ISerilogLogger seriLogger;
+
+        /// <summary>
+        /// Determines if the message properties are included in the log message when an exception occurs.
+        /// </summary>
+        public bool IncludeMessageInfo { get; init; }
+
+        /// <summary>
+        /// Determines if the message body is included in the log message when an exception occurs.
+        /// </summary>
+        public bool IncludeMessageBody { get; init; }
+
+
+        /// <summary>
+        /// Determines the log level for informational connection events (e.g. connecting, connected, disconnected).
+        /// </summary>
+        /// <remarks>
+        /// Connection failed events are currently always logged as Error.
+        /// </remarks>
+        public LogEventLevel ConnectionEventsLevel { get; init; } = LogEventLevel.Information;
+
+        /// <summary>
+        /// Determines the log level for informational consumers events (consumer started).
+        /// </summary>
+        /// <remarks>
+        /// Exceptions in message handlers are currently always logged as Error.
+        /// </remarks>
+        public LogEventLevel ConsumerEventsLevel { get; init; } = LogEventLevel.Information;
+
+        /// <summary>
+        /// Determines the log level for informational binding events (e.g. declaring queues, exchanges and bindings).
+        /// </summary>
+        /// <remarks>
+        /// Messages about queues marked as Obsolete are currently always logged as Information.
+        /// Messages about existing queues with incompatible arguments are always logged as Warning.
+        /// </remarks>
+        public LogEventLevel BindingEventsLevel { get; init; } = LogEventLevel.Information;
+
+        /// <summary>
+        /// Determines the log level for informational channel events (channel created or shut down).
+        /// </summary>
+        public LogEventLevel ChannelEventsLevel { get; init; } = LogEventLevel.Information;
 
 
         /// <summary>
@@ -47,7 +94,7 @@ namespace Tapeti.Serilog
         {
             seriLogger
                 .ForContext("isReconnect", context.IsReconnect)
-                .Information("Tapeti: trying to connect to {host}:{port}/{virtualHost}",
+                .Write(ConnectionEventsLevel, "Tapeti: trying to connect to {host}:{port}/{virtualHost}",
                     context.ConnectionParams.HostName,
                     context.ConnectionParams.Port,
                     context.ConnectionParams.VirtualHost);
@@ -67,7 +114,7 @@ namespace Tapeti.Serilog
         {
             seriLogger
                 .ForContext("isReconnect", context.IsReconnect)
-                .Information("Tapeti: successfully connected to {host}:{port}/{virtualHost} on local port {localPort}",
+                .Write(ConnectionEventsLevel, "Tapeti: successfully connected to {host}:{port}/{virtualHost} on local port {localPort}",
                     context.ConnectionParams.HostName,
                     context.ConnectionParams.Port,
                     context.ConnectionParams.VirtualHost,
@@ -78,7 +125,7 @@ namespace Tapeti.Serilog
         public void Disconnect(DisconnectContext context)
         {
             seriLogger
-                .Information("Tapeti: connection closed, reply text = {replyText}, reply code = {replyCode}",
+                .Write(ConnectionEventsLevel, "Tapeti: connection closed, reply text = {replyText}, reply code = {replyCode}",
                     context.ReplyText,
                     context.ReplyCode);
         }
@@ -87,7 +134,7 @@ namespace Tapeti.Serilog
         public void ConsumeStarted(ConsumeStartedContext context)
         {
             seriLogger
-                .Information("Tapeti: consumer {startType} for {queueType} {queueName}",
+                .Write(ConsumerEventsLevel, "Tapeti: consumer {startType} for {queueType} {queueName}",
                     context.IsRestart ? "restarted" : "started",
                     context.IsDynamicQueue ? "dynamic queue" : "durable queue",
                     context.QueueName);
@@ -116,14 +163,19 @@ namespace Tapeti.Serilog
                 messageParams.Add(controllerPayload.Binding.Method.Name);
             }
 
-            if (IncludeMessageInfo())
+            if (IncludeMessageInfo)
             {
-                message.Append(" on exchange {exchange}, queue {queue}, routingKey {routingKey}, replyTo {replyTo}, correlationId {correlationId} with body {body}");
+                message.Append(" on exchange {exchange}, queue {queue}, routingKey {routingKey}, replyTo {replyTo}, correlationId {correlationId}");
                 messageParams.Add(messageContext.Exchange);
                 messageParams.Add(messageContext.Queue);
                 messageParams.Add(messageContext.RoutingKey);
                 messageParams.Add(messageContext.Properties.ReplyTo);
                 messageParams.Add(messageContext.Properties.CorrelationId);
+            }
+
+            if (IncludeMessageBody)
+            {
+                message.Append(" with body {body}");
                 messageParams.Add(messageContext.RawBody != null ? Encoding.UTF8.GetString(messageContext.RawBody) : null);
             }
 
@@ -134,9 +186,9 @@ namespace Tapeti.Serilog
         public void QueueDeclare(string queueName, bool durable, bool passive)
         {
             if (passive)
-                seriLogger.Information("Tapeti: verifying durable queue {queueName}", queueName);
+                seriLogger.Write(BindingEventsLevel, "Tapeti: verifying durable queue {queueName}", queueName);
             else
-                seriLogger.Information("Tapeti: declaring {queueType} queue {queueName}", durable ? "durable" : "dynamic", queueName);
+                seriLogger.Write(BindingEventsLevel, "Tapeti: declaring {queueType} queue {queueName}", durable ? "durable" : "dynamic", queueName);
         }
 
         /// <inheritdoc />
@@ -151,7 +203,7 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void QueueBind(string queueName, bool durable, string exchange, string routingKey)
         {
-            seriLogger.Information("Tapeti: binding {queueName} to exchange {exchange} with routing key {routingKey}",
+            seriLogger.Write(BindingEventsLevel, "Tapeti: binding {queueName} to exchange {exchange} with routing key {routingKey}",
                 queueName,
                 exchange,
                 routingKey);
@@ -160,7 +212,7 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void QueueUnbind(string queueName, string exchange, string routingKey)
         {
-            seriLogger.Information("Tapeti: removing binding for {queueName} to exchange {exchange} with routing key {routingKey}",
+            seriLogger.Write(BindingEventsLevel, "Tapeti: removing binding for {queueName} to exchange {exchange} with routing key {routingKey}",
                 queueName,
                 exchange,
                 routingKey);
@@ -169,7 +221,7 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void ExchangeDeclare(string exchange)
         {
-            seriLogger.Information("Tapeti: declaring exchange {exchange}", exchange);
+            seriLogger.Write(BindingEventsLevel, "Tapeti: declaring exchange {exchange}", exchange);
         }
 
         /// <inheritdoc />
@@ -185,7 +237,7 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void ChannelCreated(ChannelCreatedContext context)
         {
-            seriLogger.Verbose("Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} {createType}",
+            seriLogger.Write(ChannelEventsLevel, "Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} {createType}",
                 context.ChannelNumber,
                 context.ConnectionReference,
                 context.ChannelType,
@@ -196,16 +248,12 @@ namespace Tapeti.Serilog
         /// <inheritdoc />
         public void ChannelShutdown(ChannelShutdownContext context)
         {
-            seriLogger.Verbose("Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} shut down, code {replyCode}: {replyText}",
+            seriLogger.Write(ChannelEventsLevel, "Tapeti: channel #{channelNumber} on connection {connectionReference} of type {channelType} shut down, code {replyCode}: {replyText}",
                 context.ChannelNumber,
                 context.ConnectionReference,
                 context.ChannelType,
                 context.ReplyCode,
                 context.ReplyText);
         }
-
-
-        internal virtual bool IncludeMessageInfo() => false;
-
     }
 }
