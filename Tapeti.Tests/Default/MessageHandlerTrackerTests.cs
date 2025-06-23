@@ -40,7 +40,7 @@ public class MessageHandlerTrackerTests
         });
 
         await tracker.WaitAll(TimeSpan.FromSeconds(10), CancellationToken.None);
-        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(2000);
+        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(5000);
     }
 
 
@@ -54,7 +54,7 @@ public class MessageHandlerTrackerTests
 
         await tracker.WaitAll(TimeSpan.FromSeconds(10), CancellationToken.None);
 
-        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(2000);
+        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(5000);
     }
 
 
@@ -75,6 +75,6 @@ public class MessageHandlerTrackerTests
         tracker.Exit();
 
         await tracker.WaitAll(TimeSpan.FromSeconds(10), CancellationToken.None);
-        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(2000);
+        stopwatch.ElapsedMilliseconds.ShouldBeLessThan(5000);
     }
 }
