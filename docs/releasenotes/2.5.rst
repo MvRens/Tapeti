@@ -1,0 +1,13 @@
+ .. warning::
+
+    Do not use this version
+
+This version contains a bug introduced in version 2.4 when upgrading to the new RabbitMQ Client version 6 which can result in corruption of the message body.
+
+.. rubric:: Tapeti core
+  :heading-level: 2
+
+* | Implemented IAsyncDisposable on connection and subscriber
+* | Added RoutingKey attribute to prefix, postfix or completely replace the routing key for messages when using the default TypeNameRoutingKeyStrategy.
+
+A RoutingKeyHelper class has been added which can be used to add support for this attribute to custom implementations of IRoutingKeyStrategy.

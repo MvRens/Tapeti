@@ -1,0 +1,4 @@
+.. rubric:: Tapeti.Transient
+  :heading-level: 2
+
+* | Fixed exception in Tapeti.Transient when message arrives after the timeout

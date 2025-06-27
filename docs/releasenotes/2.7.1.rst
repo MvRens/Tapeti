@@ -1,0 +1,6 @@
+.. rubric:: Breaking changes
+  :heading-level: 3
+
+This version should be compatible for existing clients. One change requires changes to custom IExceptionStrategy implementations:
+
+* | IExceptionStrategy.HandleException can now be async and returns a Task instead of void

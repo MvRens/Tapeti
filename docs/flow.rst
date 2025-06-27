@@ -293,6 +293,17 @@ By default flow state is only preserved while the service is running. To persist
       .Build();
 
 
+
+
+.. _flowsql:
+
+SQL Server
+^^^^^^^^^^
+
+.. warning::
+
+    This bit needs to be rewritten to account for the single vs multi-instance flow store.
+
 Tapeti.Flow includes an implementation for SQL server you can use as well. First, make sure your database contains a table to store flow state:
 
 ::
@@ -317,3 +328,5 @@ Then install the Tapeti.Flow.SQL NuGet package and register the SqlConnectionFlo
 
 
 .. caution:: The controller and method names for response handlers and converge methods are stored in the flow and must be valid when they are loaded again. Keep that in mind if you want to refactor the code; either keep the original class and method temporarily for backwards compatibility, optionally redirecting them internally to the new code, or make sure there are no persisted flows remaining.
+
+.. note:: TODO The above caution can be mitigated with the new mapping options. Document this.
