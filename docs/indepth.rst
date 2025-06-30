@@ -28,6 +28,8 @@ Similar to ASP.NET, Tapeti will bind parameters of type CancellationToken to a t
 
 .. note:: This does not indicate whether the connection was closed by the application or lost unexpectedly, either scenario will cancel the token. This is by design, as any message in-flight will be put back on the queue and redelivered anyways.
 
+.. note:: Running message handlers will block channel re-creation, it is therefore highly recommended to implement this in your message handlers if there is any chance they will run for more than a few seconds.
+
 Internally this CancellationToken is called ChannelClosed, but any name can be used. For example:
 
 ::
