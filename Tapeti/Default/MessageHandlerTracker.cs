@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Helpers;
@@ -10,6 +12,7 @@ namespace Tapeti.Default
     {
         private volatile int runningCount;
         private readonly ManualResetEventSlim idleEvent = new(true);
+        private readonly ConcurrentDictionary<Task, bool> detachedTasks = [];
 
 
         /// <inheritdoc />
@@ -21,6 +24,17 @@ namespace Tapeti.Default
 
 
         /// <inheritdoc />
+        public void Detach(Task messageHandlerTask)
+        {
+            detachedTasks.TryAdd(messageHandlerTask, true);
+            messageHandlerTask.ContinueWith(t =>
+            {
+                detachedTasks.TryRemove(t, out _);
+            });
+        }
+
+
+        /// <inheritdoc />
         public void Exit()
         {
             if (Interlocked.Decrement(ref runningCount) == 0)
@@ -28,13 +42,19 @@ namespace Tapeti.Default
         }
 
 
-        /// <summary>
-        /// Waits for the amount of currently running message handlers to reach zero.
-        /// </summary>
-        /// <param name="timeoutMilliseconds">The timeout after which an OperationCanceledException is thrown.</param>
-        public Task WaitForIdle(int timeoutMilliseconds)
+        /// <inheritdoc />
+        public async ValueTask WaitAll(TimeSpan timeout, CancellationToken cancellationToken)
         {
-            return idleEvent.WaitHandle.WaitOneAsync(CancellationToken.None, timeoutMilliseconds);
+            var capturedDetachedTasks = detachedTasks.Keys
+                .Append(idleEvent.WaitHandle.WaitOneAsync(CancellationToken.None, timeout))
+                .ToArray();
+
+            var timeoutTask = Task.Delay(timeout, cancellationToken);
+            if (await Task.WhenAny(Task.WhenAll(capturedDetachedTasks), timeoutTask) != timeoutTask)
+                return;
+
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new TimeoutException("Message handlers did not complete within the specified timeout");
         }
     }
 }

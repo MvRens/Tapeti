@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Tapeti.Annotations;
 using Tapeti.Config;
@@ -14,16 +15,16 @@ namespace Tapeti.Connection
     internal class TapetiPublisher : IInternalPublisher
     {
         private readonly ITapetiConfig config;
-        private readonly Func<ITapetiClient> clientFactory;
+        private readonly Func<ITapetiChannel> channelFactory;
         private readonly IExchangeStrategy exchangeStrategy;
         private readonly IRoutingKeyStrategy routingKeyStrategy;
         private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiPublisher(ITapetiConfig config, Func<ITapetiClient> clientFactory)
+        public TapetiPublisher(Func<ITapetiChannel> channelFactory, ITapetiConfig config)
         {
             this.config = config;
-            this.clientFactory = clientFactory;
+            this.channelFactory = channelFactory;
 
             exchangeStrategy = config.DependencyResolver.Resolve<IExchangeStrategy>();
             routingKeyStrategy = config.DependencyResolver.Resolve<IRoutingKeyStrategy>();
@@ -140,7 +141,8 @@ namespace Tapeti.Connection
                 async () =>
                 {
                     var body = messageSerializer.Serialize(message, writableProperties);
-                    await clientFactory().Publish(body, writableProperties, exchange, routingKey, mandatory).ConfigureAwait(false);
+                    await channelFactory().EnqueueRetry(transportChannel => new ValueTask(transportChannel.Publish(body, writableProperties, exchange, routingKey, mandatory)),
+                        CancellationToken.None).ConfigureAwait(false);
                 }).ConfigureAwait(false);
         }
 

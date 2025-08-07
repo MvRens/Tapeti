@@ -6,6 +6,7 @@ using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
 using Toxiproxy.Net;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Tapeti.Tests.Client
 {
@@ -16,6 +17,7 @@ namespace Tapeti.Tests.Client
     }
 
 
+    // ReSharper disable once ClassNeverInstantiated.Global - it is, by xUnit
     public sealed class RabbitMQFixture : IAsyncLifetime
     {
         public static string RabbitMQUsername => "tapetitests";
@@ -43,7 +45,7 @@ namespace Tapeti.Tests.Client
 
 
         private const string RabbitMQImageName = "rabbitmq";
-        private const string RabbitMQImageTag = "3.11.3-management-alpine";
+        private const string RabbitMQImageTag = "4.1.0-management-alpine";
         private const string ToxiproxyImageName = "ghcr.io/shopify/toxiproxy";
         private const string ToxiproxyImageTag = "2.11.0";
 
@@ -146,6 +148,12 @@ namespace Tapeti.Tests.Client
 
             if (network != null)
                 await network.DeleteAsync();
+        }
+
+
+        public void LogConnectionInfo(ITestOutputHelper testOutputHelper)
+        {
+            testOutputHelper.WriteLine($"Management page: http://localhost:{rabbitMQManagementPort}/ - username '{RabbitMQUsername}', password '{RabbitMQPassword}'");
         }
 
 

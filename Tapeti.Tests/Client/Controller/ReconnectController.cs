@@ -5,7 +5,6 @@ using Nito.AsyncEx;
 using Tapeti.Config.Annotations;
 using Tapeti.Tests.Helpers;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Tapeti.Tests.Client.Controller
 {

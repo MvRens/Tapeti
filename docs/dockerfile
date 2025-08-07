@@ -10,4 +10,4 @@ COPY docker-bootstrap.sh ./
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD /usr/bin/bash -c /usr/src/app/docker-bootstrap.sh
+CMD ["/usr/bin/bash", "-c", "/usr/src/app/docker-bootstrap.sh"]

@@ -1,0 +1,62 @@
+ .. note::
+
+    4.0 is in beta, these release notes are a work in progress
+
+This release upgrades Tapeti to use the RabbitMQ.Client version 7, and contains major changes to the way connections and channels are handled, as described in issue `#45`_. The aim is to improve stability and performance with while minimizing changes required to the applications using Tapeti.
+
+.. rubric:: Tapeti core
+  :heading-level: 2
+
+.. rubric:: Breaking changes
+  :heading-level: 3
+
+* Logger implementations will require changes:
+
+    1. Methods are passed context objects instead of interfaces.
+    2. A new method ConsumeStarted has been added.
+    3. The ChannelType PublishDefault has been renamed to Publish.
+    4. A new interface IChannelLogger has been added. Implementing it is optional but recommended.
+
+
+.. rubric:: Changes
+  :heading-level: 3
+
+* | Upgraded to RabbitMQ.Client version 7.
+* | Refactored connection and channel handling. Channels level exceptions are handled properly and will re-create just the channel instead of the entire connection.
+* | The CancellationToken passed to message handlers is now channel-specific. Running message handlers will block channel re-creation, it is therefore highly recommended to implement this in your message handlers if there is any chance they will run for more than a few seconds. See :ref:`cancellationtoken`.
+* | Introduced channel pool for publishing messages, greatly improving throughput.
+* | TapetiConnectionParams now supports (case-insensitive) query parameters in the URI for:
+
+    1. prefetchCount
+    2. managementPort
+    3. consumerDispatchConcurrency
+    4. publishChannelPoolSize
+
+  | publishChannelPoolSize has also been added to the ConnectionStringParser.
+
+* | Fixed the SerialTaskQueue implementation which turned out to be not entirely serial (note: no known bugs in older versions originated from this behaviour). Moved the queue to a dedicated thread to prevent congestion issues in high load scenarios.
+
+
+.. rubric:: Tapeti.Flow
+  :heading-level: 2
+
+The Tapeti Flow extension was designed to cache all running flows in memory, with an optional persistent backing store. To support running multiple instances of a service, this has been refactored to allow the backing implementation to determine whether or not flows are cached.
+
+Note: flows which continue on a dynamic queue are still only stored in memory, as the dynamic queue is specific to an instance of a service. This scenario is fully supported, but not recommended, for the same reasons as the Transient extension is no longer recommended.
+
+
+.. rubric:: Tapeti.Flow.SQL
+  :heading-level: 2
+
+The previous implementation, where all flows are fully cached in memory, remains available as the SqlSingleInstanceCachedFlowStore. SqlMultiInstanceFlowStore has been introduced to handle multi-instance scenarios.
+
+For an in-depth comparison and usage guide, see :ref:`flowsql`.
+
+.. rubric:: Changes
+  :heading-level: 3
+
+* | WithFlowSqlRepository has been marked as obsolete. Instead WithFlowSqlStoreSingleInstanceCached or WithFlowSqlStoreMultiInstance should be called to communicate the intent and consequences.
+* | Added TapetiFlowSqlMetadata helper for converting existing databases.
+* | Added a ContinuationMethodMapper callback which can be used for maintaining backwards compatibility with older flows after refactoring.
+
+.. _#45: https://github.com/MvRens/Tapeti/issues/45

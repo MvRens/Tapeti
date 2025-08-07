@@ -9,7 +9,10 @@ using Shouldly;
 using Tapeti.Config.Annotations;
 using Tapeti.Config;
 using Tapeti.Connection;
+using Tapeti.Tests.Mock;
+using Tapeti.Transport;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Tapeti.Tests.Config
 {
@@ -25,13 +28,27 @@ namespace Tapeti.Tests.Config
 
     public class QueueArgumentsTest : BaseControllerTest
     {
-        private readonly ITapetiClient client;
+        private readonly ITapetiChannel channel;
         private readonly Dictionary<string, IRabbitMQArguments> declaredQueues = new();
 
 
-        public QueueArgumentsTest()
+        public QueueArgumentsTest(ITestOutputHelper testOutputHelper)
         {
-            client = Substitute.For<ITapetiClient>();
+            var transport = Substitute.For<ITapetiTransport>();
+            var transportChannel1 = Substitute.For<ITapetiTransportChannel>();
+            var logger = new MockLogger(testOutputHelper);
+
+            transport.CreateChannel(Arg.Any<TapetiChannelOptions>())
+                .Returns(Task.FromResult(transportChannel1));
+
+            channel = new TapetiChannel(logger, transport, new TapetiChannelOptions
+            {
+                ChannelType = ChannelType.ConsumeDefault,
+                PublisherConfirmationsEnabled = false,
+                PrefetchCount = 50
+            });
+
+
             var routingKeyStrategy = Substitute.For<IRoutingKeyStrategy>();
             var exchangeStrategy = Substitute.For<IExchangeStrategy>();
 
@@ -52,7 +69,7 @@ namespace Tapeti.Tests.Config
                 .Returns("exchange");
 
             var queue = 0;
-            client
+            transportChannel1
                 .DynamicQueueDeclare(null, Arg.Any<IRabbitMQArguments>(), Arg.Any<CancellationToken>())
                 .Returns(callInfo =>
                 {
@@ -62,7 +79,7 @@ namespace Tapeti.Tests.Config
                     return Task.FromResult($"queue-{queue}");
                 });
 
-            client
+            transportChannel1
                 .DurableQueueDeclare(Arg.Any<string>(), Arg.Any<IEnumerable<QueueBinding>>(), Arg.Any<IRabbitMQArguments>(), Arg.Any<CancellationToken>())
                 .Returns(callInfo =>
                 {
@@ -71,7 +88,7 @@ namespace Tapeti.Tests.Config
                 });
 
 
-            client
+            transportChannel1
                 .DynamicQueueBind(Arg.Any<string>(), Arg.Any<QueueBinding>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
         }
@@ -90,7 +107,7 @@ namespace Tapeti.Tests.Config
 
 
 
-            var subscriber = new TapetiSubscriber(() => client, config);
+            var subscriber = new TapetiSubscriber(_ => channel, config);
             await subscriber.ApplyBindings();
 
 
@@ -111,7 +128,7 @@ namespace Tapeti.Tests.Config
         {
             var config = GetControllerConfig<ConflictingArgumentsTestController>();
 
-            var subscriber = new TapetiSubscriber(() => client, config);
+            var subscriber = new TapetiSubscriber(_ => channel, config);
             await subscriber.ApplyBindings();
 
             declaredQueues.Count.ShouldBe(2);
@@ -129,17 +146,17 @@ namespace Tapeti.Tests.Config
         {
             var config = GetControllerConfig<ConflictingArgumentsDurableQueueTestController>();
 
-            var testApplyBindings = () =>
+            var testApplyBindings = async () =>
             {
-                var subscriber = new TapetiSubscriber(() => client, config);
-                return subscriber.ApplyBindings();
+                var subscriber = new TapetiSubscriber(_ => channel, config);
+                await subscriber.ApplyBindings();
             };
 
             await testApplyBindings.ShouldThrowAsync<TopologyConfigurationException>();
             declaredQueues.Count.ShouldBe(0);
         }
 
-        
+
         // ReSharper disable all
         #pragma warning disable
 

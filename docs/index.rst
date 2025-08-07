@@ -7,6 +7,7 @@ Tapeti documentation
 
    introduction
    gettingstarted
+   releasenotes
    compatibility
    indepth
    attributes

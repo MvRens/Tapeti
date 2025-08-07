@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Tapeti.Flow.Default
 {
-    internal class FlowContext : IDisposable
+    internal class FlowContext : IAsyncDisposable
     {
         private readonly IFlowHandlerContext? handlerContext;
         private IFlowStateLock? flowStateLock;
@@ -17,8 +17,8 @@ namespace Tapeti.Flow.Default
 
         public bool HasFlowStateAndLock => flowState != null && flowStateLock != null;
 
-        public Guid ContinuationID { get; set; }
-        public ContinuationMetadata? ContinuationMetadata { get; set; }
+        public Guid ContinuationID { get; init; }
+        public ContinuationMetadata? ContinuationMetadata { get; init; }
 
         private int storeCalled;
         private int deleteCalled;
@@ -45,12 +45,18 @@ namespace Tapeti.Flow.Default
         }
 
 
+        public void SetFlowState(FlowState newFlowState)
+        {
+            flowState = newFlowState;
+        }
+
+
         public ValueTask Store(bool persistent)
         {
             storeCalled++;
 
-            FlowState.Data = Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller);
-            return FlowStateLock.StoreFlowState(FlowState, persistent);
+            flowState = FlowState.WithData(Newtonsoft.Json.JsonConvert.SerializeObject(HandlerContext.Controller));
+            return FlowStateLock.StoreFlowState(flowState, persistent);
         }
 
         public ValueTask Delete()
@@ -73,9 +79,10 @@ namespace Tapeti.Flow.Default
             Debug.Assert(deleteCalled <= 1, "Delete called more than once!");
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            flowStateLock?.Dispose();
+            if (flowStateLock is not null)
+                await flowStateLock.DisposeAsync();
         }
     }
 }

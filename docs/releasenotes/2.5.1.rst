@@ -1,0 +1,5 @@
+ .. warning::
+
+    Do not use this version
+    
+This version contains a bug introduced in version 2.4 when upgrading to the new RabbitMQ Client version 6 which can result in corruption of the message body.

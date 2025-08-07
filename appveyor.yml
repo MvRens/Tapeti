@@ -32,8 +32,7 @@ build:
   project: Tapeti.sln
 
 test_script:
-  - dotnet test Tapeti.Tests\bin\Release\net6.0\Tapeti.Tests.dll --filter "Category!=Requires Docker"
-  - dotnet test Tapeti.Tests\bin\Release\net7.0\Tapeti.Tests.dll --filter "Category!=Requires Docker"
+  - dotnet test Tapeti.Tests\bin\Release\net8.0\Tapeti.Tests.dll --filter "Category!=Requires Docker"
 
 platform:
   - Any CPU

@@ -74,7 +74,11 @@ Often you'll want to pass some initial information to the flow. The Start method
   }
 
 
-.. note:: Every time a flow is started or continued a new instance of the controller is created. All public fields in the controller are considered part of the state and will be restored when a response arrives, private and protected fields are not. Public fields must be serializable to JSON (using JSON.NET) to retain their value when a flow continues. Try to minimize the amount of state as it is cached in memory until the flow ends.
+.. note::
+    Every time a flow is started or continued a new instance of the controller is created. All public fields in the controller are considered part of the state and will be restored when a response arrives, private and protected fields are not. Public fields must be serializable to JSON (using JSON.NET) to retain their value when a flow continues. Try to minimize the amount of state as it is cached in memory until the flow ends.
+
+    Within a single flow message handlers are guaranteed to run sequentially to ensure the thread-safety of the flow state.
+
 
 Continuing a flow
 -----------------
@@ -288,32 +292,98 @@ By default flow state is only preserved while the service is running. To persist
 ::
 
   var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
-      .WithFlow(new MyFlowRepository())
+      .WithFlow(new MyFlowStore())
       .RegisterAllControllers()
       .Build();
 
 
-Tapeti.Flow includes an implementation for SQL server you can use as well. First, make sure your database contains a table to store flow state:
+.. _flowsql:
+
+SQL Server
+^^^^^^^^^^
+
+Tapeti.Flow includes a set of implementations for SQL server you can use as well. First, install the Tapeti.Flow.SQL NuGet package.
+Then make sure your database contains the necessary tables to store flow state. You can run the upgrade scripts either by using a library like `DbUp`_ to run all scripts embedded in the Tapeti.Flow.SQL assembly, or by using the TapetiFlowSqlMetadata helper class:
 
 ::
 
-    create table Flow
-    (
-        FlowID uniqueidentifier not null,
-        CreationTime datetime2(3) not null,
-        StateJson nvarchar(max) null,
-        constraint PK_Flow primary key clustered(FlowID)
-    );
+    await using var sqlConnection = new SqlConnection(yourConnectionString);
+    await sqlConnection.OpenAsync();
 
-Then install the Tapeti.Flow.SQL NuGet package and register the SqlConnectionFlowRepository by passing it to WithFlow, or by using the ``WithFlowSqlRepository`` extension method before calling ``WithFlow``:
+    await TapetiFlowSqlMetadata.UpdateForMultiInstanceStore(sqlConnection);
+
+    // The above call is compatible with the 'single instance' store as well, but creates a few
+    // extra tables. If you're want only the essential tables, use 
+    // UpdateForSingleInstanceCachedStore instead.
+
+
+
+Single- vs multi-instance store
+'''''''''''''''''''''''''''''''
+
+Prior to version 4.0, all active flows were always stored in memory and optionally persisted to a SQL database. This causes issues when running multiple instances of a service, where messages continuing the flow can be consumed by either instance.
+
+Since version 4.0 a second SQL flow store is available which is compatible with running multiple instances. Depending on your use case you may want to use either. A quick comparison:
+
+
+| **Single instance cached store**
+| All flows are locked and cached in memory. Only mutations are performed in the SQL database without the need for database level locking.
+
+| ✅ Better runtime performance
+| ✅ Reduced SQL queries
+| ❌ Start-up time increases the more flows are active
+
+| **Multi instance store**
+| The store is fully stateless. All locking is performed in a SQL table.
+
+| ✅ Required when running multiple instances on the same queue
+| ✅ No start-up cost
+| ❌ Increased overhead and SQL queries
+
+
+.. note::
+    Flows which continue on a dynamic queue are always stored in memory only, as the dynamic queue is specific to an instance of a service. This scenario is fully supported, though not recommended, for the same reasons as the Transient extension is no longer recommended: this is almost always better handled by other RPC mechanisms like REST API calls.
+
+
+Configuration
+'''''''''''''
+
+Register the SQL flow store by calling one of the ``WithFlowSql...`` extension methods before calling ``WithFlow``:
+
+.. note::
+    The WithFlowSql extension method is still available for backwards compatibility, and will use the backwards compatible single instance store. However, this is now marked as obsolete to encourage the use of the more explicit methods.
+
 
 ::
 
   var config = new TapetiConfig(new SimpleInjectorDependencyResolver(container))
-      .WithFlowSqlRepository("Server=localhost;Database=TapetiTest;Integrated Security=true")
+      .WithFlowSqlStoreMultiInstance(new SqlMultiInstanceFlowStore.Config("Server=localhost;Database=TapetiTest;Integrated Security=true"))
       .WithFlow()
       .RegisterAllControllers()
       .Build();
 
 
-.. caution:: The controller and method names for response handlers and converge methods are stored in the flow and must be valid when they are loaded again. Keep that in mind if you want to refactor the code; either keep the original class and method temporarily for backwards compatibility, optionally redirecting them internally to the new code, or make sure there are no persisted flows remaining.
+
+Backwards compatibility in flows
+''''''''''''''''''''''''''''''''
+The controller (including namespace) and method names for response handlers and converge methods are stored in the flow and must be valid when they are loaded again. Tapeti.Flow.SQL validates these methods at startup to prevent runtime errors when trying to continue a previously persisted flow.
+
+To allow for refactoring the code, it is possible to specify a method to map the old name to a new value. This method is passed to the `WithFlowSql...` method:
+
+::
+
+    // ...
+    .WithFlowSqlStoreMultiInstance(new SqlMultiInstanceFlowStore.Config("..."), 
+        MapContinuationMethods)
+    // ...
+
+
+    private void MapContinuationMethods(IStoredContinuationMethod method)
+    {
+        // Use whatever logic applies to your code...
+        if (method is { DeclaringTypeName: "OldController", MethodName: "OldMethod" })
+            method.MapTo<NewController>(c => c.NewMethod);
+    }
+
+
+.. _DbUp: https://dbup.github.io/

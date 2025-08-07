@@ -1,0 +1,24 @@
+.. rubric:: Tapeti core
+  :heading-level: 2
+
+* | Separated publishing into separate channel and task queue to (hopefully) improve issues with acknowledgement timeouts
+* | Fixed error when consuming a queue with incompatible arguments (like x-deadletter) when using EnableDeclareDurableQueues
+
+.. rubric:: Tapeti.Flow
+  :heading-level: 2
+
+* | Validate persisted flows on startup to prevent runtime errors if a continuation method is renamed
+* | Fixed edge-case when receiving a flow-related message twice
+
+.. rubric:: Tapeti.Cmd
+  :heading-level: 2
+
+* | Fixed body corruption in Shovel command
+* | Added DeclareQueue, RemoveQueue, BindQueue and UnbindQueue management commands
+
+.. rubric:: Breaking changes
+  :heading-level: 3
+
+This version should be compatible for existing clients. One change may require changes to custom ILogger implementations:
+
+* | QueueExistsWarning method has been added to IBindingLogger

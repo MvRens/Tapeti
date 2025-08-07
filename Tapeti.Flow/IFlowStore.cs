@@ -14,22 +14,21 @@ namespace Tapeti.Flow
     {
         /// <summary>
         /// Must be called during application startup before subscribing or starting a flow.
-        /// If using an IFlowRepository that requires an update (such as creating tables) make
+        /// If using an IFlowStore that requires an update (such as creating tables) make
         /// sure it is called before calling Load.
         /// </summary>
         ValueTask Load();
 
         /// <summary>
-        /// Looks up the FlowID corresponding to a ContinuationID. For internal use.
+        /// Acquires a lock on a new flow.
         /// </summary>
-        /// <param name="continuationID"></param>
-        ValueTask<Guid?> FindFlowID(Guid continuationID);
+        ValueTask<IFlowStateLock> LockNewFlowState(Guid? newFlowID = null);
 
         /// <summary>
-        /// Acquires a lock on the flow with the specified FlowID.
+        /// Acquires a lock on the flow with the specified ContinuationID.
         /// </summary>
-        /// <param name="flowID"></param>
-        ValueTask<IFlowStateLock> LockFlowState(Guid flowID);
+        /// <param name="continuationID"></param>
+        ValueTask<IFlowStateLock?> LockFlowStateByContinuation(Guid continuationID);
 
         /// <summary>
         /// Returns information about the currently active flows.
@@ -37,15 +36,31 @@ namespace Tapeti.Flow
         /// <remarks>
         /// This is intended for monitoring purposes and should be treated as a snapshot.
         /// </remarks>
-        /// <param name="minimumAge">The minimum age of the flow before it is included in the result. Set to TimeSpan.Zero to return all active flows.</param>
-        ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(TimeSpan minimumAge);
+        /// <param name="maxCreationTime">Include only flows up to this creation time. Set to null to include all flows.</param>
+        ValueTask<IEnumerable<ActiveFlow>> GetActiveFlows(DateTime? maxCreationTime = null);
+    }
+
+
+    /// <summary>
+    /// Represents an <see cref="IFlowStore"/> which handles flows which are part of a durable queue and must persist.
+    /// </summary>
+    public interface IDurableFlowStore : IFlowStore
+    {
+    }
+
+
+    /// <summary>
+    /// Represents an <see cref="IFlowStore"/> which handles flows which are part of a dynamic queue and should not be persisted.
+    /// </summary>
+    public interface IDynamicFlowStore : IFlowStore
+    {
     }
 
 
     /// <summary>
     /// Represents a lock on the flow state, to provide thread safety.
     /// </summary>
-    public interface IFlowStateLock : IDisposable
+    public interface IFlowStateLock : IAsyncDisposable
     {
         /// <summary>
         /// The unique ID of the flow state.
@@ -55,7 +70,7 @@ namespace Tapeti.Flow
         /// <summary>
         /// Acquires a copy of the flow state.
         /// </summary>
-        ValueTask<FlowState?> GetFlowState();
+        FlowState? GetFlowState();
 
         /// <summary>
         /// Stores the new flow state.

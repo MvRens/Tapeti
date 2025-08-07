@@ -9,7 +9,7 @@ using Tapeti.Flow.Annotations;
 namespace _03_FlowRequestResponse
 {
     [MessageController]
-    [DynamicQueue("tapeti.example.03")]
+    [DynamicQueue("tapeti.example.03.parallel")]
     public class ParallelFlowController
     {
         private readonly IFlowProvider flowProvider;

@@ -16,7 +16,7 @@ namespace Tapeti.Default
         public void Handle(IControllerBindingContext context, Action next)
         {
             foreach (var parameter in context.Parameters.Where(p => !p.HasBinding && p.Info.ParameterType == typeof(CancellationToken)))
-                parameter.SetBinding(messageContext => messageContext.ConnectionClosed);
+                parameter.SetBinding(messageContext => messageContext.ChannelClosed);
 
             next();
         }

@@ -15,14 +15,12 @@ namespace Tapeti.Helpers
         /// <remarks>
         /// Credit: <see href="https://stackoverflow.com/a/68632819"/>
         /// </remarks>
-        public static Task WaitOneAsync(this WaitHandle waitHandle, CancellationToken cancellationToken, int timeoutMilliseconds = Timeout.Infinite)
+        public static Task WaitOneAsync(this WaitHandle waitHandle, CancellationToken cancellationToken, TimeSpan? timeout = null)
         {
-            if (waitHandle == null)
-                throw new ArgumentNullException(nameof(waitHandle));
+            ArgumentNullException.ThrowIfNull(waitHandle);
 
             var tcs = new TaskCompletionSource<bool>();
             var ctr = cancellationToken.Register(() => tcs.TrySetCanceled());
-            var timeout = timeoutMilliseconds > Timeout.Infinite ? TimeSpan.FromMilliseconds(timeoutMilliseconds) : Timeout.InfiniteTimeSpan;
 
             var rwh = ThreadPool.RegisterWaitForSingleObject(waitHandle,
                 (_, timedOut) =>
@@ -36,7 +34,7 @@ namespace Tapeti.Helpers
                         tcs.TrySetResult(true);
                     }
                 },
-                null, timeout, true);
+                null, timeout ?? Timeout.InfiniteTimeSpan, true);
 
             var task = tcs.Task;
 

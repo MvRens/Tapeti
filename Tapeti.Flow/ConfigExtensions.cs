@@ -13,11 +13,11 @@ namespace Tapeti.Flow
         /// Enables Tapeti Flow.
         /// </summary>
         /// <param name="config"></param>
-        /// <param name="flowRepository">An optional IFlowRepository implementation to persist flow state. If not provided, flow state will be lost when the application restarts.</param>
+        /// <param name="durableFlowStore">An optional IFlowRepository implementation to persist flow state. If not provided, flow state will be lost when the application restarts.</param>
         /// <returns></returns>
-        public static ITapetiConfigBuilder WithFlow(this ITapetiConfigBuilder config, IFlowRepository? flowRepository = null)
+        public static ITapetiConfigBuilder WithFlow(this ITapetiConfigBuilder config, IDurableFlowStore? durableFlowStore = null)
         {
-            config.Use(new FlowExtension(flowRepository));
+            config.Use(new FlowExtension(durableFlowStore));
             return config;
         }
     }

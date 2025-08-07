@@ -23,15 +23,14 @@ namespace _03_FlowRequestResponse
         }
 
         // Private and protected fields are lost between method calls because the controller is
-        // recreated when a response arrives. When using a persistent flow repository this may
-        // even be after a restart of the application.
+        // recreated when a response arrives.
         private bool nonPersistentState;
 
 
         // Public fields will be stored.
         public DateTime RequestStartTime;
 
-        
+
         // Be sure not to accidentally use any public fields that aren't serializable, for example:
         //public TaskCompletionSource<bool> SerializationFail = new TaskCompletionSource<bool>();
         //
@@ -64,13 +63,13 @@ namespace _03_FlowRequestResponse
         public IYieldPoint HandleQuoteResponse(QuoteResponseMessage message)
         {
             if (nonPersistentState)
-                Console.WriteLine("[SimpleFlowController] This is not supposed to show. NonPersistentState should not be retained. Someone please check http://www.hasthelargehadroncolliderdestroyedtheworldyet.com.");
+                Console.WriteLine("[SimpleFlowController] This is not supposed to show. NonPersistentState should not be retained. Someone please check https://www.hasthelargehadroncolliderdestroyedtheworldyet.com");
 
             Console.WriteLine("[SimpleFlowController] Request start: " + RequestStartTime.ToLongTimeString());
             Console.WriteLine("[SimpleFlowController] Response time: " + DateTime.Now.ToLongTimeString());
             Console.WriteLine("[SimpleFlowController] Quote: " + message.Quote);
 
-            
+
             // Test for issue #21: Same request/response twice in flow does not continue
             return flowProvider.YieldWithRequestSync<QuoteRequestMessage, QuoteResponseMessage>(
                 new QuoteRequestMessage
@@ -79,7 +78,7 @@ namespace _03_FlowRequestResponse
                 },
                 HandleQuoteResponse2);
 
-            
+
             //exampleState.Done();
             //return flowProvider.End();
         }

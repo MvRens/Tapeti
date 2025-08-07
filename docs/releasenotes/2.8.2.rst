@@ -1,0 +1,4 @@
+.. rubric:: Tapeti.Flow
+  :heading-level: 2
+
+* | Disabled validation of the converge method name while loading persisted flows for now, as it turned out not enough information is stored and the validation always fails
