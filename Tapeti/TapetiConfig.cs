@@ -5,6 +5,7 @@ using System.Reflection;
 using Tapeti.Config;
 using Tapeti.Default;
 using Tapeti.Helpers;
+using Tapeti.Transport;
 
 // ReSharper disable UnusedMember.Global
 
@@ -205,6 +206,7 @@ namespace Tapeti
             container.RegisterDefault<IExchangeStrategy, NamespaceMatchExchangeStrategy>();
             container.RegisterDefault<IRoutingKeyStrategy, TypeNameRoutingKeyStrategy>();
             container.RegisterDefault<IExceptionStrategy, NackExceptionStrategy>();
+            container.RegisterDefault<ITapetiTransportFactory, TapetiTransportFactory>();
         }
 
 

@@ -1,0 +1,6 @@
+.. rubric:: Tapeti core
+  :heading-level: 2
+
+* | Fixed disposing non-IAsyncDisposable payloads in the message context. This could cause a response handled by Tapeti.Flow to block the consumers as the lock on a flow ID is never released.
+
+If you are using Tapeti 2.4 or higher and are using Tapeti.Flow, upgrading to this version is highly recommended.

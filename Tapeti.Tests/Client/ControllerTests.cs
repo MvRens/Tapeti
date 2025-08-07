@@ -36,6 +36,8 @@ namespace Tapeti.Tests.Client
 
         public async Task InitializeAsync()
         {
+            fixture.LogConnectionInfo(testOutputHelper);
+
             proxy = await fixture.AcquireProxy();
         }
 
@@ -59,7 +61,7 @@ namespace Tapeti.Tests.Client
                 .Build();
 
             connection = CreateConnection(config);
-            await connection!.Subscribe();
+            await connection.Subscribe();
 
 
             await connection.GetPublisher().PublishRequest<RequestResponseFilterController, FilteredRequestMessage, FilteredResponseMessage>(new FilteredRequestMessage
@@ -68,7 +70,7 @@ namespace Tapeti.Tests.Client
             }, c => c.Handler2);
 
 
-            var handler = await RequestResponseFilterController.ValidResponse.Task;
+            var handler = await RequestResponseFilterController.ValidResponse.Task.WithTimeout(TimeSpan.FromSeconds(5));
             handler.ShouldBe(2);
 
             var invalidHandler = await Task.WhenAny(RequestResponseFilterController.InvalidResponse.Task, Task.Delay(1000));
@@ -85,7 +87,7 @@ namespace Tapeti.Tests.Client
                 .Build();
 
             connection = CreateConnection(config);
-            await connection!.Subscribe();
+            await connection.Subscribe();
 
 
             var publisher = connection.GetPublisher();
@@ -153,13 +155,18 @@ namespace Tapeti.Tests.Client
 
 
             // Dynamic queue is of course empty but should be recreated
+            // Note that the reconnected event fires before the queue is re-declared because that relies on
+            // the consume channel to be re-created. So we have to wait for that task to trigger.
+            // TODO find a more reliable way to test that the queue has been re-declared - perhaps listen to the logger events?
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+
             testOutputHelper.WriteLine("> Sending and waiting for dynamic message");
             await connection.GetPublisher().Publish(new ReconnectDynamicMessage { Number = 2 });
             await ReconnectController.WaitForDynamicMessage();
         }
 
 
-        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, int? consumerDispatchConcurrency = null)
+        private TapetiConnection CreateConnection(ITapetiConfig config, ushort prefetchCount = 1, ushort? consumerDispatchConcurrency = null)
         {
             return new TapetiConnection(config)
             {
@@ -171,7 +178,7 @@ namespace Tapeti.Tests.Client
                     Username = RabbitMQFixture.RabbitMQUsername,
                     Password = RabbitMQFixture.RabbitMQPassword,
                     PrefetchCount = prefetchCount,
-                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? Environment.ProcessorCount
+                    ConsumerDispatchConcurrency = consumerDispatchConcurrency ?? (Environment.ProcessorCount <= ushort.MaxValue ? (ushort)Environment.ProcessorCount : ushort.MaxValue)
                 }
             };
         }

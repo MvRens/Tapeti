@@ -57,16 +57,13 @@ namespace Tapeti.Default
         /// <inheritdoc />
         public void SetHeader(string name, string value)
         {
-            if (headers.ContainsKey(name))
-                headers[name] = value;
-            else
-                headers.Add(name, value);
+            headers[name] = value;
         }
 
         /// <inheritdoc />
         public string? GetHeader(string name)
         {
-            return headers.TryGetValue(name, out var value) ? value : null;
+            return headers.GetValueOrDefault(name);
         }
 
         /// <inheritdoc />

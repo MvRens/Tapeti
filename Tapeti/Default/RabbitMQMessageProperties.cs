@@ -1,119 +1,50 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using RabbitMQ.Client;
 using Tapeti.Config;
 
 namespace Tapeti.Default
 {
-    internal class RabbitMQMessageProperties : IMessageProperties
+    internal static class RabbitMQMessageProperties
     {
         /// <summary>
-        /// Provides access to the wrapped IBasicProperties
         /// </summary>
-        public IBasicProperties BasicProperties { get; }
-
-
-        /// <inheritdoc />
-        public string? ContentType
+        public static MessageProperties ToMessageProperties(this IReadOnlyBasicProperties source)
         {
-            get => BasicProperties.IsContentTypePresent() ? BasicProperties.ContentType : null;
-            set { if (!string.IsNullOrEmpty(value)) BasicProperties.ContentType = value; else BasicProperties.ClearContentType(); }
-        }
-
-        /// <inheritdoc />
-        public string? CorrelationId
-        {
-            get => BasicProperties.IsCorrelationIdPresent() ? BasicProperties.CorrelationId : null;
-            set { if (!string.IsNullOrEmpty(value)) BasicProperties.CorrelationId = value; else BasicProperties.ClearCorrelationId(); }
-        }
-
-        /// <inheritdoc />
-        public string? ReplyTo
-        {
-            get => BasicProperties.IsReplyToPresent() ? BasicProperties.ReplyTo : null;
-            set { if (!string.IsNullOrEmpty(value)) BasicProperties.ReplyTo = value; else BasicProperties.ClearReplyTo(); }
-        }
-
-        /// <inheritdoc />
-        public bool? Persistent
-        {
-            get => BasicProperties.Persistent;
-            set { if (value.HasValue) BasicProperties.Persistent = value.Value; else BasicProperties.ClearDeliveryMode(); }
-        }
-
-        /// <inheritdoc />
-        public DateTime? Timestamp
-        {
-            get => DateTimeOffset.FromUnixTimeSeconds(BasicProperties.Timestamp.UnixTime).UtcDateTime;
-            set
+            var properties = new MessageProperties
             {
-                if (value.HasValue)
-                    BasicProperties.Timestamp = new AmqpTimestamp(new DateTimeOffset(value.Value.ToUniversalTime()).ToUnixTimeSeconds());
-                else
-                    BasicProperties.ClearTimestamp();
-            }
+                ContentType = source.ContentType,
+                CorrelationId = source.CorrelationId,
+                ReplyTo = source.ReplyTo,
+                Persistent = source.DeliveryMode == DeliveryModes.Persistent,
+                Timestamp = source.IsTimestampPresent() ? DateTimeOffset.FromUnixTimeSeconds(source.Timestamp.UnixTime).UtcDateTime : null,
+            };
+
+            // ReSharper disable once InvertIf
+            if (source.Headers is not null)
+                foreach (var pair in source.Headers.Where(p => p.Value is not null))
+                    properties.SetHeader(pair.Key, Encoding.UTF8.GetString((byte[])pair.Value!));
+
+            return properties;
         }
 
 
         /// <summary>
         /// </summary>
-        public RabbitMQMessageProperties(IBasicProperties basicProperties)
+        public static BasicProperties ToBasicProperties(this IMessageProperties source)
         {
-            BasicProperties = basicProperties;
-        }
+            var headers = source.GetHeaders().ToDictionary(p => p.Key, object? (p) => Encoding.UTF8.GetBytes(p.Value));
 
-
-        /// <summary>
-        /// </summary>
-        public RabbitMQMessageProperties(IBasicProperties basicProperties, IMessageProperties? source)
-        {
-            BasicProperties = basicProperties;
-            if (source == null)
-                return;
-
-            ContentType = source.ContentType;
-            CorrelationId = source.CorrelationId;
-            ReplyTo = source.ReplyTo;
-            Persistent = source.Persistent;
-            Timestamp = source.Timestamp;
-
-            BasicProperties.Headers = null;
-            foreach (var pair in source.GetHeaders())
-                SetHeader(pair.Key, pair.Value);
-        }
-
-
-        /// <inheritdoc />
-        public void SetHeader(string name, string value)
-        {
-            BasicProperties.Headers ??= new Dictionary<string, object>();
-
-            if (BasicProperties.Headers.ContainsKey(name))
-                BasicProperties.Headers[name] = Encoding.UTF8.GetBytes(value);
-            else
-                BasicProperties.Headers.Add(name, Encoding.UTF8.GetBytes(value));
-        }
-
-
-        /// <inheritdoc />
-        public string? GetHeader(string name)
-        {
-            if (BasicProperties.Headers == null)
-                return null;
-
-            return BasicProperties.Headers.TryGetValue(name, out var value) ? Encoding.UTF8.GetString((byte[])value) : null;
-        }
-
-
-        /// <inheritdoc />
-        public IEnumerable<KeyValuePair<string, string>> GetHeaders()
-        {
-            if (BasicProperties.Headers == null)
-                yield break;
-
-            foreach (var pair in BasicProperties.Headers)
-                yield return new KeyValuePair<string, string>(pair.Key, Encoding.UTF8.GetString((byte[])pair.Value));
+            return new BasicProperties
+            {
+                ContentType = source.ContentType,
+                CorrelationId = source.CorrelationId,
+                ReplyTo = source.ReplyTo,
+                Persistent = source.Persistent ?? false,
+                Timestamp = source.Timestamp is not null ? new AmqpTimestamp(new DateTimeOffset(source.Timestamp.Value.ToUniversalTime()).ToUnixTimeSeconds()) : default,
+                Headers = headers.Count > 0 ? headers : null
+            };
         }
     }
 }

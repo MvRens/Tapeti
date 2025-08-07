@@ -1,0 +1,1 @@
+This version properly fixes the issue with body corruption since version 2.4 and the upgrade to the RabbitMQ Client 6.

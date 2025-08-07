@@ -9,7 +9,7 @@ namespace Tapeti
     public interface IConsumer
     {
         /// <summary>
-        /// 
+        /// Called when a message is ready to be consumed.
         /// </summary>
         /// <param name="exchange">The exchange from which the message originated</param>
         /// <param name="routingKey">The routing key the message was sent with</param>

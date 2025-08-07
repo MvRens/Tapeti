@@ -44,7 +44,6 @@ namespace _03_FlowRequestResponse
 
             await connection.Subscribe();
 
-
             var flowStarter = dependencyResolver.Resolve<IFlowStarter>();
 
             var startData = new SimpleFlowController.StartData

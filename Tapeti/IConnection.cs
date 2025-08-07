@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMemberInSuper.Global
@@ -9,50 +10,36 @@ namespace Tapeti
     /// <summary>
     /// Contains information about the established connection.
     /// </summary>
+    [PublicAPI]
     public class ConnectedEventArgs
     {
         /// <summary>
         /// The connection parameters used to establish the connection.
         /// </summary>
-        public TapetiConnectionParams ConnectionParams { get; }
+        public required TapetiConnectionParams ConnectionParams { get; init; }
 
         /// <summary>
         /// The local port for the connection. Useful for identifying the connection in the management interface.
         /// </summary>
-        public int LocalPort { get; }
-
-
-        /// <summary></summary>
-        public ConnectedEventArgs(TapetiConnectionParams connectionParams, int localPort)
-        {
-            ConnectionParams = connectionParams;
-            LocalPort = localPort;
-        }
+        public required int LocalPort { get; init; }
     }
 
 
     /// <summary>
     /// Contains information about the reason for a lost connection.
     /// </summary>
+    [PublicAPI]
     public class DisconnectedEventArgs
     {
         /// <summary>
         /// The ReplyCode as indicated by the client library
         /// </summary>
-        public ushort ReplyCode { get; }
+        public required ushort ReplyCode { get; init; }
 
         /// <summary>
         /// The ReplyText as indicated by the client library
         /// </summary>
-        public string ReplyText { get; }
-
-
-        /// <summary></summary>
-        public DisconnectedEventArgs(ushort replyCode, string replyText)
-        {
-            ReplyCode = replyCode;
-            ReplyText = replyText;
-        }
+        public required string ReplyText { get; init; }
     }
 
 
@@ -95,6 +82,15 @@ namespace Tapeti
         /// </summary>
         /// <returns></returns>
         IPublisher GetPublisher();
+
+
+        /// <summary>
+        /// Open the connection to RabbitMQ.
+        /// </summary>
+        /// <remarks>
+        /// There is usually no need to call this method manually, the connection will be opened on demand.
+        /// </remarks>
+        ValueTask Open();
 
 
         /// <summary>

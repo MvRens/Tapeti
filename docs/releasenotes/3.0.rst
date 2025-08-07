@@ -1,0 +1,20 @@
+.. rubric:: Breaking changes
+  :heading-level: 3
+
+* | Dropped support for .NET Standard (and therefore .NET Framework 4.x). .NET 6 or higher is now required for the client.
+
+  | Note; Tapeti.Annotations continues to support .NET Standard 2.0, and as long as your Messaging packages do too you can still use Tapeti 2 on older projects and the messages published and consumed should be compatible.
+
+* | Removed TapetiAppSettingsConnectionParams. Use TapetiConnectionParams instead using a URL or by specifying the properties manually. Alternatively you can use the ConnectionStringParser in the Tapeti.Helpers namespace. Both of these were already available in Tapeti 2, and if you used those nothing changed.
+* | All middleware now uses ValueTask instead of Task.
+
+
+.. rubric:: Changes
+  :heading-level: 3
+
+* | ValueTask support for most methods (converge methods in Flow are the exception for now).
+* | Added support for queue arguments (message TTL, maximum length, etc.).
+* | Fixed `#38`_: durable queues are verified more than once.
+
+
+.. _#38: https://github.com/MvRens/Tapeti/issues/38

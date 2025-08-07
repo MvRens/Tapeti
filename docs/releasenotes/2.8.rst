@@ -1,0 +1,10 @@
+.. rubric:: Tapeti.Serilog
+  :heading-level: 2
+
+* | Added optional WithMessageHandlerLogging middleware to output the time a message handler takes to the Serilog Logger. Includes a warning treshold and the ability to inject an IDependencyContext to add custom properties.
+
+.. rubric:: Repository split
+  :heading-level: 2
+
+* | Tapeti.Annotations, Tapeti.DataAnnotations.Extensions have been moved to their own Github repositories and are built separately. As these are rarely updated this stabilizes their version numbers which should improve compatibility for services consuming message packages from other services instead of forcing them to have the same Tapeti version.
+* | Tapeti.Cmd has also been moved to it's own Github repository as it has no dependency on the Tapeti library and vice versa.

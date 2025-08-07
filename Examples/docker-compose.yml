@@ -1,0 +1,19 @@
+services:
+  rabbitmq:
+    image: rabbitmq:${RABBITMQ_VERSION}
+    hostname: rabbitmq
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    ports:
+      - ${RABBITMQ_PORT}:5672
+      - ${RABBITMQ_MANAGEMENTPORT}:15672
+    restart: unless-stopped
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+volumes:
+  rabbitmqdata:
+    driver: local

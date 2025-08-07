@@ -20,13 +20,17 @@ Although stated in the Getting started guide that the first parameter is always 
 In addition to the message class parameter, two additional default implementations are included:
 
 
+.. _cancellationtoken:
+
 CancellationToken
 ^^^^^^^^^^^^^^^^^
-Similar to ASP.NET, Tapeti will bind parameters of type CancellationToken to a token which is cancelled when the connection to the RabbitMQ server is closed.
+Similar to ASP.NET, Tapeti will bind parameters of type CancellationToken to a token which is cancelled when the channel or the connection to the RabbitMQ server is closed.
 
 .. note:: This does not indicate whether the connection was closed by the application or lost unexpectedly, either scenario will cancel the token. This is by design, as any message in-flight will be put back on the queue and redelivered anyways.
 
-Internally this CancellationToken is called ConnectionClosed, but any name can be used. For example:
+.. note:: Running message handlers will block channel re-creation, it is therefore highly recommended to implement this in your message handlers if there is any chance they will run for more than a few seconds.
+
+Internally this CancellationToken is called ChannelClosed, but any name can be used. For example:
 
 ::
 

@@ -24,7 +24,7 @@ namespace Tapeti.Connection
         private readonly IMessageSerializer messageSerializer;
 
 
-        public TapetiConsumer(CancellationToken cancellationToken, ITapetiConfig config, string queueName, IEnumerable<IBinding> bindings)
+        public TapetiConsumer(ITapetiConfig config, string queueName, IEnumerable<IBinding> bindings, CancellationToken cancellationToken)
         {
             this.cancellationToken = cancellationToken;
             this.config = config;
@@ -64,6 +64,7 @@ namespace Tapeti.Connection
             }
             catch (Exception dispatchException)
             {
+                // ReSharper disable once UsingStatementResourceInitialization - none of the constructors will raise an exception
                 await using var emptyContext = new MessageContext
                 {
                     Config = config,
@@ -74,12 +75,12 @@ namespace Tapeti.Connection
                     Message = message,
                     Properties = properties,
                     Binding = new ExceptionContextBinding(queueName),
-                    ConnectionClosed = CancellationToken.None
+                    ChannelClosed = CancellationToken.None
                 };
-                
+
                 var exceptionContext = new ExceptionStrategyContext(emptyContext, dispatchException);
                 await HandleException(exceptionContext).ConfigureAwait(false);
-                
+
                 return exceptionContext.ConsumeResult;
             }
         }
@@ -119,9 +120,9 @@ namespace Tapeti.Connection
                 Message = message,
                 Properties = messageContextData.Properties,
                 Binding = binding,
-                ConnectionClosed = cancellationToken
+                ChannelClosed = cancellationToken
             };
-            
+
             try
             {
                 await MiddlewareHelper.GoAsync(config.Middleware.Message,
@@ -146,7 +147,7 @@ namespace Tapeti.Connection
         {
             if (cancellationToken.IsCancellationRequested && IgnoreExceptionDuringShutdown(exceptionContext.Exception))
             {
-                // The service is most likely stopping, and the connection is gone anyways.
+                // The service is most likely stopping, and the connection is gone anyway.
                 exceptionContext.SetConsumeResult(ConsumeResult.Requeue);
                 return;
             }

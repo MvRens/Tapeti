@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Tapeti.Config;
 using Tapeti.Helpers;
@@ -42,7 +43,7 @@ namespace Tapeti.Flow.Default
                     Newtonsoft.Json.JsonConvert.PopulateObject(flowContext.FlowState.Data, controllerPayload.Controller);
 
                 // Remove Continuation now because the IYieldPoint result handler will store the new state
-                flowContext.FlowState.Continuations.Remove(flowContext.ContinuationID);
+                flowContext.SetFlowState(flowContext.FlowState.WithoutContinuation(flowContext.ContinuationID));
 
                 await next().ConfigureAwait(false);
 
@@ -80,7 +81,7 @@ namespace Tapeti.Flow.Default
                     // was handled. The flow provider ensures we only end up here in case of an exception.
                     await flowContext.FlowStateLock.DeleteFlowState().ConfigureAwait(false);
 
-                flowContext.FlowStateLock.Dispose();
+                await flowContext.FlowStateLock.DisposeAsync();
             }
         }
 
@@ -100,20 +101,15 @@ namespace Tapeti.Flow.Default
 
             var flowStore = context.Config.DependencyResolver.Resolve<IFlowStore>();
 
-            var flowID = await flowStore.FindFlowID(continuationID).ConfigureAwait(false);
-            if (!flowID.HasValue)
-                return null;
-
-            var flowStateLock = await flowStore.LockFlowState(flowID.Value).ConfigureAwait(false);
-
-            var flowState = await flowStateLock.GetFlowState().ConfigureAwait(false);
+            var flowStateLock = await flowStore.LockFlowStateByContinuation(continuationID).ConfigureAwait(false);
+            var flowState = flowStateLock?.GetFlowState();
             if (flowState == null)
                 return null;
 
-            var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock)
+            var flowContext = new FlowContext(new FlowHandlerContext(context), flowState, flowStateLock!)
             {
                 ContinuationID = continuationID,
-                ContinuationMetadata = flowState.Continuations.TryGetValue(continuationID, out var continuation) ? continuation : null
+                ContinuationMetadata = flowState.Continuations.GetValueOrDefault(continuationID)
             };
 
             // IDisposable items in the IMessageContext are automatically disposed

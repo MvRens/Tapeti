@@ -1,0 +1,8 @@
+.. rubric:: Tapeti.Flow
+  :heading-level: 2
+
+.. rubric:: Changes
+  :heading-level: 3
+
+* | Parallel requests in flows can now add additional requests in an active flow by using IFlowParallelRequest
+* | Added NoRequestsBehaviour parameter to ParallelRequestBuilder.Yield to simplify use cases with optional flows

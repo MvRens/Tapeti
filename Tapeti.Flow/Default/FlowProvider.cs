@@ -103,13 +103,15 @@ namespace Tapeti.Flow.Default
 
             var continuationID = Guid.NewGuid();
 
-            context.FlowState.Continuations.Add(continuationID,
+            context.SetFlowState(context.FlowState.WithContinuation(
+                continuationID,
                 new ContinuationMetadata
                 {
                     MethodName = responseHandlerInfo.MethodName,
                     ConvergeMethodName = convergeMethodName,
                     ConvergeMethodSync = convergeMethodTaskSync
-                });
+                })
+            );
 
             var properties = new MessageProperties
             {
@@ -158,12 +160,10 @@ namespace Tapeti.Flow.Default
                 CorrelationId = reply.CorrelationId
             };
 
-            // TODO disallow if replyto is not specified?
-            if (reply.ReplyTo != null)
-                await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory).ConfigureAwait(false);
-            else
-                await publisher.Publish(message, properties, reply.Mandatory).ConfigureAwait(false);
+            if (reply.ReplyTo == null)
+                throw new YieldPointException($"Can not end a flow with a response because it was not started by a message with a valid ReplyTo header. Use IPublisher.Publish instead if you want to broadcast a message.");
 
+            await publisher.PublishDirect(message, reply.ReplyTo, properties, reply.Mandatory).ConfigureAwait(false);
             await context.Delete().ConfigureAwait(false);
         }
 
@@ -223,16 +223,13 @@ namespace Tapeti.Flow.Default
         private static async Task CreateNewFlowState(FlowContext flowContext)
         {
             var flowStore = flowContext.HandlerContext.Config.DependencyResolver.Resolve<IFlowStore>();
-
-            var flowID = Guid.NewGuid();
-            var flowStateLock = await flowStore.LockFlowState(flowID).ConfigureAwait(false);
-
-            if (flowStateLock == null)
-                throw new InvalidOperationException("Unable to lock a new flow");
+            var flowStateLock = await flowStore.LockNewFlowState().ConfigureAwait(false);
 
             var flowState = new FlowState
             {
-                Metadata = new FlowMetadata(GetReply(flowContext.HandlerContext))
+                Metadata = new FlowMetadata(GetReply(flowContext.HandlerContext)),
+                Data = null,
+                Continuations = new Dictionary<Guid, ContinuationMetadata>()
             };
 
             flowContext.SetFlowState(flowState, flowStateLock);
@@ -277,8 +274,8 @@ namespace Tapeti.Flow.Default
             }
             finally
             {
-                if (disposeFlowContext)
-                    flowContext?.Dispose();
+                if (disposeFlowContext && flowContext is not null)
+                    await flowContext.DisposeAsync();
             }
         }
 
@@ -329,10 +326,10 @@ namespace Tapeti.Flow.Default
                 throw new ArgumentException($"Unknown converge method in controller {controllerPayload.Controller.GetType().Name}: {convergeMethodName}");
 
             if (convergeMethodSync)
-                yieldPoint = (IYieldPoint?)method.Invoke(controllerPayload.Controller, new object[] { });
+                yieldPoint = (IYieldPoint?)method.Invoke(controllerPayload.Controller, []);
             else
             {
-                var yieldPointTask = method.Invoke(controllerPayload.Controller, new object[] { });
+                var yieldPointTask = method.Invoke(controllerPayload.Controller, []);
                 if (yieldPointTask == null)
                     throw new YieldPointException($"Yield point is required in controller {controllerPayload.Controller.GetType().Name} for converge method {convergeMethodName}");
 
@@ -354,7 +351,7 @@ namespace Tapeti.Flow.Default
                 public object Message { get; }
                 public ResponseHandlerInfo ResponseHandlerInfo { get; }
 
-                
+
                 public RequestInfo(object message, ResponseHandlerInfo responseHandlerInfo)
                 {
                     Message = message;

@@ -1,0 +1,5 @@
+.. rubric:: Tapeti core
+  :heading-level: 2
+
+* | Fixed NullReferenceException on shutdown when an obsolete queue is no longer present
+* | Fixed PrefetchCount being incorrectly applied to the publish channel instead of the consume channel, resulting in all messages on the queue being consumed simultaniously
