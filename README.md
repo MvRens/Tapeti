@@ -51,13 +51,13 @@ The documentation for Tapeti is available on Read the Docs:
 ## Related repositories
 Parts of Tapeti have been split into their own repository. This allows them to have their own version numbers which increases compatibility between shared message packages when services use different Tapeti versions.
 
- - [Tapeti.Annotations](https://github.com/MvRens/Tapeti.Annotations)
+ - [Tapeti.Annotations](https://codeberg.org/Tapeti/Tapeti.Annotations)
  annotations used in message classes, like [Request]
 
- - [Tapeti.DataAnnotations.Extensions](https://github.com/MvRens/Tapet.DataAnnotations.Extensions)
+ - [Tapeti.DataAnnotations.Extensions](https://codeberg.org/Tapeti/Tapet.DataAnnotations.Extensions)
  generic data annotation attributes useful in messages, like the [RequiredGuid] attribute
 
- - [Tapeti.Cmd](https://github.com/MvRens/Tapeti.Cmd)
+ - [Tapeti.Cmd](https://codeberg.org/Tapeti/Tapeti.Cmd)
  the standalone tool to manage RabbitMQ messages and queues, focused on Tapeti-compatible messages
 
 ## Builds
@@ -70,4 +70,4 @@ Latest build
 [![Build status](https://ci.appveyor.com/api/projects/status/cyuo0vm7admy0d9x?svg=true)](https://ci.appveyor.com/project/MvRens/tapeti)
 
 ## Contributing
-By contributing to Tapeti's main repository (https://github.com/MvRens/Tapeti) you agree to dedicate your code-base contributions to the public domain under the Unlicense license.
+By contributing to Tapeti's main repository (https://codeberg.org/Tapeti/Tapeti) you agree to dedicate your code-base contributions to the public domain under the Unlicense license.

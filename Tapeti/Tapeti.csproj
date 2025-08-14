@@ -9,7 +9,7 @@
     <Description>Controller-based framework for RabbitMQ microservice architectures</Description>
     <PackageTags>rabbitmq tapeti</PackageTags>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
+    <PackageProjectUrl>https://codeberg.org/Tapeti/Tapeti</PackageProjectUrl>
     <PackageIcon>Tapeti.png</PackageIcon>
     <Nullable>enable</Nullable>
     <DefineConstants>JETBRAINS_ANNOTATIONS</DefineConstants>

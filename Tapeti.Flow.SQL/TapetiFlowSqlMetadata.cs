@@ -20,7 +20,7 @@ namespace Tapeti.Flow.SQL
     /// </summary>
     /// <remarks>
     /// Assumes the default table names. For customized table names, run your own modified versions of the scripts
-    /// as found at <see href="https://github.com/MvRens/Tapeti/tree/develop/Tapeti.Flow.SQL/scripts"/>.
+    /// as found at <see href="https://codeberg.org/Tapeti/Tapeti/tree/develop/Tapeti.Flow.SQL/scripts"/>.
     /// </remarks>
     public static class TapetiFlowSqlMetadata
     {

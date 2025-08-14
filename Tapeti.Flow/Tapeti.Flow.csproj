@@ -8,7 +8,7 @@
     <Description></Description>
     <PackageTags>rabbitmq tapeti flow</PackageTags>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/MvRens/Tapeti</PackageProjectUrl>
+	<PackageProjectUrl>https://codeberg.org/Tapeti/Tapeti</PackageProjectUrl>
     <PackageIcon>Tapeti.Flow.png</PackageIcon>
     <Version>2.0.0</Version>
     <Nullable>enable</Nullable>
