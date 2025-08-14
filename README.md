@@ -54,7 +54,7 @@ Parts of Tapeti have been split into their own repository. This allows them to h
  - [Tapeti.Annotations](https://codeberg.org/Tapeti/Tapeti.Annotations)
  annotations used in message classes, like [Request]
 
- - [Tapeti.DataAnnotations.Extensions](https://codeberg.org/Tapeti/Tapet.DataAnnotations.Extensions)
+ - [Tapeti.DataAnnotations.Extensions](https://codeberg.org/Tapeti/Tapeti.DataAnnotations.Extensions)
  generic data annotation attributes useful in messages, like the [RequiredGuid] attribute
 
  - [Tapeti.Cmd](https://codeberg.org/Tapeti/Tapeti.Cmd)
