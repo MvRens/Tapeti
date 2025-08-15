@@ -1,3 +1,5 @@
+> [!WARNING]
+> This project's development has moved to CodeBerg (https://codeberg.org/Tapeti/Tapeti)
 
 ## Introduction
 Tapeti is a wrapper for the RabbitMQ .NET Client designed for long-running microservices. It’s main goal is to minimize the amount of messaging code required, and instead focus on the higher-level flow.
